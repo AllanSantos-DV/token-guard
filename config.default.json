@@ -1,0 +1,36 @@
+{
+  "$comment": "token-guard — copie para a raiz do repositório como token-guard.config.json e ajuste. Tudo é opcional: o que você omitir usa o default embutido.",
+
+  "version": 1,
+
+  "$comment_mode": "block = nega e injeta a correção · warn = pede confirmação mostrando a correção · off = desliga. Sugestão de adoção: comece em warn por uma sprint, depois vire block.",
+  "mode": "block",
+
+  "charsPerToken": 4,
+  "contextWindow": 200000,
+
+  "$comment_rules": "Desligue individualmente qualquer regra que não faça sentido no seu contexto.",
+  "rules": {
+    "noisePath": true,
+    "blindRead": true,
+    "broadScan": true,
+    "shellDump": true
+  },
+
+  "limits": {
+    "$comment_read": "Acima deste tamanho, ler um arquivo sem faixa de linhas é barrado. 51200 = 50 KB ≈ 12,8 k tokens.",
+    "readBytesWithoutRange": 51200,
+
+    "$comment_scan": "Repositórios menores que isto ficam livres dos guards de varredura: o custo é irrelevante.",
+    "minRepoFilesForScanGuard": 400
+  },
+
+  "$comment_noise": "ADITIVO: noiseDirsExtra soma aos defaults. Use noiseDirs (sem Extra) só se quiser SUBSTITUIR a lista inteira.",
+  "noiseDirsExtra": [],
+
+  "$comment_source": "ADITIVO: extensões extras a contar como código-fonte na auditoria.",
+  "sourceExtExtra": [],
+
+  "$comment_allowlist": "Substrings de caminho sempre liberadas, mesmo dentro de diretório de ruído.",
+  "allowlist": []
+}

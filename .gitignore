@@ -1,0 +1,26 @@
+# token-guard: cache de estatísticas (regenerável)
+.token-guard/
+
+# dependências (o projeto é zero-dependency, mas ferramentas locais podem criar)
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# config local do usuário — nunca deve viajar no git
+token-guard.config.json
+
+# artefatos de editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# saídas temporárias
+*.log
+tmp/
+temp/
+dist/
+out/
+coverage/

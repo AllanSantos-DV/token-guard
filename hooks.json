@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "$comment": "O matcher evita o custo de spawn nas ferramentas que nunca seriam barradas (edit, create, git, PR). Sem ele, TODA chamada pagaria o cold start do Node. E deliberadamente permissivo: casa por substring, entao variantes desconhecidas de harness continuam entrando no guard.",
+        "matcher": "(?:view|read|grep|glob|search|list_dir|list_files|list_directory|bash|shell|powershell|pwsh|terminal|run_command|execute_command|find_files|cat_file|open_file|ripgrep)",
+        "type": "command",
+        "command": "node .github/token-guard/token-guard.cjs",
+        "timeout": 10
+      }
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 20, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Núcleo — bateria contra o hook real
+        run: node selftest.cjs
+
+      - name: Adapters — Cursor e MCP
+        run: node test/adapters.test.cjs
+
+      - name: Instalação — simulação em todos os alvos
+        run: node install.cjs --target all --dry-run
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Auditoria do próprio repositório
+        run: node token-audit.cjs --md

@@ -1,0 +1,133 @@
+#!/usr/bin/env node
+'use strict';
+/**
+ * selftest.cjs — bateria de casos contra o hook real.
+ *
+ *   node selftest.cjs
+ *
+ * Cada caso monta um payload no formato de um runtime diferente, executa
+ * token-guard.cjs como processo (exatamente como o harness faz) e confere
+ * se a decisão foi a esperada. Sem dependências, sem framework.
+ */
+
+const { spawnSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+
+const GUARD = path.join(__dirname, 'token-guard.cjs');
+
+/* ---------- fixtures em disco ---------- */
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-selftest-'));
+const BIG = path.join(TMP, 'BigService.java');
+const SMALL = path.join(TMP, 'Small.java');
+fs.writeFileSync(BIG, 'x'.repeat(120000), 'utf8');
+fs.writeFileSync(SMALL, 'x'.repeat(800), 'utf8');
+
+// stats fingidas: repositório grande, para os guards de varredura valerem
+fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
+fs.writeFileSync(
+  path.join(TMP, '.token-guard', 'repo-stats.json'),
+  JSON.stringify({ totalFiles: 215112, pathChars: 26726490 }),
+  'utf8'
+);
+
+function run(payload, env) {
+  const res = spawnSync(process.execPath, [GUARD], {
+    input: JSON.stringify(payload),
+    encoding: 'utf8',
+    env: { ...process.env, ...(env || {}) },
+    timeout: 15000,
+  });
+  const out = (res.stdout || '').trim();
+  if (!out) return { decision: 'allow', reason: '' };
+  try {
+    const j = JSON.parse(out);
+    return {
+      decision: j.hookSpecificOutput?.permissionDecision || 'allow',
+      reason: j.hookSpecificOutput?.permissionDecisionReason || '',
+    };
+  } catch {
+    return { decision: 'parse-error', reason: out };
+  }
+}
+
+/* payloads nos 3 formatos de runtime */
+const vscode = (toolName, input) => ({ toolCall: { toolName, input }, cwd: TMP });
+const claude = (tool_name, tool_input) => ({ tool_name, tool_input, cwd: TMP });
+const legacy = (toolName, toolInput) => ({ toolName, toolInput, cwd: TMP });
+
+const CASES = [
+  // ---- deve BLOQUEAR ----
+  ['deny', 'glob "**/*" sem escopo (VS Code)',        vscode('glob', { pattern: '**/*' }), 'broadScan'],
+  ['deny', 'glob "**" sem escopo (Claude)',           claude('Glob', { pattern: '**' }), 'broadScan'],
+  ['deny', 'file_search sem escopo (legado)',         legacy('file_search', { query: '*' }), 'broadScan'],
+  ['deny', 'leitura de 117 KB sem faixa',             vscode('view', { path: BIG }), 'blindRead'],
+  ['deny', 'read_file grande sem faixa (Claude)',     claude('Read', { file_path: BIG }), 'blindRead'],
+  ['deny', 'caminho em node_modules',                 vscode('view', { path: path.join(TMP, 'node_modules', 'x', 'i.js') }), 'noisePath'],
+  ['deny', 'caminho em target',                       claude('Read', { file_path: 'C:/repo/target/classes/A.class' }), 'noisePath'],
+  ['deny', 'Get-ChildItem -Recurse sem limite',       vscode('powershell', { command: 'Get-ChildItem -Recurse' }), 'shellDump'],
+  ['deny', 'ls -R sem limite (Claude)',               claude('Bash', { command: 'ls -R /repo' }), 'shellDump'],
+  ['deny', 'grep -r no shell',                        vscode('run_in_terminal', { command: 'grep -r TODO .' }), 'shellDump'],
+  ['deny', 'grep content sem teto nem filtro',        vscode('grep', { pattern: 'Service', output_mode: 'content' }), 'broadScan'],
+
+  // ---- deve LIBERAR ----
+  ['allow', 'glob com extensão',                      vscode('glob', { pattern: '**/*.java' }), null],
+  ['allow', 'glob ancorado em diretório',             vscode('glob', { pattern: 'src/main/**' }), null],
+  ['allow', 'glob amplo mas com paths',               vscode('glob', { pattern: '**/*', paths: ['src'] }), null],
+  ['allow', 'leitura com faixa de linhas',            vscode('view', { path: BIG, view_range: [40, 90] }), null],
+  ['allow', 'leitura com offset/limit',               claude('Read', { file_path: BIG, offset: 10, limit: 60 }), null],
+  ['allow', 'arquivo pequeno inteiro',                vscode('view', { path: SMALL }), null],
+  ['allow', 'grep files_with_matches (barato)',       vscode('grep', { pattern: 'Service' }), null],
+  ['allow', 'grep content com head_limit',            vscode('grep', { pattern: 'Service', output_mode: 'content', head_limit: 40 }), null],
+  ['allow', 'grep content com filtro glob',           vscode('grep', { pattern: 'Service', output_mode: 'content', glob: '*.java' }), null],
+  ['allow', 'Get-ChildItem -Recurse com -First',      vscode('powershell', { command: 'Get-ChildItem -Recurse | Select-Object -First 50' }), null],
+  ['allow', 'find com -name',                         claude('Bash', { command: 'find . -name "*.java"' }), null],
+  ['allow', 'ferramenta fora das famílias',           vscode('create_pull_request', { title: 'x' }), null],
+  ['allow', 'payload vazio',                          {}, null],
+];
+
+let pass = 0, fail = 0;
+const failures = [];
+
+console.log('\n  token-guard · selftest');
+console.log('  ' + '─'.repeat(72));
+
+for (const [expected, label, payload, expectRule] of CASES) {
+  const { decision, reason } = run(payload);
+  const ok = decision === expected && (!expectRule || reason.includes(expectRule));
+  if (ok) { pass++; console.log(`  ok    ${label}`); }
+  else {
+    fail++;
+    failures.push({ label, expected, got: decision, expectRule, reason: reason.slice(0, 220) });
+    console.log(`  FALHA ${label}  (esperado ${expected}${expectRule ? '/' + expectRule : ''}, obteve ${decision})`);
+  }
+}
+
+/* escape hatches */
+console.log('  ' + '─'.repeat(72));
+const off = run(vscode('glob', { pattern: '**/*' }), { TOKEN_GUARD: 'off' });
+if (off.decision === 'allow') { pass++; console.log('  ok    TOKEN_GUARD=off libera tudo'); }
+else { fail++; failures.push({ label: 'TOKEN_GUARD=off', expected: 'allow', got: off.decision }); console.log('  FALHA TOKEN_GUARD=off'); }
+
+const warn = run(vscode('glob', { pattern: '**/*' }), { TOKEN_GUARD: 'warn' });
+if (warn.decision === 'ask') { pass++; console.log('  ok    TOKEN_GUARD=warn vira "ask" e mantém a correção'); }
+else { fail++; failures.push({ label: 'TOKEN_GUARD=warn', expected: 'ask', got: warn.decision }); console.log('  FALHA TOKEN_GUARD=warn'); }
+
+/* a mensagem realmente ensina? */
+const sample = run(vscode('glob', { pattern: '**/*' }));
+const teaches = /DO THIS INSTEAD/.test(sample.reason) && /PT-BR/.test(sample.reason);
+if (teaches) { pass++; console.log('  ok    o bloqueio injeta a correção (EN + PT-BR)'); }
+else { fail++; failures.push({ label: 'mensagem corretiva', reason: sample.reason.slice(0, 200) }); console.log('  FALHA mensagem corretiva ausente'); }
+
+console.log('  ' + '─'.repeat(72));
+console.log(`  ${pass} passaram · ${fail} falharam\n`);
+
+if (fail) {
+  console.log('  DETALHE DAS FALHAS');
+  for (const f of failures) console.log('  · ' + JSON.stringify(f, null, 2).replace(/\n/g, '\n    '));
+  console.log('');
+}
+
+try { fs.rmSync(TMP, { recursive: true, force: true }); } catch { /* noop */ }
+process.exit(fail ? 1 : 0);

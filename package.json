@@ -1,0 +1,66 @@
+{
+  "name": "token-guard",
+  "version": "2.0.0",
+  "description": "Economia de contexto para agentes de IA, agnóstico de IDE: mede o custo real do repositório em tokens e barra as chamadas que estouram a janela, sempre devolvendo a alternativa barata. Adapters para Copilot CLI, Claude Code, Cursor e MCP.",
+  "bin": {
+    "token-guard": "./cli.cjs"
+  },
+  "main": "./lib/decide.cjs",
+  "exports": {
+    ".": "./lib/decide.cjs",
+    "./decide": "./lib/decide.cjs",
+    "./payload": "./lib/payload.cjs",
+    "./config": "./lib/config.cjs",
+    "./audit": "./lib/audit.cjs"
+  },
+  "type": "commonjs",
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "test": "node selftest.cjs && node test/adapters.test.cjs",
+    "test:core": "node selftest.cjs",
+    "test:adapters": "node test/adapters.test.cjs",
+    "audit": "node token-audit.cjs",
+    "status": "node cli.cjs status"
+  },
+  "files": [
+    "cli.cjs",
+    "install.cjs",
+    "token-audit.cjs",
+    "token-guard.cjs",
+    "selftest.cjs",
+    "extension.mjs",
+    "plugin.json",
+    "hooks.json",
+    "config.default.json",
+    "lib/",
+    "adapters/",
+    "agents/",
+    "skills/",
+    "docs/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "tokens",
+    "context",
+    "copilot",
+    "claude-code",
+    "cursor",
+    "mcp",
+    "ai-agents",
+    "guardrails",
+    "cost"
+  ],
+  "author": "Allan Santos",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AllanSantos-DV/token-guard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AllanSantos-DV/token-guard/issues"
+  },
+  "homepage": "https://github.com/AllanSantos-DV/token-guard#readme"
+}
