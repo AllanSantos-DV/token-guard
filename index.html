@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>token-guard · economia de contexto para agentes de IA</title>
+<meta name="description" content="Kit IDE-agnóstico que mede o custo real do seu repositório em tokens e barra as chamadas que estouram a janela — devolvendo sempre a alternativa barata. Zero dependências.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F5EF;
+  --paper-line:#DDE0D3;
+  --ink:#171A1F;
+  --ink-soft:#565B54;
+  --pass:#1E7F4F;
+  --deny:#C2402A;
+  --warn:#B7791F;
+  --card:#FCFCF8;
+  --edge:#C9CCBC;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+body{
+  background:
+    linear-gradient(var(--paper-line) 1px, transparent 1px) 0 -0.5px/100% 28px,
+    linear-gradient(90deg, var(--paper-line) 1px, transparent 1px) -0.5px 0/28px 100%,
+    var(--paper);
+  color:var(--ink);
+  font-family:"Archivo",sans-serif;
+  font-size:17px;line-height:1.55;
+}
+::selection{background:var(--ink);color:var(--paper)}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--deny);outline-offset:2px}
+.mono{font-family:"IBM Plex Mono",monospace}
+
+header{
+  position:sticky;top:0;z-index:10;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 5vw;
+  background:color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter:blur(6px);
+  border-bottom:1.5px solid var(--ink);
+}
+.wordmark{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:18px;text-decoration:none}
+.wordmark span{background:var(--ink);color:var(--paper);padding:0 6px;margin-right:2px}
+nav{display:flex;gap:26px;font-family:"IBM Plex Mono",monospace;font-size:13px}
+nav a{text-decoration:none;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em}
+nav a:hover{color:var(--deny)}
+@media(max-width:760px){nav{display:none}}
+
+section{padding:72px 5vw;max-width:1180px;margin:0 auto}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--deny);margin-bottom:18px;
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow::after{content:"";flex:0 0 64px;height:1.5px;background:var(--ink)}
+h2{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:clamp(24px,3.4vw,36px);letter-spacing:-1px;line-height:1.12;margin-bottom:14px}
+
+.hero{display:grid;grid-template-columns:minmax(300px,44%) 1fr;gap:48px;align-items:center;padding-top:84px}
+.hero h1{
+  font-family:"IBM Plex Mono",monospace;font-weight:700;
+  font-size:clamp(30px,4.4vw,50px);line-height:1.08;letter-spacing:-2px;
+}
+.hero h1 em{font-style:normal;color:var(--deny)}
+.hero p.sub{margin:22px 0 30px;color:var(--ink-soft);max-width:46ch;font-size:18px}
+.ctas{display:flex;gap:14px;flex-wrap:wrap}
+.btn{
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:15px;
+  text-decoration:none;padding:12px 20px;border:1.5px solid var(--ink);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--ink)}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn.primary:hover{box-shadow:4px 4px 0 var(--deny)}
+.meta-line{margin-top:26px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft)}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+
+.meter-card{
+  border:2px solid var(--ink);background:var(--card);
+  box-shadow:8px 8px 0 rgba(23,26,31,.85);
+  padding:22px;
+}
+.meter-head{display:flex;justify-content:space-between;align-items:baseline;font-family:"IBM Plex Mono",monospace;font-size:13px;border-bottom:1.5px solid var(--ink);padding-bottom:10px;margin-bottom:16px}
+.window{position:relative;height:56px;display:flex;gap:3px;background:repeating-linear-gradient(-45deg,#EEEFE6 0 6px,#F6F7F0 6px 12px);border:1.5px solid var(--ink);overflow:hidden}
+.seg{flex:1;transition:opacity .35s ease}
+.seg.waste{background:repeating-linear-gradient(-45deg,var(--deny) 0 7px,#8F2E1C 7px 14px)}
+.verdict{
+  min-height:110px;margin-top:16px;border:1.5px dashed var(--edge);
+  padding:14px 16px;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.55;
+  white-space:pre-wrap;
+}
+.verdict .tag{font-weight:700;padding:1px 7px;color:#fff;display:inline-block;margin-bottom:8px}
+.verdict.deny{border-color:var(--deny)} .verdict.deny .tag{background:var(--deny)}
+.verdict.pass{border-color:var(--pass)} .verdict.pass .tag{background:var(--pass)}
+.triggers{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.trigger{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;cursor:pointer;
+  border:1.5px solid var(--ink);background:transparent;padding:7px 11px;
+  transition:all .12s ease;
+}
+.trigger:hover,.trigger.active{background:var(--ink);color:var(--paper)}
+.trigger.active{background:var(--deny);border-color:var(--deny)}
+
+.term{
+  background:#191C21;color:#D8DBD2;border:2px solid var(--ink);
+  font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.62;
+  padding:20px 24px;overflow-x:auto;box-shadow:8px 8px 0 rgba(23,26,31,.15);
+}
+.term .p{color:#7FB069}.term .dim{color:#8B9088}.term .hot{color:#FF9B71;font-weight:600}
+.problem-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+@media(max-width:900px){.problem-grid{grid-template-columns:1fr}}
+.problem-grid p{color:var(--ink-soft);margin-top:8px}
+.big-num{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:clamp(52px,7vw,88px);letter-spacing:-4px;line-height:1;color:var(--ink)}
+.big-num small{font-size:.32em;letter-spacing:0;font-weight:500;color:var(--ink-soft)}
+
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:22px}
+.card{border:1.5px solid var(--ink);background:var(--card);padding:22px}
+.card h3{font-family:"IBM Plex Mono",monospace;font-size:16px;margin-bottom:10px}
+.card h3 code{background:var(--ink);color:var(--paper);padding:2px 8px;font-size:13.5px}
+.card p{font-size:15px;color:var(--ink-soft)}
+.ex{margin-top:14px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.75}
+.ex .no{color:var(--deny)}.ex .yes{color:var(--pass)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:22px}
+.stat{border-left:3px solid var(--deny);padding:6px 0 6px 18px}
+.stat b{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:clamp(32px,4vw,48px);letter-spacing:-2px;display:block;line-height:1.05}
+.stat span{font-size:14.5px;color:var(--ink-soft)}
+.src{margin-top:26px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-soft)}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:11px 14px;border:1px solid var(--edge)}
+th{font-family:"IBM Plex Mono",monospace;font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;background:var(--ink);color:var(--paper)}
+.yes{color:var(--pass);font-weight:600}.no{color:var(--deny);font-weight:600}
+.tablewrap{overflow-x:auto;border:1.5px solid var(--ink);background:var(--card)}
+
+.inst{display:grid;gap:14px;max-width:720px}
+.cmd{display:flex;align-items:center;gap:14px;background:var(--card);border:1.5px solid var(--ink);padding:14px 18px}
+.cmd code{font-family:"IBM Plex Mono",monospace;font-size:14px;flex:1;overflow-x:auto;white-space:nowrap}
+.cmd .n{font-family:"IBM Plex Mono",monospace;color:var(--deny);font-weight:700}
+.copy{font-family:"IBM Plex Mono",monospace;font-size:12px;border:1.5px solid var(--ink);background:transparent;cursor:pointer;padding:6px 10px}
+.copy:hover{background:var(--ink);color:var(--paper)}
+
+.principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:22px}
+.pr{border-top:2px solid var(--ink);padding-top:16px}
+.pr b{font-family:"IBM Plex Mono",monospace;display:block;margin-bottom:8px}
+.pr p{font-size:15px;color:var(--ink-soft)}
+
+footer{
+  border-top:1.5px solid var(--ink);padding:34px 5vw;
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-soft);
+}
+footer a{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="wordmark" href="#"><span>&#9646;</span>token-guard</a>
+  <nav>
+    <a href="#problema">o problema</a>
+    <a href="#regras">as regras</a>
+    <a href="#numeros">n&uacute;meros</a>
+    <a href="#ides">ides</a>
+    <a href="#install">instalar</a>
+  </nav>
+  <a class="mono" style="font-size:13px" href="https://github.com/AllanSantos-DV/token-guard">GitHub &#8599;</a>
+</header>
+
+
+<main>
+
+<!-- ============ HERO + MEDIDOR ============ -->
+<section class="hero">
+  <div>
+    <div class="eyebrow">economia de contexto &middot; ide-agn&oacute;stico</div>
+    <h1>A janela de contexto do seu agente <em>n&atilde;o</em> &eacute; lixeira.</h1>
+    <p class="sub">
+      O token-guard mede o custo real do reposit&oacute;rio em tokens e barra as chamadas que
+      estouram a janela &mdash; varredura sem escopo, leitura cega de arquivo grande,
+      acesso a <span class="mono">node_modules</span>, dump de &aacute;rvore no shell.
+      Todo bloqueio devolve a alternativa barata, pronta para reexecutar: nunca um deny cego.
+    </p>
+    <div class="ctas">
+      <a class="btn primary" href="#install">Instalar em 3 comandos</a>
+      <a class="btn" href="https://github.com/AllanSantos-DV/token-guard">C&oacute;digo-fonte</a>
+    </div>
+    <p class="meta-line">zero depend&ecirc;ncias &middot; node 16+ &middot; copilot &middot; claude code &middot; cursor &middot; mcp</p>
+  </div>
+
+  <div class="meter-card" aria-label="Demonstra&ccedil;&atilde;o interativa do guard">
+    <div class="meter-head">
+      <b>medidor de janela</b>
+      <span>janela de refer&ecirc;ncia: 200k tokens</span>
+    </div>
+    <div class="window" id="window" aria-hidden="true"></div>
+    <div class="triggers" role="group" aria-label="Dispare uma chamada t&iacute;pica de agente">
+      <button class="trigger" data-i="0">glob "**/*"</button>
+      <button class="trigger" data-i="1">Read arquivo de 200KB</button>
+      <button class="trigger" data-i="2">Read node_modules/x.js</button>
+      <button class="trigger" data-i="3">ls -R /</button>
+      <button class="trigger" data-i="4">grep com head_limit</button>
+    </div>
+    <div class="verdict" id="verdict"><span class="tag" style="background:#565B54">AGUARDANDO</span>
+Dispare uma chamada t&iacute;pica de agente e veja o veredito.</div>
+    <p class="meter-note">Vereditos reais do n&uacute;cleo de decis&atilde;o &mdash; as mesmas regras que rodam no seu harness.</p>
+  </div>
+</section>
+
+<!-- ============ PROBLEMA ============ -->
+<section id="problema">
+  <div class="eyebrow">o problema, em um n&uacute;mero</div>
+  <div class="problem-grid">
+    <div>
+      <div class="big-num">26,7M<small>&nbsp;caracteres</small></div>
+      <p>
+        &Eacute; quanto custa <strong>s&oacute; a lista dos nomes dos arquivos</strong> de um monorepo
+        de 215 mil &mdash; antes do agente ler uma linha de c&oacute;digo. A janela &eacute; fixa;
+        o reposit&oacute;rio n&atilde;o. Por isso <strong>a sele&ccedil;&atilde;o do que entra &eacute; a arquitetura</strong>,
+        e &eacute; exatamente ela que este kit governa.
+      </p>
+    </div>
+    <div class="term">
+<span class="p">$</span> node token-audit.cjs /monorepo
+
+<span class="dim">215.112 arquivos &middot; varridos em 3,2s</span>
+
+CAMADA             ARQUIVOS   VOLUME   JANELAS
+Tudo em disco       215.112    8,4 GB   <span class="hot">10.512</span>
+Sem ru&iacute;do           48.203    1,9 GB   <span class="hot">2.380</span>
+S&oacute; c&oacute;digo-fonte     31.877    1,1 GB   <span class="hot">1.375</span>
+<span class="hot">S&oacute; a lista de caminhos        26,7 MB      33</span>
+
+GANHO IMEDIATO &mdash; descartando build/deps:
+&minus;166.909 arquivos (&minus;77%) &middot; custo: nenhum. &Eacute; configura&ccedil;&atilde;o.
+    </div>
+  </div>
+</section>
+
+<!-- ============ REGRAS ============ -->
+<section id="regras">
+  <div class="eyebrow">o que entra na conta</div>
+  <h2>Cinco regras. Cada bloqueio ensina.</h2>
+  <div class="rules">
+    <div class="card">
+      <h3><code>broadScan</code></h3>
+      <p>Varredura sem escopo devolve a lista de caminhos de todo o repo. O custo n&atilde;o &eacute; a busca &mdash; &eacute; a sa&iacute;da.</p>
+      <div class="ex">
+        <span class="no">&#10007; glob "**/*"</span><br>
+        <span class="yes">&#10003; glob "**/*.java"</span><br>
+        <span class="yes">&#10003; glob com paths=["src/main"]</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><code>blindRead</code></h3>
+      <p>Ler um arquivo grande inteiro para usar 20 linhas. Acima de 50KB, pe&ccedil;a a faixa.</p>
+      <div class="ex">
+        <span class="no">&#10007; Read arquivo de 200KB sem faixa</span><br>
+        <span class="yes">&#10003; Read com view_range [40, 90]</span><br>
+        <span class="yes">&#10003; arquivo pequeno inteiro</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><code>noisePath</code></h3>
+      <p>node_modules, target, dist, .git s&atilde;o artefato: leia a fonte que os produz, nunca o artefato.</p>
+      <div class="ex">
+        <span class="no">&#10007; Read node_modules/pkg/index.js</span><br>
+        <span class="yes">&#10003; allowlist para o caso leg&iacute;timo</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><code>shellDump</code></h3>
+      <p>O shell &eacute; a porta dos fundos: um comando despeja a &aacute;rvore inteira e cada linha &eacute; faturada.</p>
+      <div class="ex">
+        <span class="no">&#10007; Get-ChildItem -Recurse / ls -R / rg --files</span><br>
+        <span class="yes">&#10003; "| Select-Object -First 50"</span><br>
+        <span class="yes">&#10003; grep -rn TODO src/ (escopado)</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><code>bigResult</code> <small style="color:var(--ink-soft)">(p&oacute;s-execu&ccedil;&atilde;o)</small></h3>
+      <p>Resultado leg&iacute;timo que se revela gigante? Vira stub com preview; a vers&atilde;o integral vai para o disco e a dica junto.</p>
+      <div class="ex">
+        <span class="no">&#10007; 200KB de matches na janela</span><br>
+        <span class="yes">&#10003; preview + .token-guard/results/ + "refa&ccedil;a com head_limit"</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NÚMEROS ============ -->
+<section id="numeros">
+  <div class="eyebrow">medido, n&atilde;o prometido</div>
+  <h2>A economia tem n&uacute;mero pr&oacute;prio.</h2>
+  <div class="stats">
+    <div class="stat"><b>437k tok</b><span>economia l&iacute;quida estimada no replay de 65 sess&otilde;es REAIS (8.197 chamadas hist&oacute;ricas)</span></div>
+    <div class="stat"><b>85–205k tok</b><span>por sess&atilde;o na simula&ccedil;&atilde;o param&eacute;trica (repo de 215 mil arquivos), conforme o agente aprende r&aacute;pido ou repete o erro</span></div>
+    <div class="stat"><b>28 / 103</b><span>denies leg&iacute;timos ap&oacute;s a auditoria de falsos positivos do replay — cada bloqueio paga o pr&oacute;prio custo at&eacute; ~94% de FP</span></div>
+    <div class="stat"><b>0,15 ms</b><span>por chamada no modo plugin in-process — quase todo o custo do modo comando &eacute; o runtime, n&atilde;o o guard</span></div>
+  </div>
+  <p class="src">Fontes: bench/replay-transcripts.cjs (replay real) &middot; bench/savings.cjs (simula&ccedil;&atilde;o com premissas declaradas) &middot; bench/latency.cjs (me&ccedil;a na sua m&aacute;quina). Limita&ccedil;&otilde;es declaradas na documenta&ccedil;&atilde;o.</p>
+</section>
+
+<!-- ============ IDES ============ -->
+<section id="ides">
+  <div class="eyebrow">cobertura real por ide</div>
+  <h2>Onde bloqueia, onde orienta. Sem maquiagem.</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Harness</th><th>Mecanismo</th><th>Bloqueia?</th><th>Cobre</th></tr></thead>
+    <tbody>
+      <tr><td>Copilot CLI / App</td><td>extens&atilde;o in-process</td><td class="yes">sim</td><td>4 regras + bigResult real</td></tr>
+      <tr><td>Claude Code</td><td>PreToolUse + PostToolUse + UserPromptSubmit</td><td class="yes">sim</td><td>4 regras + contrato injetado + bigResult*<br><small style="color:var(--ink-soft)">*substitui&ccedil;&atilde;o real no Claude Code &ge; 2.1.121</small></td></tr>
+      <tr><td>Cursor (IDE recente)</td><td>preToolUse gen&eacute;rico + eventos nomeados</td><td class="yes">sim</td><td>todas as 4 regras</td></tr>
+      <tr><td>VS Code / Windsurf / Zed / JetBrains</td><td>MCP server</td><td class="no">orienta</td><td>token_audit · token_guard_check · mcp-cost</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============ INSTALL ============ -->
+<section id="install">
+  <div class="eyebrow">instala&ccedil;&atilde;o</div>
+  <h2>Tr&ecirc;s comandos. Sem npm install.</h2>
+  <div class="inst">
+    <div class="cmd"><span class="n">01</span><code id="c1">npx token-guard audit</code><button class="copy" data-c="npx token-guard audit">copiar</button></div>
+    <div class="cmd"><span class="n">02</span><code id="c2">npx token-guard init --target all --mode warn</code><button class="copy" data-c="npx token-guard init --target all --mode warn">copiar</button></div>
+    <div class="cmd"><span class="n">03</span><code id="c3">npx token-guard test</code><button class="copy" data-c="npx token-guard test">copiar</button></div>
+  </div>
+  <p class="src">Alvos: copilot · claude · cursor · mcp · repo (viaja no git). Emerg&ecirc;ncia: TOKEN_GUARD=off.</p>
+</section>
+
+<!-- ============ PRINCÍPIOS ============ -->
+<section>
+  <div class="eyebrow">princ&iacute;pios inegoci&aacute;veis</div>
+  <div class="principles">
+    <div class="pr"><b>Nunca um deny cego</b><p>Todo bloqueio devolve a alternativa barata, pronta para reexecutar. Um guard que s&oacute; diz "n&atilde;o" transfere o problema para a pessoa.</p></div>
+    <div class="pr"><b>Fail-open, sempre</b><p>Regra quebrada, payload hostil, config corrompida: tudo resulta em liberar. Um guard de economia jamais derruba a sess&atilde;o que deveria baratear.</p></div>
+    <div class="pr"><b>Zero depend&ecirc;ncias</b><p>S&oacute; Node stdlib — para rodar dentro de harness empacotado e em m&aacute;quina corporativa sem npm install.</p></div>
+    <div class="pr"><b>Declara o pr&oacute;prio custo</b><p>Lat&ecirc;ncia medida e reproduz&iacute;vel por bench; economia com premissas declaradas e limita&ccedil;&otilde;es honestas na documenta&ccedil;&atilde;o.</p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <span>token-guard v2.2.0 &middot; MIT &middot; Allan Santos</span>
+  <span>
+    <a href="https://github.com/AllanSantos-DV/token-guard">github</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/blob/main/README.md">readme</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/tree/main/docs">docs</a>
+  </span>
+</footer>
+
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- medidor interativo ---------- */
+  var WINDOW_SEGS = 24;
+  var win = document.getElementById("window");
+  for (var i = 0; i < WINDOW_SEGS; i++) {
+    var s = document.createElement("div");
+    s.className = "seg";
+    win.appendChild(s);
+  }
+  var segs = win.querySelectorAll(".seg");
+  var verdictBox = document.getElementById("verdict");
+
+  var CASES = [
+    {
+      label: 'glob "**/*"',
+      deny: true,
+      rule: "broadScan",
+      msg: 'o padr\u00e3o "**/*" \u00e9 ilimitado em amplitude e tipo: devolve o caminho de ~215.112 arquivos.\nFA\u00c7A ISTO: limite por tipo ("**/*.java"), por diret\u00f3rio (paths=["src"]) ou por nome ("**/*Service*").',
+      cost: 18
+    },
+    {
+      label: "Read arquivo de 200KB",
+      deny: true,
+      rule: "blindRead",
+      msg: '"BigService.java" tem 200 KB (~51k tokens, 25% da janela) e foi pedido sem faixa de linhas.\nFA\u00c7A ISTO: localize com uma busca restrita e releia a faixa relevante (40\u201380 linhas bastam).',
+      cost: 12
+    },
+    {
+      label: "Read node_modules/x.js",
+      deny: true,
+      rule: "noisePath",
+      msg: 'o caminho cruza "node_modules", diret\u00f3rio de depend\u00eancia.\nFA\u00c7A ISTO: leia a fonte que produz o artefato, ou a declara\u00e7\u00e3o de tipos com um range. Caso leg\u00edtimo? allowlist.',
+      cost: 8
+    },
+    {
+      label: "ls -R /",
+      deny: true,
+      rule: "shellDump",
+      msg: '"ls -R" percorre a \u00e1rvore sem filtro nem teto, e cada linha impressa vira contexto faturado.\nFA\u00c7A ISTO: use a ferramenta de busca do harness, ou filtre e limite ("| head -50").',
+      cost: 15
+    },
+    {
+      label: "grep com head_limit",
+      deny: false,
+      rule: null,
+      msg: "OK \u2014 busca em modo conte\u00fado COM teto de resultado e filtro: a sa\u00edda \u00e9 limitada por constru\u00e7\u00e3o.\nO scan \u00e9 barato; o que entra na janela \u00e9 o teto que voc\u00ea pediu.",
+      cost: 3
+    }
+  ];
+
+  function render(caseIdx) {
+    var c = CASES[caseIdx];
+
+    segs.forEach(function (seg) { seg.className = "seg"; });
+    // janela "usada" de base: system + tools do harness
+    var base = 4;
+    for (var b = 0; b < base && b < segs.length; b++) segs[b].classList.add("used");
+
+    if (c.deny) {
+      // o desperdício NÃO entra: mostra só o custo da alternativa barata
+      for (var w = base; w < base + 2 && w < segs.length; w++) segs[w].classList.add("used");
+    } else {
+      for (var u = base; u < base + c.cost / 4 && u < segs.length; u++) segs[u].classList.add("used");
+    }
+
+    verdictBox.className = "verdict " + (c.deny ? "deny" : "pass");
+    verdictBox.innerHTML =
+      '<span class="tag">' + (c.deny ? "DENY · " + c.rule : "ALLOW") + "</span>\n" +
+      document.createTextNode(c.msg).textContent;
+  }
+
+  var buttons = document.querySelectorAll(".trigger");
+  buttons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      buttons.forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      render(parseInt(btn.getAttribute("data-i"), 10));
+    });
+  });
+
+  /* ---------- copiar comandos ---------- */
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = btn.getAttribute("data-c");
+      function done() {
+        var old = btn.textContent;
+        btn.textContent = "copiado";
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, done);
+      } else { done(); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
