@@ -27,7 +27,22 @@ jobs:
       - name: Adapters — Cursor e MCP
         run: node test/adapters.test.cjs
 
-      - name: Instalação — simulação em todos os alvos
+      - name: MCP cost — handshake sintético
+        run: node test/mcp-cost.test.cjs
+
+      - name: Contrato — parsing, evidência e estado
+        run: node test/contract.test.cjs
+
+      - name: Instalação — idempotência, reparo e preservação
+        run: node test/install.test.cjs
+
+      - name: Economia — a promessa central, travada por teste
+        run: node test/savings.test.cjs
+
+      - name: Saída — bigResult e injeção de contrato
+        run: node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs
+
+      - name: Instalador — simulação em todos os alvos
         run: node install.cjs --target all --dry-run
 
   audit:

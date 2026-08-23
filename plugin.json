@@ -1,7 +1,7 @@
 {
   "name": "token-guard",
-  "version": "2.0.0",
-  "description": "Economia de contexto para agentes de IA, agnóstico de IDE. Mede o custo real do seu repositório em tokens e barra as chamadas que estouram a janela — varredura sem escopo, leitura cega de arquivo grande, acesso a diretório de build, dump de árvore no shell. Todo bloqueio devolve ao agente a alternativa barata, pronta para reexecutar: nunca um deny cego. Traz a ferramenta de auditoria, um sub-agente de investigação com contexto descartável e o procedimento em divulgação progressiva.",
+  "version": "2.1.0",
+  "description": "Economia de contexto para agentes de IA, agnóstico de IDE. Mede o custo real do seu repositório em tokens e barra as chamadas que estouram a janela — varredura sem escopo, leitura cega de arquivo grande, acesso a diretório de build, dump de árvore no shell. Todo bloqueio devolve ao agente a alternativa barata, pronta para reexecutar: nunca um deny cego. Traz a auditoria de contexto, o medidor de preâmbulo MCP, o contrato de saída por evidência, um sub-agente de investigação com contexto descartável e o procedimento em divulgação progressiva.",
   "author": {
     "name": "Allan Santos",
     "url": "https://github.com/AllanSantos-DV"
@@ -9,14 +9,21 @@
   "license": "MIT",
   "keywords": [
     "tokens",
+    "context",
     "contexto",
-    "economia",
+    "cost",
     "custo",
+    "economy",
+    "economia",
     "guardrails",
     "hooks",
+    "audit",
     "auditoria",
-    "performance",
-    "pt-BR"
+    "mcp",
+    "copilot",
+    "claude-code",
+    "cursor",
+    "ai-agents"
   ],
   "category": "productivity",
   "extensions": ["."]

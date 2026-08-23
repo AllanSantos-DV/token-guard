@@ -128,13 +128,13 @@ function copyFile(from, to, base, { overwrite = true } = {}) {
   log(existed ? 'update' : 'create', rel(base, to));
 }
 
-function copyTree(from, to, base) {
+function copyTree(from, to, base, { overwrite = true } = {}) {
   if (!fs.existsSync(from)) return;
   for (const ent of fs.readdirSync(from, { withFileTypes: true })) {
     const f = path.join(from, ent.name);
     const t = path.join(to, ent.name);
-    if (ent.isDirectory()) copyTree(f, t, base);
-    else if (ent.isFile()) copyFile(f, t, base);
+    if (ent.isDirectory()) copyTree(f, t, base, { overwrite });
+    else if (ent.isFile()) copyFile(f, t, base, { overwrite });
   }
 }
 
@@ -162,21 +162,54 @@ function writeJson(file, obj, base, label) {
 /* Runtime compartilhado                                               */
 /* ------------------------------------------------------------------ */
 
-/** Arquivos que todo alvo precisa para rodar a decisão. */
+/** Arquivos que todo alvo precisa para rodar a decisão e os CLIs que o
+ *  runtime instala junto (cli.cjs roteia para mcp-cost/contract — se não
+ *  forem copiados, os comandos quebram na cópia instalada). */
 const RUNTIME_FILES = [
   'package.json', 'cli.cjs', 'token-guard.cjs', 'token-audit.cjs',
+  'mcp-cost.cjs', 'contract.cjs', 'contract.default.md',
   'selftest.cjs', 'config.default.json', 'README.md',
 ];
 const RUNTIME_DIRS = ['lib', 'adapters'];
 
-function installRuntime(destDir, { extras = [], trees = [], base } = {}) {
+function installRuntime(destDir, { extras = [], base } = {}) {
   ensureDir(destDir);
   for (const f of [...RUNTIME_FILES, ...extras]) {
     copyFile(path.join(SRC, f), path.join(destDir, f), base);
   }
-  for (const d of [...RUNTIME_DIRS, ...trees]) {
+  for (const d of RUNTIME_DIRS) {
     copyTree(path.join(SRC, d), path.join(destDir, d), base);
   }
+}
+
+/** Agente e skill são DO usuário depois da primeira instalação: preserva.
+ *  Só --force atualiza. (Antes, reinstalar clobberava personalizações.) */
+function installUserAssets(destDir, base) {
+  copyTree(path.join(SRC, 'agents'), path.join(destDir, 'agents'), base, { overwrite: false });
+  copyTree(path.join(SRC, 'skills'), path.join(destDir, 'skills'), base, { overwrite: false });
+}
+
+/**
+ * Estado de um registro de hook que menciona token-guard.
+ * live: aponta para script existente · stale: script morto (upgrade mudou layout)
+ * Um registro obsoleto NÃO pode mascarar a instalação nova: o guard ficaria
+ * silenciosamente desligado (fail-open transforma isso em invisível).
+ */
+function registrationState(commands, canonicalScript, resolveBase) {
+  let stale = false;
+  let liveSame = false;
+  let liveOther = false;
+  for (const cmd of commands) {
+    if (typeof cmd !== 'string' || !cmd.includes('token-guard')) continue;
+    const m = /"?([^"\s]+\.(?:cjs|mjs|js))"?/.exec(cmd);
+    let p = m ? m[1] : null;
+    if (!p) { liveSame = true; continue; }
+    if (!path.isAbsolute(p) && resolveBase) p = path.resolve(resolveBase, p);
+    if (!fs.existsSync(p)) { stale = true; continue; }
+    const norm = (x) => x.replace(/\\/g, '/').toLowerCase();
+    norm(p) === norm(canonicalScript) ? liveSame = true : liveOther = true;
+  }
+  return { stale, liveSame, liveOther };
 }
 
 /** Config global opcional: vale para todos os repos; a do repositório vence. */
@@ -215,7 +248,8 @@ const MATCHER_CLAUDE = 'Read|Grep|Glob|Bash|LS|NotebookRead|Search';
 function installCopilot() {
   const base = path.join(HOME, '.copilot');
   const dir = path.join(base, 'extensions', 'token-guard');
-  installRuntime(dir, { extras: ['extension.mjs', 'plugin.json'], trees: ['agents', 'skills'], base });
+  installRuntime(dir, { extras: ['extension.mjs', 'plugin.json'], base });
+  installUserAssets(dir, base);
   writeGlobalConfig(base, base);
   notes.push('copilot  · recarregue as extensoes (ou reinicie o agente) para ativar.');
 }
@@ -224,10 +258,32 @@ function installCopilot() {
 /* Alvo: claude                                                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Remove entradas cujo comando token-guard aponta para script inexistente —
+ * em TODOS os eventos (PreToolUse, PostToolUse, UserPromptSubmit). Um registro
+ * morto não pode sobreviver junto do novo: o Claude Code spawna o caminho
+ * morto a cada chamada e o reparo precisa ser simétrico.
+ */
+function pruneDeadTokenGuard(entries, canonicalScript) {
+  let removed = false;
+  const kept = (entries || []).filter((entry) => {
+    const cmds = Array.isArray(entry?.hooks)
+      ? entry.hooks.map((h) => h?.command)
+      : [entry?.command];
+    if (!cmds.some((c) => typeof c === 'string' && c.includes('token-guard'))) return true;
+    const state = registrationState(cmds.filter(Boolean), canonicalScript, null);
+    if (state.liveSame || state.liveOther) return true;
+    removed = true;
+    return false;
+  });
+  return { entries: kept, removed };
+}
+
 function installClaude() {
   const base = path.join(HOME, '.claude');
   const dir = path.join(base, 'token-guard');
-  installRuntime(dir, { trees: ['agents', 'skills'], base });
+  installRuntime(dir, { base });
+  installUserAssets(dir, base);
 
   const settingsPath = path.join(base, 'settings.json');
   const settings = readJson(settingsPath) || {};
@@ -235,25 +291,136 @@ function installClaude() {
   if (!Array.isArray(settings.hooks.PreToolUse)) settings.hooks.PreToolUse = [];
 
   const command = nodeCmd(path.join(dir, 'adapters', 'hook-cmd.cjs'));
+  const canonicalScript = path.join(dir, 'adapters', 'hook-cmd.cjs');
 
-  // O Claude aninha os comandos dentro da entrada de matcher — formato diferente
-  // do Copilot. Procuramos nos dois niveis para nao duplicar em upgrade.
-  const already = settings.hooks.PreToolUse.some((entry) => {
-    if (typeof entry?.command === 'string' && entry.command.includes('token-guard')) return true;
-    return Array.isArray(entry?.hooks) &&
-      entry.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('token-guard'));
-  });
+  /**
+   * Ciclo de registro de UM evento: (1) remove registro morto; (2) SUBSTITUI
+   * registro vivo em layout antigo — coexistir significaria dois guards
+   * disparando por evento para sempre; (3) dedupe olhando TODOS os hooks da
+   * entrada, não só o primeiro; (4) atualiza matcher drifted no PreToolUse.
+   */
+  function reconcile(entries, canonicalScript, { withMatcher } = {}) {
+    let repairedDead = false;
+    let replacedOldLayout = false;
+    let matcherUpdated = false;
+    let alreadyLive = false;
 
-  if (already) {
-    skipped.push('~/.claude/settings.json (token-guard ja registrado)');
-  } else {
-    const before = settings.hooks.PreToolUse.length;
-    settings.hooks.PreToolUse.push({
-      matcher: MATCHER_CLAUDE,
-      hooks: [{ type: 'command', command, timeout: 10 }],
+    // 1. mortos fora
+    const pruned = pruneDeadTokenGuard(entries, canonicalScript);
+    entries = pruned.entries;
+    repairedDead = pruned.removed;
+
+    // 2. vivos em layout antigo (token-guard-named, script existe, path difere)
+    entries = entries.filter((entry) => {
+      const cmds = Array.isArray(entry?.hooks)
+        ? entry.hooks.map((h) => h?.command)
+        : [entry?.command];
+      if (!cmds.some((c) => typeof c === 'string' && c.includes('token-guard'))) return true;
+      const st = registrationState(cmds.filter(Boolean), canonicalScript, null);
+      if (!st.liveOther) return true;
+      replacedOldLayout = true;
+      return false; // substituído pela entrada canônica abaixo
     });
-    writeJson(settingsPath, settings, base,
-      `settings.json  (PreToolUse: ${before} entrada(s) preservada(s) + token-guard)`);
+
+    // 3. já registrado? olhando todos os hooks de todas as entradas
+    const allCmds = entries
+      .flatMap((entry) => (Array.isArray(entry?.hooks) ? entry.hooks : [entry]))
+      .map((h) => h?.command)
+      .filter(Boolean);
+    alreadyLive = registrationState(allCmds, canonicalScript, null).liveSame;
+
+    // 4. matcher drift: cobertura nova nunca chega a quem foi instalado antes
+    if (withMatcher && alreadyLive) {
+      for (const entry of entries) {
+        if (Array.isArray(entry?.hooks) &&
+            entry.hooks.some((h) => typeof h?.command === 'string' && h.command.includes('token-guard')) &&
+            entry.matcher !== MATCHER_CLAUDE) {
+          entry.matcher = MATCHER_CLAUDE;
+          matcherUpdated = true;
+        }
+      }
+    }
+
+    return { entries, repairedDead, replacedOldLayout, matcherUpdated, alreadyLive };
+  }
+
+  /* PreToolUse — as quatro regras (com matcher: evita spawn nas chamadas que
+     nunca seriam barradas). */
+  {
+    const r = reconcile(settings.hooks.PreToolUse, canonicalScript, { withMatcher: true });
+    settings.hooks.PreToolUse = r.entries;
+    const bits = [
+      r.repairedDead ? 'registro obsoleto reparado' : null,
+      r.replacedOldLayout ? 'layout antigo substituído' : null,
+      r.matcherUpdated ? 'matcher atualizado' : null,
+    ].filter(Boolean);
+
+    if (r.alreadyLive) {
+      if (!bits.length) {
+        skipped.push('~/.claude/settings.json (token-guard ja registrado)');
+      } else {
+        writeJson(settingsPath, settings, base,
+          `settings.json  (PreToolUse${bits.length ? ': ' + bits.join(' · ') : ''})`);
+      }
+    } else {
+      settings.hooks.PreToolUse.push({
+        matcher: MATCHER_CLAUDE,
+        hooks: [{ type: 'command', command, timeout: 10 }],
+      });
+      writeJson(settingsPath, settings, base,
+        `settings.json  (PreToolUse${bits.length ? ': ' + bits.join(' · ') : ' + token-guard'})`);
+    }
+  }
+
+  /* PostToolUse — regra bigResult: orienta pós-execução (sem matcher: roda
+     para qualquer ferramenta; o custo é um spawn só quando HÁ resultado). */
+  if (!Array.isArray(settings.hooks.PostToolUse)) settings.hooks.PostToolUse = [];
+  {
+    const postCommand = nodeCmd(path.join(dir, 'adapters', 'post-hook.cjs'));
+    const postCanonical = path.join(dir, 'adapters', 'post-hook.cjs');
+    const r = reconcile(settings.hooks.PostToolUse, postCanonical);
+    settings.hooks.PostToolUse = r.entries;
+    const bits = [
+      r.repairedDead ? 'registro obsoleto reparado' : null,
+      r.replacedOldLayout ? 'layout antigo substituído' : null,
+    ].filter(Boolean);
+
+    if (r.alreadyLive) {
+      if (!bits.length) skipped.push('~/.claude/settings.json (PostToolUse ja registrado)');
+      else writeJson(settingsPath, settings, base,
+        `settings.json  (PostToolUse: bigResult · ${bits.join(' · ')})`);
+    } else {
+      settings.hooks.PostToolUse.push({
+        hooks: [{ type: 'command', command: postCommand, timeout: 10 }],
+      });
+      writeJson(settingsPath, settings, base,
+        `settings.json  (PostToolUse: bigResult${bits.length ? ' · ' + bits.join(' · ') : ''})`);
+    }
+  }
+
+  /* UserPromptSubmit — injeção do contrato de saída ("sempre", 1×/sessão). */
+  if (!Array.isArray(settings.hooks.UserPromptSubmit)) settings.hooks.UserPromptSubmit = [];
+  {
+    const promptCommand = nodeCmd(path.join(dir, 'adapters', 'prompt-hook.cjs'));
+    const promptCanonical = path.join(dir, 'adapters', 'prompt-hook.cjs');
+    const r = reconcile(settings.hooks.UserPromptSubmit, promptCanonical);
+    settings.hooks.UserPromptSubmit = r.entries;
+    const bits = [
+      r.repairedDead ? 'registro obsoleto reparado' : null,
+      r.replacedOldLayout ? 'layout antigo substituído' : null,
+    ].filter(Boolean);
+
+    if (r.alreadyLive) {
+      if (!bits.length) skipped.push('~/.claude/settings.json (UserPromptSubmit ja registrado)');
+      else writeJson(settingsPath, settings, base,
+        `settings.json  (UserPromptSubmit: contrato "sempre" · ${bits.join(' · ')})`);
+    } else {
+      settings.hooks.UserPromptSubmit.push({
+        hooks: [{ type: 'command', command: promptCommand, timeout: 10 }],
+      });
+      writeJson(settingsPath, settings, base,
+        `settings.json  (UserPromptSubmit: contrato "sempre"${bits.length ? ' · ' + bits.join(' · ') : ''})`);
+    }
   }
 
   writeGlobalConfig(base, base);
@@ -265,9 +432,11 @@ function installClaude() {
 /* ------------------------------------------------------------------ */
 
 function installCursor() {
+  let staleCursor = false;
   const base = path.join(HOME, '.cursor');
   const dir = path.join(base, 'token-guard');
   installRuntime(dir, { base });
+  installUserAssets(dir, base);
 
   const hooksPath = path.join(base, 'hooks.json');
   const hooks = readJson(hooksPath) || { version: 1, hooks: {} };
@@ -275,11 +444,23 @@ function installCursor() {
   if (!hooks.hooks || typeof hooks.hooks !== 'object') hooks.hooks = {};
 
   const command = nodeCmd(path.join(dir, 'adapters', 'cursor-hook.cjs'));
+  const canonicalScript = path.join(dir, 'adapters', 'cursor-hook.cjs');
   const EVENTS = ['beforeReadFile', 'beforeShellExecution', 'beforeMCPExecution'];
 
   let added = 0;
   for (const evt of EVENTS) {
     if (!Array.isArray(hooks.hooks[evt])) hooks.hooks[evt] = [];
+    // Repara registro obsoleto (script morto de layout antigo) em vez de
+    // mascará-lo como "já registrado".
+    hooks.hooks[evt] = hooks.hooks[evt].filter((h) => {
+      if (typeof h?.command !== 'string' || !h.command.includes('token-guard')) return true;
+      const state = registrationState([h.command], canonicalScript, null);
+      if (state.stale && !state.liveSame && !state.liveOther) {
+        staleCursor = true;
+        return false;
+      }
+      return true;
+    });
     const has = hooks.hooks[evt].some(
       (h) => typeof h?.command === 'string' && h.command.includes('token-guard')
     );
@@ -291,7 +472,10 @@ function installCursor() {
     added += 1;
   }
 
-  if (added) writeJson(hooksPath, hooks, base, `hooks.json  (+${added} evento(s), demais preservados)`);
+  if (added || staleCursor) {
+    writeJson(hooksPath, hooks, base,
+      `hooks.json  (${staleCursor ? 'registro obsoleto reparado · ' : ''}+${added} evento(s), demais preservados)`);
+  }
   writeGlobalConfig(base, base);
   notes.push('cursor   · cobertura PARCIAL: sem evento de grep/glob, broadScan nao dispara.');
   notes.push('cursor   · no CLI (cursor-agent) so beforeShellExecution e entregue hoje.');
@@ -304,7 +488,8 @@ function installCursor() {
 function installMcp() {
   const base = path.join(HOME, '.token-guard');
   const dir = path.join(base, 'runtime');
-  installRuntime(dir, { trees: ['agents', 'skills'], base });
+  installRuntime(dir, { base });
+  installUserAssets(dir, base);
 
   const server = path.join(dir, 'adapters', 'mcp-server.cjs');
   const snippet = {
@@ -363,18 +548,31 @@ function installRepo() {
     writeJson(cfgPath, tpl, DEST, 'token-guard.config.json' + (MODE ? `  (mode: ${MODE})` : ''));
   }
 
-  /* hooks.json — MERGE, nunca sobrescrita */
+  /* hooks.json — MERGE, nunca sobrescrita; registro obsoleto é reparado */
   const hooksPath = path.join(BASE, 'hooks', 'hooks.json');
   const hooks = readJson(hooksPath) || { version: 1, hooks: {} };
   if (typeof hooks.version !== 'number') hooks.version = 1;
   if (!hooks.hooks || typeof hooks.hooks !== 'object') hooks.hooks = {};
   if (!Array.isArray(hooks.hooks.PreToolUse)) hooks.hooks.PreToolUse = [];
 
-  const already = hooks.hooks.PreToolUse.some(
-    (h) => typeof h?.command === 'string' && h.command.includes('token-guard')
-  );
+  const canonicalScript = path.join(guardDir, 'token-guard.cjs');
+  let staleRepo = false;
+  const liveCmds = [];
+  hooks.hooks.PreToolUse = hooks.hooks.PreToolUse.filter((h) => {
+    const cmd = h?.command;
+    if (typeof cmd !== 'string' || !cmd.includes('token-guard')) return true;
+    const state = registrationState([cmd], canonicalScript, DEST);
+    if (state.stale && !state.liveSame && !state.liveOther) {
+      staleRepo = true;
+      return false; // aponta para script que não existe mais: remove p/ reinstalar
+    }
+    liveCmds.push(cmd);
+    return true;
+  });
 
-  if (already) {
+  const already = registrationState(liveCmds, canonicalScript, DEST).liveSame;
+
+  if (already && !staleRepo) {
     skipped.push('.github/hooks/hooks.json (token-guard ja registrado)');
   } else {
     const before = hooks.hooks.PreToolUse.length;
@@ -385,7 +583,8 @@ function installRepo() {
       timeout: 10,
     });
     writeJson(hooksPath, hooks, DEST,
-      `.github/hooks/hooks.json  (PreToolUse: ${before} entrada(s) preservada(s) + token-guard)`);
+      `.github/hooks/hooks.json  (${staleRepo ? 'registro obsoleto reparado · ' : ''}` +
+      `PreToolUse: ${before} entrada(s) preservada(s) + token-guard)`);
   }
 
   /* .gitignore do cache */

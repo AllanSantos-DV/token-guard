@@ -12,7 +12,8 @@ on material nobody reads. The cost driver is not prompt length; it is **what get
 loaded**. On a real repository the payload dwarfs the window by three orders of
 magnitude, so selection *is* the architecture.
 
-Run `node .github/token-guard/token-audit.cjs` to get this repository's real numbers.
+Run the audit for this repository's real numbers: `node .github/token-guard/token-audit.cjs`
+(repo installs) or `npx token-guard audit` — whichever your install target provides.
 
 ## When to use
 
@@ -59,3 +60,30 @@ than the discipline, and the guards stay out of your way by design.
   repo. `TOKEN_GUARD=off` exists for emergencies, not for daily use.
 - **Don't apply any of this to a small repository.** Ceremony without payoff is its
   own kind of waste.
+
+## Levers beyond this kit
+
+The harness and provider give levers this kit deliberately does not duplicate.
+Use them together:
+
+- **Compact before you overflow.** `/compact` (or your harness's equivalent)
+  summarizes history mid-session; `/clear` when switching tasks entirely. A lean
+  200k window beats a bloated larger one — accuracy degrades as context fills
+  ("context rot").
+- **Route the model by difficulty.** Mechanical work (bulk reads, log triage) fits a
+  cheaper/faster model; reserve the strong model for design and review. In Claude Code,
+  pair this with reasoning-effort control instead of leaving thinking at max.
+- **Keep prefixes cache-stable.** Prompt caching discounts repeated prefixes ~90%:
+  don't churn `CLAUDE.md`/config files mid-session, and keep stable instructions ahead
+  of volatile ones so the cached prefix survives.
+- **Prefer CLI over MCP when equal.** A shell command costs one line; an MCP tool costs
+  its schema on every request. Reserve MCP for what genuinely needs structure.
+- **Slim your MCP fleet.** Run `npx token-guard mcp-cost` — servers over ~1.5k tokens of
+  schema and tools over ~500 are flagged with actionable advice. Tool search / slimmed
+  servers routinely cut preamble 50–85% in published benchmarks.
+- **Delegate verbosity to sub-agents.** Anything where the process is verbose but only
+  the conclusion matters (bulk reads, test runs, log scans) belongs in a disposable
+  window that returns the verdict, not the transcript.
+
+Sources behind these numbers: Anthropic "Token-saving updates" (Nov 2025),
+Anthropic context-editing docs, MCPSlim benchmarks, community Claude Code cost guides (2026).

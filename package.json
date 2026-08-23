@@ -1,7 +1,7 @@
 {
   "name": "token-guard",
-  "version": "2.0.0",
-  "description": "Economia de contexto para agentes de IA, agnóstico de IDE: mede o custo real do repositório em tokens e barra as chamadas que estouram a janela, sempre devolvendo a alternativa barata. Adapters para Copilot CLI, Claude Code, Cursor e MCP.",
+  "version": "2.1.0",
+  "description": "Economia de contexto para agentes de IA, agnóstico de IDE: mede o custo real do repositório em tokens, barra as chamadas que estouram a janela devolvendo sempre a alternativa barata, mede o preâmbulo dos servidores MCP e governa o contrato de saída. Adapters para Copilot CLI, Claude Code, Cursor e MCP.",
   "bin": {
     "token-guard": "./cli.cjs"
   },
@@ -11,17 +11,25 @@
     "./decide": "./lib/decide.cjs",
     "./payload": "./lib/payload.cjs",
     "./config": "./lib/config.cjs",
-    "./audit": "./lib/audit.cjs"
+    "./audit": "./lib/audit.cjs",
+    "./mcp-cost": "./lib/mcp-cost.cjs",
+    "./contract": "./lib/contract.cjs"
   },
   "type": "commonjs",
   "engines": {
     "node": ">=16"
   },
   "scripts": {
-    "test": "node selftest.cjs && node test/adapters.test.cjs",
+    "test": "node selftest.cjs && node test/adapters.test.cjs && node test/mcp-cost.test.cjs && node test/contract.test.cjs && node test/install.test.cjs && node test/savings.test.cjs && node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs",
     "test:core": "node selftest.cjs",
     "test:adapters": "node test/adapters.test.cjs",
+    "test:mcp-cost": "node test/mcp-cost.test.cjs",
+    "test:contract": "node test/contract.test.cjs",
+    "test:install": "node test/install.test.cjs",
+    "test:savings": "node test/savings.test.cjs",
+    "test:hooks": "node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs",
     "audit": "node token-audit.cjs",
+    "mcp-cost": "node mcp-cost.cjs",
     "status": "node cli.cjs status"
   },
   "files": [
@@ -29,17 +37,24 @@
     "install.cjs",
     "token-audit.cjs",
     "token-guard.cjs",
+    "mcp-cost.cjs",
+    "contract.cjs",
     "selftest.cjs",
+    "bench/",
+    "test/",
     "extension.mjs",
     "plugin.json",
     "hooks.json",
     "config.default.json",
+    "contract.default.md",
     "lib/",
     "adapters/",
     "agents/",
     "skills/",
     "docs/",
     "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "keywords": [

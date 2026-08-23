@@ -78,33 +78,45 @@ node install.cjs --target all
 ## Verificando
 
 ```bash
-node selftest.cjs              # 27 casos contra o hook real
-node test/adapters.test.cjs    # adapters Cursor e MCP
+npm test                       # todas as suítes (núcleo, adapters, mcp-cost, contrato, instalação, economia, hooks)
 npx token-guard status         # config ativa
+node install.cjs --target all --dry-run   # simulação sem escrever nada
 ```
 
 No agente, peça: *"mostre o status do token guard"*.
 
 ## Desinstalando
 
-1. Remova a entrada do `token-guard` do arquivo de hooks do harness:
-   - Copilot: apague `~/.copilot/extensions/token-guard/`
-   - Claude Code: remova a entrada em `~/.claude/settings.json` › `hooks.PreToolUse`
-   - Cursor: remova as entradas em `~/.cursor/hooks.json`
-   - MCP: remova o bloco `token-guard` da config MCP do IDE
-2. Apague os diretórios de runtime listados acima.
+Tudo que o instalador cria, em um lugar só:
+
+| Alvo | Runtime | Registro | Config global |
+|---|---|---|---|
+| `copilot` | `~/.copilot/extensions/token-guard/` | — (extensão) | `~/.copilot/token-guard.config.json` |
+| `claude` | `~/.claude/token-guard/` | entrada em `~/.claude/settings.json` › `hooks.PreToolUse` | `~/.claude/token-guard.config.json` |
+| `cursor` | `~/.cursor/token-guard/` | entradas em `~/.cursor/hooks.json` (`beforeReadFile`, `beforeShellExecution`, `beforeMCPExecution`) | `~/.cursor/token-guard.config.json` |
+| `mcp` | `~/.token-guard/runtime/` | bloco `token-guard` na config MCP do IDE | `~/.token-guard/mcp.json` |
+| `repo` | `.github/token-guard/`, `.github/agents/`, `.github/skills/` | entrada em `.github/hooks/hooks.json` | `token-guard.config.json` na raiz |
+
+1. Remova o registro e o runtime da tabela acima.
+2. Apague as configs globais cujos homes você usou (só existem se você passou `--mode`).
+3. Estado regenerável, seguro de apagar: `<repo>/.token-guard/` (cache + estado de sessão).
+4. No alvo `repo`: reverta também a linha `.token-guard/` adicionada ao `.gitignore`.
 
 Para desligar sem desinstalar:
 
 ```bash
-TOKEN_GUARD=off      # desliga
+TOKEN_GUARD=off      # desliga (aceita também 0 e false)
 TOKEN_GUARD=warn     # só avisa
 ```
 
 ## Configuração
 
-Crie `token-guard.config.json` na raiz do repositório (ou em `~/.copilot/` para valer em
-todos). O arquivo do repositório sempre vence.
+Crie `token-guard.config.json` na raiz do repositório. Para valer em **todos** os
+repositórios desta máquina, o instalador grava no home do alvo
+(`~/.copilot/`, `~/.claude/`, `~/.cursor/`, `~/.token-guard/`) quando você passa
+`--mode` — o loader lê os quatro. A config do repositório sempre vence sobre as globais.
+
+Referência completa de chaves: [CONFIG.md](CONFIG.md).
 
 ```json
 {

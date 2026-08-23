@@ -6,6 +6,7 @@
  *   npx token-guard init [caminho] [--mode warn] [--dry-run] [--global]
  *   npx token-guard audit [caminho] [--md|--json] [--top N]
  *   npx token-guard status [caminho]
+ *   npx token-guard contract [caminho]
  *   npx token-guard test
  *
  * Roteia para os scripts, que continuam executáveis diretamente — quem instalou
@@ -27,6 +28,8 @@ const SCRIPTS = {
   test: 'selftest.cjs',
   selftest: 'selftest.cjs',
   mcp: path.join('adapters', 'mcp-server.cjs'),
+  'mcp-cost': 'mcp-cost.cjs',
+  contract: 'contract.cjs',
 };
 
 function run(script, args) {
@@ -84,11 +87,28 @@ function help() {
                           --md          relatório em markdown
                           --json        dados crus
                           --top N       quantos itens nos rankings
+                          --no-cache    não grava o cache de calibração
 
     status [caminho]      Mostra a configuração ativa.
 
     mcp                   Sobe o MCP server (stdio). Use no campo "command"
                           da configuração MCP do seu IDE.
+
+    mcp-cost [caminho]    Mede quanto os servidores MCP declarados custam de
+                          preâmbulo, em toda sessão, antes da primeira pergunta.
+                          --list        só inventaria (não executa nada)
+                          --server NOME mede um servidor só
+                          --timeout MS  teto por handshake (padrão 15000)
+                          --json        dados crus
+                          Sem --list, os servidores declarados SÃO EXECUTADOS:
+                          é a única forma de saber o tamanho real dos schemas.
+
+    contract [caminho]    Mostra o contrato de saída em vigor: quantas regras
+                          por seção, quanto custa de entrada e o que entraria
+                          numa sessão.
+                          --touched a.js,b.md  simula a evidência da sessão
+                          --subagente   só o bloco de contexto descartável
+                          --json        dados crus
 
     test                  Roda a bateria de testes contra o hook real.
 

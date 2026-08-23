@@ -37,6 +37,22 @@ O núcleo (`lib/`) é o mesmo em todos. O que muda é o quanto dele consegue rod
 | `noisePath` | acesso a `node_modules`, `target`, `dist`, `.git` e afins |
 | `shellDump` | comando de shell que despeja árvore (`ls -R`, `Get-ChildItem -Recurse` sem limite) |
 
+### A quinta regra é pós-execução
+
+`bigResult` não barra a chamada — ela age DEPOIS, quando um resultado legítimo
+se revela gigante (>~25k caracteres): trunca com preview, salva a versão
+integral em `.token-guard/results/` e devolve a alternativa barata da família.
+A força varia por harness:
+
+| Harness | bigResult | Mecanismo |
+|---|---|---|
+| Copilot CLI/App (plugin) | ✅ substitui de verdade | `onPostToolUse` › `modifiedResult` — o corpo inteiro nunca entra na janela |
+| Claude Code | ⚠️ orienta | hook de comando não altera o resultado já lido; entrega o caminho do integral + a dica (o agente aprende a limitar a próxima) |
+
+Fonte externa que motivou a regra: outputs de ferramenta são apontados como o
+maior custo escondido de sessões agentivas; a Context Editing API da Anthropic
+(`clear_tool_uses`) é a versão server-side da mesma ideia (−84% em eval deles).
+
 ### Por que o Cursor é parcial
 
 O Cursor não tem evento genérico de "antes de qualquer ferramenta". Os eventos são
@@ -102,6 +118,23 @@ O formato do snippet:
 
 Alguns IDEs usam `servers` em vez de `mcpServers`, ou pedem `type: "stdio"`. Ajuste a
 chave externa; `command` e `args` são iguais em todos.
+
+### Quanto os seus servidores MCP já custam
+
+Cada servidor declarado nesses arquivos carrega o schema de todas as suas ferramentas no
+preâmbulo de toda sessão, independentemente de uso. Para ver o número:
+
+```bash
+npx token-guard mcp-cost --list   # inventário — nada é executado
+npx token-guard mcp-cost          # medição real, por handshake
+```
+
+Os arquivos varridos pelo medidor são os declarados em: `~/.claude.json`,
+`~/.claude/settings.json`, `~/.cursor/mcp.json`, `~/.codeium/windsurf/mcp_config.json`,
+`claude_desktop_config.json` (Windows e macOS), `~/.token-guard/mcp.json`, mais
+`.vscode/mcp.json` e `.cursor/mcp.json` do projeto atual. Zed (`context_servers`) e
+JetBrains **não** são varridos — declare-os via `extraFiles` se usar a API. Um servidor
+declarado em duas IDEs conta uma vez.
 
 ## Adicionando um IDE novo
 

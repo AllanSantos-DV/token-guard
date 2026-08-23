@@ -38,8 +38,11 @@ e é exatamente ela que este kit governa.
 | `lib/decide.cjs` | A decisão, compartilhada por **todos** os adapters — para que nunca divirjam. |
 | `lib/payload.cjs` | Leitor de payload agnóstico: normaliza o envelope de 4+ runtimes. |
 | `lib/rules.cjs` | As quatro regras: `broadScan`, `blindRead`, `noisePath`, `shellDump`. |
-| `lib/config.cjs` | Config subindo a árvore, com fallback global e escape hatch por env. |
+| `lib/config.cjs` | Config subindo a árvore, com fallback global (4 homes) e escape hatch por env. |
 | `lib/audit.cjs` | A medição de custo de contexto. |
+| `lib/mcp-cost.cjs` | A medição do preâmbulo MCP: quanto os servidores declarados custam por sessão — com recomendações acionáveis por servidor e ferramenta. |
+| `lib/contract.cjs` | O contrato de saída: regras por gatilho de evidência, injetadas 1×/sessão via UserPromptSubmit ([docs](docs/CONTRACT.md)). |
+| `lib/postresult.cjs` | A regra `bigResult`: resultado de ferramenta gigante vira stub + versão integral em disco + alternativa barata. |
 
 ### Adapters — só tradução de envelope, zero regra de negócio
 
@@ -55,12 +58,21 @@ e é exatamente ela que este kit governa.
 | Peça | O que faz |
 |---|---|
 | `token-audit.cjs` | Mede o custo de contexto de qualquer repositório e grava o cache que calibra os guards. |
+| `mcp-cost.cjs` | Mede o custo fixo de preâmbulo dos servidores MCP declarados, por handshake real. |
 | `agents/scout.agent.md` | Sub-agente de investigação com contexto descartável. |
 | `skills/token-economy/SKILL.md` | O procedimento, em divulgação progressiva. |
-| `cli.cjs` | `init`, `audit`, `status`, `mcp`, `test` — a porta de entrada do `npx`. |
+| `cli.cjs` | `init`, `audit`, `status`, `mcp`, `mcp-cost`, `contract`, `test` — a porta de entrada do `npx`. |
 | `install.cjs` | Instala em 5 alvos, com **merge** seguro de todo arquivo de config. |
-| `selftest.cjs` | 27 casos contra o hook real, nos formatos de payload de 4 runtimes. |
-| `test/adapters.test.cjs` | 23 casos cobrindo a tradução dos adapters Cursor e MCP. |
+| `selftest.cjs` | o núcleo contra o hook real, nos formatos de payload dos runtimes. |
+| `test/adapters.test.cjs` | tradução dos adapters Cursor e MCP. |
+| `test/mcp-cost.test.cjs` | handshake, descoberta e diagnóstico do medidor de MCP. |
+| `test/contract.test.cjs` | parsing, evidência e estado do contrato. |
+| `test/install.test.cjs` | integração do instalador: idempotência, reparo de registro obsoleto e preservação de assets. |
+| `test/savings.test.cjs` | a promessa central travada: economia líquida > 0. |
+| `test/postresult.test.cjs` | a regra bigResult (truncar sem perder o destino). |
+| `test/adapters.post.test.cjs` / `test/adapters.prompt.test.cjs` | os hooks PostToolUse e UserPromptSubmit ponta a ponta. |
+
+Cada suíte imprime a própria contagem — não confie em números copiados daqui.
 
 ---
 
@@ -92,7 +104,7 @@ Depois:
 
 ```bash
 npx token-guard audit     # veja o tamanho do problema neste repo
-npx token-guard test      # 27 casos contra o hook real
+npx token-guard test      # todas as suítes
 npx token-guard status    # confira a configuração ativa
 ```
 
@@ -103,7 +115,9 @@ Reinicie a sessão do agente para carregar o hook.
 
 O instalador **nunca sobrescreve** um `hooks.json`, um `settings.json`, um
 `token-guard.config.json`, um agente ou uma skill que já existam — ele preserva e faz
-merge. Rodar de novo é idempotente.
+merge. Rodar de novo é idempotente. Exceção honesta: um registro de hook apontando
+para script que **não existe mais** (layout de versão antiga) é reparado, não
+mascarado — deixar no lugar seria guard desligado em silêncio.
 
 Detalhes em [docs/INSTALL.md](docs/INSTALL.md).
 
@@ -116,12 +130,13 @@ Detalhes em [docs/INSTALL.md](docs/INSTALL.md).
     token-guard.cjs                   ← o hook (shim → adapters/hook-cmd.cjs)
     token-audit.cjs                   ← o medidor
     selftest.cjs                      ← a bateria de testes
-    adapters/{copilot-cli.mjs,hook-cmd,cursor-hook,mcp-server}.cjs
-    lib/{payload,config,rules,decide,audit}.cjs
+    cli.cjs                           ← init/audit/status/mcp-cost/contract/test
+    adapters/{copilot-cli.mjs, hook-cmd.cjs, cursor-hook.cjs, mcp-server.cjs}
+    lib/{payload,config,rules,decide,audit,mcp-cost,contract}.cjs
   agents/scout.agent.md
   skills/token-economy/SKILL.md
 token-guard.config.json               ← ajustes deste repositório
-.token-guard/                         ← cache (entra no .gitignore)
+.token-guard/                         ← cache e estado de sessão (entra no .gitignore)
 ```
 
 Tudo isso é versionado. **Quem clonar o repositório herda a economia** — não há
@@ -203,6 +218,76 @@ Um guard sem saída de emergência vira dívida. Estas quatro existem de propós
 
 ---
 
+## O outro custo: o preâmbulo MCP
+
+A auditoria mede o que o agente **lê durante** a sessão. Ela não vê o que já estava
+carregado **antes da primeira pergunta**: o schema de cada ferramenta de cada servidor MCP
+declarado. Esse custo é fixo, silencioso e pago em toda sessão, use você a ferramenta ou não.
+
+```bash
+npx token-guard mcp-cost --list      # só inventaria: nada é executado
+npx token-guard mcp-cost             # mede de verdade, por handshake
+```
+
+Não há como estimar isso de fora: o tamanho do schema só existe depois que o servidor
+responde `tools/list`. Então o medidor faz o handshake real do protocolo —
+`initialize` → `notifications/initialized` → `tools/list` — sobre stdio, e conta os
+caracteres do que voltou. **Isso significa que os servidores declarados são executados.**
+Use `--list` quando quiser apenas o inventário.
+
+Uma medição real, nesta máquina:
+
+```
+7 declarados · 4 sondados · 3 sem resposta
+
+GitHub          26 ferram.   3.957 tok
+Playwright      33 ferram.   3.454 tok
+firebase-mcp    12 ferram.   1.883 tok
+token-guard      3 ferram.     400 tok
+
+74 ferramentas em 4 servidores ≈ 9.695 tokens = 0,048 janela(s), em toda sessão
+```
+
+Servidores que não respondem aparecem numa seção própria, com o motivo — eles continuam
+custando janela, só não sabemos quanto. Transporte HTTP não é sondável por stdio e é
+declarado como tal, em vez de ser contado como zero.
+
+| Flag | Efeito |
+|---|---|
+| `--list` | Inventaria sem executar nada. |
+| `--server NOME` | Mede um servidor só. |
+| `--timeout MS` | Teto por handshake (padrão 15000). |
+| `--json` | Dados crus. |
+
+O medidor **só mede**. Não instala, não desinstala, não desliga servidor nenhum — a decisão
+de cortar uma ferramenta é sua, e depende de quanto você a usa.
+
+---
+
+## A economia, medida (e a limitação dela)
+
+A promessa central tem número próprio — e premissas declaradas:
+
+```bash
+node bench/savings.cjs        # simulação da economia líquida por sessão
+node test/savings.test.cjs    # a promessa travada: se virar 0, a suíte falha
+```
+
+No repositório de referência (~215 mil arquivos), com truncamento real de
+tool result (~25 k tokens) e o custo dos próprios denies contado na conta,
+a simulação de sessões mostra **economia líquida de ~85–205 k tokens por sessão**
+(0,4–1 janela de contexto), conforme o agente aprenda rápido ou repita o erro.
+O overhead das mensagens de deny é ruído (<2% do evitado). Em repos pequenos o
+kit não atrapalha por design. O ponto de equilíbrio é alto: os guards só deixam
+de valer se **~94% dos bloqueios forem falsos positivos**.
+
+Limitação honesta: é simulação paramétrica ancorada em tamanhos medidos com
+sequência sintética de chamadas — não replay de transcripts vivos. Os três
+números que sustentam as premissas são medidos por este mesmo kit:
+`token-audit` (tamanho do repo), `mcp-cost` (preâmbulo) e o bench acima.
+
+---
+
 ## Escopo, ciclo de vida e custo
 
 **Não existe escopo "por sessão".** Não há daemon do guard, versão residente nem
@@ -221,32 +306,26 @@ estado entre sessões. Há dois modos de execução, e a diferença é de polít
 Os modos podem coexistir: todos importam a mesma decisão de `lib/decide.cjs`, então
 o veredito é idêntico — apenas avaliado duas vezes. Para o dia a dia, escolha um.
 
-### Custo de latência (medido, não estimado)
+### Custo de latência (meça na sua máquina)
 
-Um kit de eficiência precisa declarar o próprio custo. Nesta máquina
-(Windows corporativo, Node 25, antivírus ativo), mediana de execuções reais:
+Um kit de eficiência precisa declarar o próprio custo. O README não publica
+constantes: publique a SUA medição.
 
-| Modo | Por chamada de ferramenta |
-|---|---|
-| Plugin (in-process) | **0,153 ms** |
-| Hook de comando (spawn) | **330 ms** |
-| | **2150× de diferença** |
+```bash
+node bench/latency.cjs        # plugin vs hook de comando vs piso do Node
+```
 
-A leitura importa: **quase todo o custo do modo comando é do runtime, não do guard.**
-`node -e "0"` custa 216 ms nesta máquina e abrir um único `.cjs` vazio custa 299 ms
-(antivírus escaneando). A lógica das quatro regras custa 0,15 ms — o que o modo
-plugin expõe ao eliminar o processo.
-
-Duas defesas, nesta ordem:
+Na máquina do autor (Windows corporativo, Node 25, antivírus ativo) a mediana
+foi **0,153 ms** in-process contra **330 ms** por spawn — quase todo o custo do
+modo comando é o runtime (`node -e "0"` custava 216 ms ali), não o guard. Em
+máquina sem antivírus corporativo os dois números caem juntos; a razão entre
+eles permanece. Duas defesas, nesta ordem:
 
 1. **Use o modo plugin** quando o alcance de máquina servir. O custo desaparece.
 2. **No modo repositório**, o `matcher` do `hooks.json` impede o processo de nascer
    para ferramentas que nunca seriam barradas (`edit`, `create`, PR, issue). Com ele,
    supondo ~40% das chamadas nas famílias vigiadas, o custo fica em torno de
    **5 segundos por sessão**. Sem ele, ~12 s.
-
-> Em máquina sem antivírus corporativo, ou em Linux/macOS, o piso do spawn costuma
-> ser bem menor. Meça o seu: 330 ms é desta máquina, não uma constante universal.
 
 ---
 
@@ -283,18 +362,74 @@ Comece medindo. Sem o número de antes, não há como provar o de depois.
 ## Testes
 
 ```bash
-node selftest.cjs              # 27 casos — o núcleo, contra o hook real
-node test/adapters.test.cjs    # 23 casos — a tradução dos adapters
+npm test                          # todas as suítes (nove)
+node selftest.cjs                 # o núcleo, contra o hook real
+node test/adapters.test.cjs       # a tradução dos adapters
+node test/mcp-cost.test.cjs       # o medidor de preâmbulo MCP
+node test/contract.test.cjs       # o contrato de saída
+node test/install.test.cjs        # o instalador contra o FS real
+node test/savings.test.cjs        # a economia líquida travada
+npm run test:hooks                # bigResult + UserPromptSubmit ponta a ponta
 ```
 
-**Núcleo (27):** os quatro guards nos três formatos de payload, os caminhos que **devem**
-passar (o mais importante: falso positivo é pior que falso negativo aqui) e os escape hatches.
+Cada suíte imprime a própria contagem e sai com código 1 se qualquer caso falhar.
+O CI roda todas em Linux e Windows sobre Node 18, 20 e 22 — mais a simulação de
+instalação (`--dry-run`) e a auditoria do próprio repositório.
 
-**Adapters (23):** a tradução de envelope do Cursor e o protocolo JSON-RPC do MCP —
+**Núcleo:** os quatro guards nos três formatos de payload (mais o envelope do SDK
+in-process), os caminhos que **devem** passar (o mais importante: falso positivo é
+pior que falso negativo aqui) e os escape hatches. Inclui as regressões do gate
+adversarial: dumps modernos (`rg --files`, `fd`, `gci -r`), falsos positivos de
+palavra solta (`tree` num commit), casing de filesystem e resolução de caminho
+relativo contra o cwd do payload.
+
+**Adapters:** a tradução de envelope do Cursor e o protocolo JSON-RPC do MCP —
 incluindo fail-open sob entrada corrompida, que é onde um guard mal escrito derruba a sessão.
 
-Ambos saem com código 1 se qualquer caso falhar. O CI roda os dois em Linux e Windows,
-sobre Node 18, 20 e 22.
+**MCP cost:** o handshake contra servidores stdio sintéticos — servidor que loga texto
+puro no stdout, que devolve erro JSON-RPC, que morre no boot, e que responde mas **nunca
+encerra** (medido no timeout, não descartado). Mais a descoberta sem executar nada e o
+diagnóstico: o motivo relatado tem que ser a causa, não o rodapé de versão do Node.
+
+**Contrato:** parsing por seção, evidência acumulada, estado por sessão no disco,
+poda por TTL e id de sessão que não escapa do diretório.
+
+**Instalação:** idempotência real, reparo de registro apontando para script morto
+e preservação de agente/skill personalizados.
+
+---
+
+## Contrato de saída
+
+A economia tem dois lados. Os guards cuidam da **entrada**; o contrato cuida da
+**saída**: regras de forma (`contract.default.md`) divididas por gatilho de
+evidência — `sempre`, `quando: codigo` quando a sessão tocou código-fonte,
+`quando: teste`, `quando: docs` — mais um bloco `subagente` para contexto descartável.
+
+Um `contract.md` na raiz substitui seções inteiras do padrão. Inspecione com:
+
+```bash
+npx token-guard contract                          # seções, custo e ordem
+npx token-guard contract --touched src/a.ts       # simula a evidência da sessão
+npx token-guard contract --subagente              # bloco pronto p/ colar no scout
+```
+
+Estado honesto: a biblioteca (`lib/contract.cjs`) e o CLI de inspeção são estáveis;
+o adapter que injeta automaticamente a cada turno ainda não existe — hoje o consumo
+é manual (`--subagente` no prompt do scout). Detalhes em [docs/CONTRACT.md](docs/CONTRACT.md).
+
+---
+
+## Documentação
+
+| Documento | Conteúdo |
+|---|---|
+| [docs/INSTALL.md](docs/INSTALL.md) | Instalação, desinstalação completa, repositórios de cliente |
+| [docs/IDES.md](docs/IDES.md) | Cobertura real por IDE/harness, sem maquiagem |
+| [docs/CONFIG.md](docs/CONFIG.md) | Referência de toda chave de config + estado em disco |
+| [docs/CONTRACT.md](docs/CONTRACT.md) | O contrato de saída, mecanismo e status |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Guard silencioso, config ignorada, diagnósticos |
+| [SECURITY.md](SECURITY.md) | O que executa, o que lê, o que grava — dados e privacidade |
 
 ---
 

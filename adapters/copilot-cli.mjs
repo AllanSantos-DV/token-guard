@@ -11,6 +11,12 @@ import fs from "node:fs";
  * viva, então não há spawn de Node a cada chamada de ferramenta. É a diferença
  * entre pagar ~300 ms por tool call e pagar praticamente zero.
  *
+ * Dois momentos da mesma economia:
+ *   · onPreToolUse  → barra a chamada cara ANTES (as quatro regras);
+ *   · onPostToolUse → trunca resultado gigante DEPOIS, salvando o integral em
+ *     disco e devolvendo stub + alternativa barata (regra bigResult). Aqui a
+ *     substituição é REAL: o SDK aceita modifiedResult.
+ *
  * Envelope de entrada: { toolName, toolArgs, workingDirectory }  (SDK do Copilot)
  * Contrato de saída:   { permissionDecision, permissionDecisionReason }
  *
@@ -26,8 +32,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const { decide } = require("../lib/decide.cjs");
 const CFG = require("../lib/config.cjs");
 const AUDIT = require("../lib/audit.cjs");
+const { postProcess } = require("../lib/postresult.cjs");
 
 let blocked = 0;
+let trimmed = 0;
 const byRule = Object.create(null);
 
 const session = await joinSession({
@@ -112,6 +120,7 @@ const session = await joinSession({
           `barrado nesta sessão: ${blocked}`,
         ];
         for (const [rule, n] of Object.entries(byRule)) lines.push(`  ${rule}: ${n}`);
+        lines.push(`resultados truncados (bigResult): ${trimmed}`);
         if (cfg.mode === "off") {
           lines.push("", 'ATENÇÃO: o guard está DESLIGADO (mode "off" ou TOKEN_GUARD=off).');
         }
@@ -137,6 +146,32 @@ const session = await joinSession({
         };
       } catch {
         return; // fail-open, sempre
+      }
+    },
+
+    /**
+     * Pós-execução (regra bigResult): resultado gigante vira stub com preview
+     * + caminho da versão integral em .token-guard/results/. Aqui a troca é
+     * real — o modelo nunca vê o corpo inteiro. Falha devolve null.
+     */
+    onPostToolUse: async (input) => {
+      try {
+        const root = input?.workingDirectory || process.cwd();
+        const out = postProcess({
+          name: input?.toolName,
+          input: input?.toolArgs || {},
+          result: input?.toolResult,
+          root,
+          cfg: CFG.load(root),
+        });
+        if (!out) return null;
+        trimmed += 1;
+        return {
+          modifiedResult: out.modifiedResult,
+          additionalContext: out.additionalContext,
+        };
+      } catch {
+        return null; // fail-open, sempre
       }
     },
   },

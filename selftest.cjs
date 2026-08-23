@@ -32,11 +32,15 @@ fs.writeFileSync(
   'utf8'
 );
 
-function run(payload, env) {
+// Em Windows/macOS o filesystem não distingue caixa; em Linux sim.
+const FOLD_CASE = process.platform === 'win32' || process.platform === 'darwin';
+
+function run(payload, env, spawnCwd) {
   const res = spawnSync(process.execPath, [GUARD], {
     input: JSON.stringify(payload),
     encoding: 'utf8',
     env: { ...process.env, ...(env || {}) },
+    cwd: spawnCwd,
     timeout: 15000,
   });
   const out = (res.stdout || '').trim();
@@ -65,13 +69,43 @@ const CASES = [
   ['deny', 'leitura de 117 KB sem faixa',             vscode('view', { path: BIG }), 'blindRead'],
   ['deny', 'read_file grande sem faixa (Claude)',     claude('Read', { file_path: BIG }), 'blindRead'],
   ['deny', 'caminho em node_modules',                 vscode('view', { path: path.join(TMP, 'node_modules', 'x', 'i.js') }), 'noisePath'],
-  ['deny', 'caminho em target',                       claude('Read', { file_path: 'C:/repo/target/classes/A.class' }), 'noisePath'],
+  ['deny', 'caminho em target (fora da raiz)',        claude('Read', { file_path: 'C:/repo/target/classes/A.class' }), 'noisePath'],
   ['deny', 'Get-ChildItem -Recurse sem limite',       vscode('powershell', { command: 'Get-ChildItem -Recurse' }), 'shellDump'],
   ['deny', 'ls -R sem limite (Claude)',               claude('Bash', { command: 'ls -R /repo' }), 'shellDump'],
   ['deny', 'grep -r no shell',                        vscode('run_in_terminal', { command: 'grep -r TODO .' }), 'shellDump'],
   ['deny', 'grep content sem teto nem filtro',        vscode('grep', { pattern: 'Service', output_mode: 'content' }), 'broadScan'],
 
+  // ---- deve BLOQUEAR (regressões do gate adversarial 2026-08) ----
+  ['deny', 'rg --files sem limite',                   claude('Bash', { command: 'rg --files' }), 'shellDump'],
+  ['deny', 'rg conteúdo no repo inteiro',             claude('Bash', { command: 'rg -n TODO .' }), 'shellDump'],
+  ['deny', 'fd sem filtro de extensão',               claude('Bash', { command: 'fd .' }), 'shellDump'],
+  ['deny', 'gci -r (alias PowerShell)',               claude('Bash', { command: 'gci -r' }), 'shellDump'],
+  ['deny', 'dir -Recurse (PowerShell)',               vscode('powershell', { command: 'dir -Recurse' }), 'shellDump'],
+  ['deny', 'find <dir> sem filtro',                   claude('Bash', { command: 'find src' }), 'shellDump'],
+  ['deny', 'find <path absoluto unix>',               claude('Bash', { command: 'find /var/log' }), 'shellDump'],
+  ['deny', 'prefixo de env não esconde dump',         vscode('bash', { command: 'FOO=1 tree' }), 'shellDump'],
+  ['deny', 'prefixo de env em busca conteúdo',        vscode('bash', { command: 'FOO=1 rg -n TODO .' }), 'shellDump'],
+  ['allow', 'switch do find.exe não é dump',          vscode('bash', { command: 'find /c "TODO" notes.txt' }), null],
+  [FOLD_CASE ? 'deny' : 'allow', 'casing de ruído segue a plataforma', vscode('view', { path: path.join(TMP, 'src', 'Node_Modules', 'i.js') }), FOLD_CASE ? 'noisePath' : null],
+  ['deny', 'offset=0 sem limit é leitura inteira',    vscode('view', { path: BIG, offset: 0 }), 'blindRead'],
+
   // ---- deve LIBERAR ----
+  ['allow', 'git commit contendo a palavra tree',     claude('Bash', { command: 'git commit -m "fix tree view"' }), null],
+  ['allow', 'script chamado tree.js',                 vscode('bash', { command: 'node scripts/tree.js --all' }), null],
+  ['allow', 'grep -r alimentado por pipe é filtrado', vscode('bash', { command: 'cat a.txt | grep -r foo' }), null],
+  ['allow', 'redirect para arquivo não entra na janela', vscode('powershell', { command: 'dir /s /b > arquivos.txt' }), null],
+  ['allow', 'find com -maxdepth tem teto',            claude('Bash', { command: 'find . -maxdepth 1' }), null],
+  ['allow', 'grep -r com escopo de diretório',        vscode('bash', { command: 'grep -rn TODO src/' }), null],
+  ['allow', 'rg com escopo de diretório',             vscode('bash', { command: 'rg TODO lib/' }), null],
+  ['allow', 'glob com grupo de extensão {ts,tsx}',    vscode('glob', { pattern: '**/*.{ts,tsx}' }), null],
+  ['allow', 'head_limit em string conta como teto',   vscode('grep', { pattern: 'Service', output_mode: 'content', head_limit: '50' }), null],
+  ['allow', 'payload malformado falha aberto',        { tool_name: 'Glob', tool_input: ['não', 'é', 'objeto'], cwd: TMP }, null],
+  ['allow', 'listagem de um diretório é limitada por natureza', vscode('list_directory', { path: '.' }), null],
+
+  // formatos de envelope
+  ['allow', 'formato SDK in-process (toolArgs)',      { toolName: 'view', toolArgs: { path: SMALL }, workingDirectory: TMP }, null],
+
+  // ---- deve LIBERAR (originais) ----
   ['allow', 'glob com extensão',                      vscode('glob', { pattern: '**/*.java' }), null],
   ['allow', 'glob ancorado em diretório',             vscode('glob', { pattern: 'src/main/**' }), null],
   ['allow', 'glob amplo mas com paths',               vscode('glob', { pattern: '**/*', paths: ['src'] }), null],
@@ -119,6 +153,20 @@ const sample = run(vscode('glob', { pattern: '**/*' }));
 const teaches = /DO THIS INSTEAD/.test(sample.reason) && /PT-BR/.test(sample.reason);
 if (teaches) { pass++; console.log('  ok    o bloqueio injeta a correção (EN + PT-BR)'); }
 else { fail++; failures.push({ label: 'mensagem corretiva', reason: sample.reason.slice(0, 200) }); console.log('  FALHA mensagem corretiva ausente'); }
+
+/* blindRead resolve caminho relativo contra o cwd do PAYLOAD, não o do processo.
+   O hook pode ser spawnado de qualquer lugar; o arquivo pertence ao workspace. */
+const relName = 'sub-relbig.log';
+fs.mkdirSync(path.join(TMP, 'sub'), { recursive: true });
+fs.writeFileSync(path.join(TMP, 'sub', relName), 'y'.repeat(120000), 'utf8');
+const cwdMiss = run({ tool_name: 'View', tool_input: { path: `sub/${relName}` }, cwd: TMP }, null, os.tmpdir());
+if (cwdMiss.decision === 'deny' && /blindRead/.test(cwdMiss.reason)) {
+  pass++; console.log('  ok    blindRead resolve relativo contra o cwd do payload');
+} else {
+  fail++;
+  failures.push({ label: 'blindRead cwd relativo', expected: 'deny/blindRead', got: cwdMiss.decision });
+  console.log(`  FALHA blindRead cwd relativo (obteve ${cwdMiss.decision})`);
+}
 
 console.log('  ' + '─'.repeat(72));
 console.log(`  ${pass} passaram · ${fail} falharam\n`);

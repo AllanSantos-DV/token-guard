@@ -37,19 +37,19 @@ lógica de decisão dentro de um adapter, ela pertence a `lib/`.
 1. Descubra o envelope de entrada e o contrato de saída do harness.
 2. Se o envelope tiver campos novos, adicione o alias em `lib/payload.cjs` — não no adapter.
 3. Crie `adapters/<harness>.cjs` fazendo apenas: ler payload → `decide()` → traduzir veredito.
-4. Adicione o alvo em `install.cjs` (`TARGETS`).
+4. Adicione o alvo em `install.cjs`: nome no array `VALID`, função no mapa `RUNNERS`.
 5. Cubra o adapter em `test/adapters.test.cjs`.
 6. Documente em `docs/IDES.md`.
 
 ## Rodando os testes
 
 ```bash
-node selftest.cjs              # 27 casos contra o hook real
-node test/adapters.test.cjs    # adapters Cursor e MCP
+npm test                       # todas as suítes — cada uma imprime a própria contagem
 node install.cjs --target all --dry-run
 ```
 
 Não há framework de teste: os testes são Node puro, pelo mesmo motivo do princípio 2.
+Cada suíte imprime a própria contagem — não confie em números hardcoded de README.
 
 ## Estilo
 
