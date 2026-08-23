@@ -5,10 +5,24 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [2.2.0] — 2026-08-23
 
-Economia de SAÍDA, contrato com evidência real e o backlog de hardening atacado
-por completo (16 itens → 13 fechados, 4 monitorados — mapa em `docs/BACKLOG.md`).
+Economia de SAÍDA, contrato com evidência real, replay sobre sessões reais e o
+backlog de hardening zerado (16 itens → 13+4 fechados, só monitoramento restante
+— mapa em `docs/BACKLOG.md`).
 
-### Adicionado
+### Adicionado (rodada 2 — fechar tudo antes de lançar)
+- **Replay de transcripts REAIS** (`bench/replay-transcripts.cjs`): percorre os
+  JSONL de sessões passadas do Claude Code e roda o decide() atual sobre cada
+  chamada histórica. Na máquina do autor: 65 sessões, 8.197 chamadas → 28 denies
+  legítimos, ~437k tokens líquidos estimados — e a auditoria dos suspeitos
+  expôs duas classes de falso positivo que nenhuma suíte pegava (abaixo).
+- **bigResult substitui de verdade também no Claude Code**: v2.1.121 estendeu
+  `updatedToolOutput` para todas as ferramentas; o post-hook emite o stub como
+  substituição (versões antigas: orientação, nunca bloqueio).
+- **Cursor ganha broadScan de volta**: o Cursor passou a expor `preToolUse`
+  genérico com matcher por tipo de ferramenta — adapter traduz o evento e o
+  instalador registra; todas as 4 regras disparam nas versões recentes.
+
+### Adicionado (rodada 1)
 - **Regra `bigResult` (pós-execução)** — `lib/postresult.cjs` + adapter
   PostToolUse: resultado de ferramenta acima de ~25k caracteres vira stub com
   preview (cabeça+cauda), versão integral gravada em `.token-guard/results/`
@@ -66,6 +80,17 @@ por completo (16 itens → 13 fechados, 4 monitorados — mapa em `docs/BACKLOG.
   `renderText` tolera `charsPerToken` ausente/zero (via API programática).
 - Identidade de sessão sem id do harness deriva da raiz (hash), em vez de um
   `'sem-sessao'` global que misturava estado entre repositórios.
+- Removido `debug.log` esquecido na raiz.
+
+### Corrigido (rodada 2 — achados do replay real)
+- **noisePath barrava leituras legítimas FORA do workspace** (scratchpads e
+  outputs de tarefa do próprio harness em `%TEMP%\claude\…`): o ancestral
+  `Temp` casava com a lista de ruído quando o caminho escapava da raiz. Caminho
+  fora do workspace não é ruído — é contexto escolhido. No replay real isso
+  eram 69 denies injustos numa máquina só; agora são zero.
+- `git ls-files docs/plans/` escopado era negado como dump inteiro; agora segue
+  a mesma regra da busca por conteúdo: caminho explícito = barato, sem caminho
+  = árvore inteira (barrado).
 
 ## [2.1.0] — 2026-08-22
 

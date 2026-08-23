@@ -9,12 +9,18 @@
 
 | # | Item | Origem | Esforço |
 |---|---|---|---|
-| A1 | **Replay de transcripts REAIS** para validar a economia medida por simulação (o modelo paramétrico é honesto, mas é modelo). Corpus: sessões próprias com/sem guard | bench/savings | L |
-| A2 | **Claude Code**: se hooks de comando passarem a aceitar `modifiedResult` no PostToolUse, trocar advisory por substituição real | IDES.md | S |
-| A3 | **Monitorar Cursor**: se ganharem evento pré-busca, broadScan dispara sem mudança no núcleo | IDES.md | — |
-| A4 | **Multi-extensão Copilot**: issue copilot-cli#2142 reportou hooks sobrescritos entre extensões; se voltar, contrato/bigResult podem sumir silenciosamente. Monitorar releases do CLI | pesquisa SDK | — |
+| A1 | **Replay contínuo**: rodar `node bench/replay-transcripts.cjs` periodicamente (a cada release) e auditar a lista de suspeitos que ele imprime — o replay real de 2026-08 achou 2 classes de FP que nenhuma suíte pegava | gate 2.2.0 | S/recorrente |
 
-## Fechado na release 2.2.0
+## Fechado na release 2.2.0 (rodada 2 — "fechar tudo antes de lançar")
+
+| # | Item | Resultado |
+|---|---|---|
+| F14 | **A1 Replay de transcripts reais** | `bench/replay-transcripts.cjs`: 79 transcripts / 65 sessões reais / 8.197 chamadas → 28 denies legítimos, ~437k tok líquidos. E o replay CUMPRIU seu propósito: expôs a classe de FP noisePath-fora-da-raiz (69→0) e git ls-files escopado — ambos corrigidos failing-first |
+| F15 | **A2 Claude Code substituição real** | v2.1.121 estendeu `updatedToolOutput` para todas as tools; post-hook agora emite o stub como substituição (versões antigas: orientação) |
+| F16 | **A3 Cursor broadScan** | Cursor passou a expor `preToolUse` genérico com matcher por ferramenta; adapter traduz o evento e o instalador registra — todas as 4 regras disparam no Cursor recente; matriz IDES.md atualizada |
+| F17 | **A4 Sobrescrita de hooks Copilot** | corrigido upstream no CLI v1.0.11–12 (extensões fazem merge); `userPromptSubmitted.additionalContext` oficial desde v1.0.65 — monitoramento encerrado com versões mínimas documentadas |
+
+## Fechado na release 2.2.0 (rodada 1)
 
 | # | Item | Resultado |
 |---|---|---|

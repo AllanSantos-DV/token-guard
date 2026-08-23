@@ -69,7 +69,9 @@ const CASES = [
   ['deny', 'leitura de 117 KB sem faixa',             vscode('view', { path: BIG }), 'blindRead'],
   ['deny', 'read_file grande sem faixa (Claude)',     claude('Read', { file_path: BIG }), 'blindRead'],
   ['deny', 'caminho em node_modules',                 vscode('view', { path: path.join(TMP, 'node_modules', 'x', 'i.js') }), 'noisePath'],
-  ['deny', 'caminho em target (fora da raiz)',        claude('Read', { file_path: 'C:/repo/target/classes/A.class' }), 'noisePath'],
+  ['deny', 'caminho em target DENTRO da raiz',        vscode('view', { path: path.join(TMP, 'target', 'classes', 'A.class') }), 'noisePath'],
+  // Fora da raiz NÃO é ruído (decisão do replay real): é contexto escolhido.
+  ['allow', 'build fora da raiz é contexto escolhido', claude('Read', { file_path: 'C:/repo/target/classes/A.class' }), null],
   ['deny', 'Get-ChildItem -Recurse sem limite',       vscode('powershell', { command: 'Get-ChildItem -Recurse' }), 'shellDump'],
   ['deny', 'ls -R sem limite (Claude)',               claude('Bash', { command: 'ls -R /repo' }), 'shellDump'],
   ['deny', 'grep -r no shell',                        vscode('run_in_terminal', { command: 'grep -r TODO .' }), 'shellDump'],
@@ -83,6 +85,7 @@ const CASES = [
   ['deny', 'dir -Recurse (PowerShell)',               vscode('powershell', { command: 'dir -Recurse' }), 'shellDump'],
   ['deny', 'find <dir> sem filtro',                   claude('Bash', { command: 'find src' }), 'shellDump'],
   ['deny', 'find <path absoluto unix>',               claude('Bash', { command: 'find /var/log' }), 'shellDump'],
+  ['deny', 'git ls-files sem escopo',                 vscode('bash', { command: 'git ls-files' }), 'shellDump'],
   ['deny', 'prefixo de env não esconde dump',         vscode('bash', { command: 'FOO=1 tree' }), 'shellDump'],
   ['deny', 'prefixo de env em busca conteúdo',        vscode('bash', { command: 'FOO=1 rg -n TODO .' }), 'shellDump'],
   ['allow', 'switch do find.exe não é dump',          vscode('bash', { command: 'find /c "TODO" notes.txt' }), null],
@@ -104,6 +107,11 @@ const CASES = [
 
   // formatos de envelope
   ['allow', 'formato SDK in-process (toolArgs)',      { toolName: 'view', toolArgs: { path: SMALL }, workingDirectory: TMP }, null],
+
+  // ---- deve LIBERAR (regressões do replay real 2026-08) ----
+  ['allow', 'scratchpad fora da raiz não é ruído',    vscode('view', { path: 'C:/Users/x/AppData/Local/Temp/claude/proj/sess/scratchpad/w.out' }), null],
+  ['allow', 'output de tarefa fora da raiz',          claude('Read', { file_path: 'C:/Users/x/AppData/Local/Temp/claude/p/s/tasks/t.out' }), null],
+  ['allow', 'git ls-files escopado é barato',         vscode('bash', { command: 'git ls-files docs/plans/' }), null],
 
   // ---- deve LIBERAR (originais) ----
   ['allow', 'glob com extensão',                      vscode('glob', { pattern: '**/*.java' }), null],

@@ -9,15 +9,17 @@
  * traduzir o veredito de volta ao contrato do Cursor.
  *
  * EVENTOS COBERTOS
- *   beforeReadFile        → sintetiza uma chamada de leitura     (blindRead, noisePath)
- *   beforeShellExecution  → sintetiza uma chamada de shell       (shellDump)
- *   beforeMCPExecution    → repassa tool_name/tool_input direto  (todas as regras)
+ *   preToolUse             → envelope direto do harness      (todas as regras)
+ *   beforeReadFile         → sintetiza uma chamada de leitura     (blindRead, noisePath)
+ *   beforeShellExecution   → sintetiza uma chamada de shell       (shellDump)
+ *   beforeMCPExecution     → repassa tool_name/tool_input direto  (todas as regras)
  *
  * COBERTURA REAL — leia antes de esperar paridade
- *   O Cursor não expõe evento para grep/glob/busca semântica, então a regra
- *   broadScan NÃO tem como disparar aqui. No Cursor CLI (`cursor-agent`) só
- *   beforeShellExecution é entregue, o que reduz a cobertura a shellDump.
- *   Isso é limitação do harness, não deste adapter. Veja docs/IDES.md.
+ *   O Cursor passou a expor `preToolUse` genérico (matcher por tipo de
+ *   ferramenta: Shell, Read, Write, Grep…), então broadScan DISPARA nas
+ *   versões recentes. No Cursor CLI (`cursor-agent`) a entrega continua
+ *   reduzida (só shell) — limitação do harness, não deste adapter.
+ *   Veja docs/IDES.md.
  *
  * CONTRATO DE SAÍDA
  *   { "permission": "allow" | "deny" | "ask",
@@ -53,6 +55,13 @@ function workspaceRoot(payload) {
 function toCanonical(payload) {
   const evt = eventName(payload);
   const cwd = workspaceRoot(payload);
+
+  // preToolUse genérico (Cursor recente): mesmo envelope do Claude Code.
+  if (evt === 'preToolUse') {
+    const name = P.firstString(payload?.tool_name, payload?.toolName);
+    if (!name) return null;
+    return { toolName: name, toolInput: payload?.tool_input || payload?.toolInput || {}, cwd };
+  }
 
   if (evt === 'beforeReadFile') {
     const file = P.firstString(payload?.file_path, payload?.filePath, payload?.path);

@@ -16,12 +16,13 @@ O núcleo (`lib/`) é o mesmo em todos. O que muda é o quanto dele consegue rod
 
 | IDE / Harness | Alvo | Mecanismo | Bloqueia? | Regras que disparam |
 |---|---|---|---|---|
-| GitHub Copilot CLI | `copilot` | Extensão in-process (SDK) | ✅ sim | todas as 4 |
-| GitHub Copilot App | `copilot` | Extensão in-process (SDK) | ✅ sim | todas as 4 |
+| GitHub Copilot CLI | `copilot` | Extensão in-process (SDK) | ✅ sim | todas as 4 + bigResult real |
+| GitHub Copilot App | `copilot` | Extensão in-process (SDK) | ✅ sim | todas as 4 + bigResult real |
 | Copilot CLI (repo) | `repo` | `PreToolUse` via `.github/hooks/hooks.json` | ✅ sim | todas as 4 |
 | Claude Code | `claude` | `PreToolUse` via `~/.claude/settings.json` | ✅ sim | todas as 4 |
-| Cursor (IDE) | `cursor` | `beforeReadFile`, `beforeShellExecution`, `beforeMCPExecution` | ⚠️ parcial | blindRead, noisePath, shellDump |
-| Cursor CLI (`cursor-agent`) | `cursor` | só `beforeShellExecution` | ⚠️ mínimo | shellDump |
+| Claude Code (saída) | `claude` | `PostToolUse` `updatedToolOutput` (v2.1.121+) | ✅ substitui | bigResult real |
+| Cursor (IDE) | `cursor` | `preToolUse` genérico (recente) + os 3 nomeados | ✅ sim | **todas as 4** |
+| Cursor CLI (`cursor-agent`) | `cursor` | subset dos eventos | ⚠️ mínimo | shellDump (+ o que o CLI entregar) |
 | VS Code Copilot Chat | `mcp` | MCP server | ❌ não | orientação via `token_guard_check` |
 | Windsurf | `mcp` | MCP server | ❌ não | orientação via `token_guard_check` |
 | Zed | `mcp` | MCP server | ❌ não | orientação via `token_guard_check` |

@@ -44,19 +44,25 @@ async function main() {
   const verdict = postProcess({
     name,
     input: payload?.tool_input || payload?.toolInput || {},
-    result: payload?.tool_response ?? payload?.toolResponse ?? payload?.tool_result,
+    result: payload?.tool_response ?? payload?.toolResponse ?? payload?.tool_result
+      ?? payload?.tool_output,
     root,
     cfg,
   });
 
-  if (verdict) {
-    process.stdout.write(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'PostToolUse',
-        additionalContext: verdict.additionalContext,
-      },
-    }));
-  }
+  if (!verdict) return;
+
+  // Claude Code >= 2.1.121 aceita updatedToolOutput no PostToolUse: a saída
+  // truncada SUBSTITUI a original (mesma economia do plugin Copilot). Em
+  // versões antigas o campo é ignorado e sobra a orientação — nunca bloqueio.
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'PostToolUse',
+      updatedToolOutput:
+        typeof verdict.modifiedResult === 'string' ? verdict.modifiedResult : undefined,
+      additionalContext: verdict.additionalContext,
+    },
+  }));
 
   // Evidência para o contrato: arquivos que a sessão tocou viram gatilhos
   // (codigo/teste/docs) na próxima injeção. Falha aqui é silenciosa.

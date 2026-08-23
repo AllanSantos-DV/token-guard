@@ -451,7 +451,9 @@ function installCursor() {
 
   const command = nodeCmd(path.join(dir, 'adapters', 'cursor-hook.cjs'));
   const canonicalScript = path.join(dir, 'adapters', 'cursor-hook.cjs');
-  const EVENTS = ['beforeReadFile', 'beforeShellExecution', 'beforeMCPExecution'];
+  // preToolUse (Cursor recente) traz broadScan de volta; os três nomeados
+  // cobrem versões antigas e o CLI.
+  const EVENTS = ['preToolUse', 'beforeReadFile', 'beforeShellExecution', 'beforeMCPExecution'];
 
   let added = 0;
   for (const evt of EVENTS) {
