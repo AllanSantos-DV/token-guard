@@ -35,6 +35,13 @@ fs.writeFileSync(
 // Em Windows/macOS o filesystem não distingue caixa; em Linux sim.
 const FOLD_CASE = process.platform === 'win32' || process.platform === 'darwin';
 
+// Repositório FORA do fixture: caminhos absolutos reais para provar que
+// noisePath não julga o que está fora da raiz do workspace.
+const OUTSIDE = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-outside-'));
+fs.mkdirSync(path.join(OUTSIDE, 'scratchpad'), { recursive: true });
+fs.mkdirSync(path.join(OUTSIDE, 'tasks'), { recursive: true });
+fs.mkdirSync(path.join(OUTSIDE, 'target', 'classes'), { recursive: true });
+
 function run(payload, env, spawnCwd) {
   const res = spawnSync(process.execPath, [GUARD], {
     input: JSON.stringify(payload),
@@ -70,8 +77,8 @@ const CASES = [
   ['deny', 'read_file grande sem faixa (Claude)',     claude('Read', { file_path: BIG }), 'blindRead'],
   ['deny', 'caminho em node_modules',                 vscode('view', { path: path.join(TMP, 'node_modules', 'x', 'i.js') }), 'noisePath'],
   ['deny', 'caminho em target DENTRO da raiz',        vscode('view', { path: path.join(TMP, 'target', 'classes', 'A.class') }), 'noisePath'],
-  // Fora da raiz NÃO é ruído (decisão do replay real): é contexto escolhido.
-  ['allow', 'build fora da raiz é contexto escolhido', claude('Read', { file_path: 'C:/repo/target/classes/A.class' }), null],
+  // Fora da raiz NÃO é ruído (decisão do replay real) — coberto pelos casos
+  // OUTSIDE acima com caminhos absolutos reais.
   ['deny', 'Get-ChildItem -Recurse sem limite',       vscode('powershell', { command: 'Get-ChildItem -Recurse' }), 'shellDump'],
   ['deny', 'ls -R sem limite (Claude)',               claude('Bash', { command: 'ls -R /repo' }), 'shellDump'],
   ['deny', 'grep -r no shell',                        vscode('run_in_terminal', { command: 'grep -r TODO .' }), 'shellDump'],
@@ -86,6 +93,7 @@ const CASES = [
   ['deny', 'find <dir> sem filtro',                   claude('Bash', { command: 'find src' }), 'shellDump'],
   ['deny', 'find <path absoluto unix>',               claude('Bash', { command: 'find /var/log' }), 'shellDump'],
   ['deny', 'git ls-files sem escopo',                 vscode('bash', { command: 'git ls-files' }), 'shellDump'],
+  ['allow', 'git ls-files escopado é barato',         vscode('bash', { command: 'git ls-files docs/plans/' }), null],
   ['deny', 'prefixo de env não esconde dump',         vscode('bash', { command: 'FOO=1 tree' }), 'shellDump'],
   ['deny', 'prefixo de env em busca conteúdo',        vscode('bash', { command: 'FOO=1 rg -n TODO .' }), 'shellDump'],
   ['allow', 'switch do find.exe não é dump',          vscode('bash', { command: 'find /c "TODO" notes.txt' }), null],
@@ -109,9 +117,13 @@ const CASES = [
   ['allow', 'formato SDK in-process (toolArgs)',      { toolName: 'view', toolArgs: { path: SMALL }, workingDirectory: TMP }, null],
 
   // ---- deve LIBERAR (regressões do replay real 2026-08) ----
-  ['allow', 'scratchpad fora da raiz não é ruído',    vscode('view', { path: 'C:/Users/x/AppData/Local/Temp/claude/proj/sess/scratchpad/w.out' }), null],
-  ['allow', 'output de tarefa fora da raiz',          claude('Read', { file_path: 'C:/Users/x/AppData/Local/Temp/claude/p/s/tasks/t.out' }), null],
-  ['allow', 'git ls-files escopado é barato',         vscode('bash', { command: 'git ls-files docs/plans/' }), null],
+  // Fora da raiz NÃO é ruído. Fixtures usam caminhos ABSOLUTOS REAIS fora do
+  // TMP (criado no topo): um "C:/..." só é absoluto no Windows; no Linux
+  // cairia DENTRO do fixture ao resolver e viraria outro teste.
+  ['allow', 'scratchpad fora da raiz não é ruído',    vscode('view', { path: path.join(OUTSIDE, 'scratchpad', 'w.out') }), null],
+  ['allow', 'output de tarefa fora da raiz',          claude('Read', { file_path: path.join(OUTSIDE, 'tasks', 't.out') }), null],
+  ['allow', 'build fora da raiz é contexto escolhido', claude('Read', { file_path: path.join(OUTSIDE, 'target', 'classes', 'A.class') }), null],
+  ['deny', 'ruído DENTRO da raiz continua barrado',   vscode('view', { path: path.join(TMP, 'target', 'classes', 'i.class') }), 'noisePath'],
 
   // ---- deve LIBERAR (originais) ----
   ['allow', 'glob com extensão',                      vscode('glob', { pattern: '**/*.java' }), null],
@@ -186,4 +198,5 @@ if (fail) {
 }
 
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch { /* noop */ }
+try { if (typeof OUTSIDE !== 'undefined') fs.rmSync(OUTSIDE, { recursive: true, force: true }); } catch { /* noop */ }
 process.exit(fail ? 1 : 0);
