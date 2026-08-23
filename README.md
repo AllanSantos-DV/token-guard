@@ -1,5 +1,7 @@
 # token-guard
 
+**[Site &raquo;](https://allansantos-dv.github.io/token-guard/)** &middot; com medidor interativo de janela de contexto, n&uacute;meros medidos e matriz de cobertura.
+
 **Economia de contexto para agentes de IA — agnóstico de IDE, como configuração versionada, não como produto.**
 
 Um kit portátil que qualquer pessoa instala em qualquer repositório, em qualquer IDE.
