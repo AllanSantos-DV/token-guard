@@ -33,8 +33,13 @@ if (!fs.existsSync(ROOT)) {
 
 const cfg = CFG.load(ROOT);
 const only = opt('--server', null);
+// Configs extras fora dos locais conhecidos (Zed, JetBrains, frotas próprias):
+// --extra-files a.json,b.json — nada é executado por isso; só o inventário cresce.
+const extraFiles = String(opt('--extra-files', '') || '')
+  .split(',').map((s) => s.trim()).filter(Boolean)
+  .map((f) => path.resolve(f));
 
-let servers = MC.discover({ cwd: ROOT });
+let servers = MC.discover({ cwd: ROOT, extraFiles });
 if (only) servers = servers.filter((s) => s.name === only);
 
 if (!servers.length) {

@@ -3,12 +3,12 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [2.2.0] — 2026-08-23
+
+Economia de SAÍDA, contrato com evidência real e o backlog de hardening atacado
+por completo (16 itens → 13 fechados, 4 monitorados — mapa em `docs/BACKLOG.md`).
 
 ### Adicionado
-- `docs/BACKLOG.md`: melhorias óbvias encontradas fora de escopo ficam
-  anotadas (com origem e esforço estimado) e são atacadas quando o escopo
-  corrente fecha — política do dono, espelhada no Brain.
 - **Regra `bigResult` (pós-execução)** — `lib/postresult.cjs` + adapter
   PostToolUse: resultado de ferramenta acima de ~25k caracteres vira stub com
   preview (cabeça+cauda), versão integral gravada em `.token-guard/results/`
@@ -18,18 +18,24 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   docs/IDES.md. Fail-open absoluto (objeto circular, root impossível → passa
   intacto).
 - **Injeção automática do contrato** — adapter UserPromptSubmit fecha o
-  circuito que estava aberto: a camada "sempre" do contrato entra 1× por
-  sessão, direto no contexto, com estado em `.token-guard/sessions/`.
-  Limitação declarada: gatilhos por evidência ainda sem injeção automática.
-- **mcp-cost acionável** — o relatório ganhou seção RECOMENDAÇÕES: servidores
-  >1,5k tok de schema recebem sugestão de corte/slim; ferramentas >500 tok,
-  sugestão de encurtar descrição. Toda recomendação é condicional ao uso real
-  (o medidor não vê uso); servidor que falhou não recebe recomendação inventada.
+  circuito que estava aberto; e agora com **evidência real**: o PostToolUse
+  acumula os arquivos tocados da sessão (dedupe, teto 50) e as seções
+  `quando:codigo/teste/docs` entram conforme o tipo de trabalho. No modo
+  plugin do Copilot, `onUserPromptSubmitted` injeta pelo mesmo estado.
+- **mcp-cost acionável** — seção RECOMENDAÇÕES: servidores >1,5k tok de schema
+  recebem sugestão de corte/slim; ferramentas >500 tok, de encurtar descrição.
+  Recomendação condicional ao uso real; servidor que falhou nunca recebe
+  recomendação inventada. E `--extra-files a.json,b.json` traz configs fora dos
+  locais conhecidos (Zed, JetBrains, frotas próprias) para o inventário.
 - **Skill token-economy v2** — levers externos validados por pesquisa:
   compaction, model routing, cache-friendly habits, CLI>MCP, slimming de MCP,
   sub-agentes — com fontes.
-- Suítes novas: `test/postresult.test.cjs` (11), `test/adapters.post.test.cjs`
-  (8), `test/adapters.prompt.test.cjs` (9) — `npm test` roda as nove; CI idem.
+- `docs/BACKLOG.md`: melhorias óbvias fora de escopo ficam anotadas (origem +
+  esforço) e são atacadas quando o escopo corrente fecha — política do dono,
+  espelhada no Brain.
+- Teste EPIPE (`test/epipe.test.cjs`): stdout destruído com o filho vivo —
+  exit 0, zero stack trace. CI ganhou Node 16 na matriz (engines >=16 passou a
+  ser testada de fato); `npm test` roda as dez suítes.
 
 ### Corrigido
 - **Re-gate da rodada de features (reviewer + tester independentes), 7 achados**:
@@ -52,6 +58,14 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
     sessão) → handler de erro + emitir antes de persistir;
   - colisão de session-id sanitizado (`sess/1` ≡ `sess:1`) suprimia injeção
     entre sessões distintas → sufixo sha1 do id original quando sanitizado.
+- Backlog P1: `writeJson` do instalador atômico (temp + rename — crash não
+  trunca mais o settings.json do usuário); matcher drift também no alvo `repo`;
+  `CFG.load` memoizado (TTL 2s, env na chave) para o modo plugin deixar de
+  re-walk a árvore a cada evento.
+- `renderAdvice`: recomendações além da 8ª aparecem como "+N restantes";
+  `renderText` tolera `charsPerToken` ausente/zero (via API programática).
+- Identidade de sessão sem id do harness deriva da raiz (hash), em vez de um
+  `'sem-sessao'` global que misturava estado entre repositórios.
 
 ## [2.1.0] — 2026-08-22
 
@@ -135,7 +149,7 @@ de autor, com achados confirmados por execução antes de cada correção (RED �
   [docs/CONTRACT.md](docs/CONTRACT.md) e seção no README — incluindo o estado
   honesto: biblioteca e inspeção estáveis, adapter de injeção automática ainda
   pendente.
-- `test/install.test.cjs`: 9 casos de integração do instalador contra o FS real,
+- `test/install.test.cjs`: casos de integração do instalador contra o FS real,
   com home falso (idempotência, reparo, preservação, loader × homes).
 - `bench/latency.cjs`: os números de latência do README viraram medição
   reprodutível na máquina de quem lê.
@@ -146,8 +160,6 @@ de autor, com achados confirmados por execução antes de cada correção (RED �
 - Suíte de regressão do gate adversarial embutida no selftest (21 casos novos).
 
 ### Alterado
-- `npm test` roda as cinco suítes; CI idem (Linux+Windows × Node 18/20/22),
-  mais simulação de instalação e auditoria do próprio repo.
 - README deixa de publicar constantes de latência de máquina específica como se
   fossem universais; aponta o bench.
 
@@ -170,7 +182,6 @@ de autor, com achados confirmados por execução antes de cada correção (RED �
   `--list` inventaria sem executar nada; sem ele, os servidores declarados
   **são executados**. Só mede: não instala, não desinstala, não mexe em config.
 - `test/adapters.test.cjs` (23 casos) e `test/mcp-cost.test.cjs` (34 casos).
-- `test/contract.test.cjs` (42 casos) sobre `lib/contract.cjs`.
 - CI em GitHub Actions: Linux + Windows × Node 18/20/22.
 - `docs/IDES.md` com a matriz de cobertura real por IDE.
 

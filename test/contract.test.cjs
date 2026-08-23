@@ -223,6 +223,23 @@ console.log('\n  [estado]');
   fs.writeFileSync(path.join(dir, 'corrompido.json'), '{ não é json', 'utf8');
   check('estado corrompido é tratado como vazio',
     CT.readState(root, 'corrompido').injected.length === 0);
+
+  /* evidência acumulada (touched): roundtrip, cap e fail-open */
+  CT.recordTouched(root, 'ev', ['lib/a.cjs']);
+  CT.recordTouched(root, 'ev', ['lib/a.cjs', 'README.md']); // dedupe + novo
+  check('touched: roundtrip com dedupe preservando ordem',
+    JSON.stringify(CT.readTouched(root, 'ev')) === JSON.stringify(['lib/a.cjs', 'README.md']));
+  for (let i = 0; i < CT.TOUCHED_CAP + 5; i++) {
+    CT.recordTouched(root, 'cap', [`f${i}.js`]);
+  }
+  const capped = CT.readTouched(root, 'cap');
+  check(`touched: teto de ${CT.TOUCHED_CAP} descarta os mais antigos`,
+    capped.length === CT.TOUCHED_CAP &&
+      !capped.includes('f0.js') &&
+      capped.includes(`f${CT.TOUCHED_CAP + 4}.js`),
+    `len=${capped.length} primeiro=${capped[0]} último=${capped[capped.length - 1]}`);
+  check('touched: leitura de sessão inexistente é vazia',
+    CT.readTouched(root, 'nunca-vista').length === 0);
 }
 
 /* ================================================================== */

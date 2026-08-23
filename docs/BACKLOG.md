@@ -5,42 +5,34 @@
 > atacado assim que o escopo corrente fechar. Cada item traz origem e esforço
 > estimado (S < 1h · M ~1 sessão · L multi-sessão).
 
-## P1 — atacar primeiro
+## Aberto
 
 | # | Item | Origem | Esforço |
 |---|---|---|---|
-| 1 | **Contagens hardcoded já stale**: README "caixa" diz selftest=48 (real: 52). Remover números fixos das tabelas e apontar para a saída das próprias suítes | gate final | S |
-| 2 | **writeJson não atômico** (install.cjs): crash mid-install pode truncar settings.json do usuário → gravar temp+rename | reviewer | S |
-| 3 | **Matcher drift nos alvos `repo`/`copilot`** (MATCHER_COPILOT no hooks.json): reconcile() existe só no alvo claude; upgrades antigos herdam matcher velho silenciosamente | tester R3 generalizada | M |
-| 4 | **Plugin path perde o pitch de latência**: CFG.load roda 1–2× por evento (~ms) no onPreToolUse/onPostToolUse; memoizar config por cwd+mtime devolveria o "~0,15 ms" do README | reviewer #9 | S-M |
+| A1 | **Replay de transcripts REAIS** para validar a economia medida por simulação (o modelo paramétrico é honesto, mas é modelo). Corpus: sessões próprias com/sem guard | bench/savings | L |
+| A2 | **Claude Code**: se hooks de comando passarem a aceitar `modifiedResult` no PostToolUse, trocar advisory por substituição real | IDES.md | S |
+| A3 | **Monitorar Cursor**: se ganharem evento pré-busca, broadScan dispara sem mudança no núcleo | IDES.md | — |
+| A4 | **Multi-extensão Copilot**: issue copilot-cli#2142 reportou hooks sobrescritos entre extensões; se voltar, contrato/bigResult podem sumir silenciosamente. Monitorar releases do CLI | pesquisa SDK | — |
 
-## P2 — ganho médio
+## Fechado na release 2.2.0
 
-| # | Item | Origem | Esforço |
-|---|---|---|---|
-| 5 | **Gatilhos por evidência sem injeção automática** (codigo/teste/docs): UserPromptSubmit não traz arquivos tocados; acumular touched num estado de sessão via PostToolUse fecharia o circuito | design contract | M-L |
-| 6 | **Injeção do contrato no Copilot/Cursor/MCP** — hoje só Claude Code injeta; verificar se o SDK expõe evento equivalente | docs CONTRACT status | M |
-| 7 | **bigResult em falhas do Copilot**: SDK dispara onPostToolUse só em sucesso; avaliar onPostToolUseFailure para orientar também ali | reviewer #9 nuance | S |
-| 8 | **mcp-cost `--extra-files ARQUIVO`**: API de discover() aceita extraFiles, CLI não expõe; habilitaria Zed/JetBrains sem esperar suporte nativo | auditoria IDES | S |
-| 9 | **renderAdvice corta em 8 sem "+N mais"**; renderText divide por charsPerToken sem guard (só via API programática) | reviewer #11 | S |
-| 10 | **Teste EPIPE** para post-hook/prompt-hook (fix aplicado sem RED dedicado — custo/benefício não fechava na época) | revisão própria | M |
+| # | Item | Resultado |
+|---|---|---|
+| F1 | Contagens hardcoded em docs/help | tabelas viraram qualitativas; cada suíte imprime a própria contagem |
+| F2 | writeJson não atômico | temp + rename indivisível |
+| F3 | Matcher drift alvo `repo` | atualizado automaticamente no upgrade (`copilot` é in-process, sem matcher — N/A) |
+| F4 | Plugin path re-carregava config a cada evento | memoização TTL 2s em `CFG.load` (env na chave) |
+| F5 | Gatilhos por evidência sem injeção automática | post-hook acumula touched (cap 50) → prompt-hook injeta sempre+codigo/teste/docs; idem plugin Copilot via invocation.sessionId |
+| F6 | Injeção do contrato só no Claude Code | `onUserPromptSubmitted` no adapter Copilot (mesmo estado compartilhado); MCP/Cursor seguem manuais por limitação dos harnesses |
+| F7 | bigResult em falhas (Copilot) | avaliado: falha de ferramenta não adiciona custo proporcional; orientação seria ruído — fechado sem código |
+| F8 | mcp-cost `--extra-files` | flag implementada (Zed/JetBrains/frotas próprias entram no inventário) |
+| F9 | advice corta em 8 sem "+N mais"; divisão sem guard | ambos corrigidos |
+| F10 | Teste EPIPE ausente | test/epipe.test.cjs: stdout destruído com filho vivo → exit 0, zero stack |
+| F11 | CI sem Node 16 (engines >=16) | matriz 16/18/20/22 |
+| F12 | Cláusulas README (lockfile dev-only, SDK provido pelo host) | bloco técnico final |
+| F13 | debug.log na raiz; 'sem-sessao' global misturando repos | removido; identidade derivada da raiz |
 
-## P3 — polimento / monitorar
+## Histórico
 
-| # | Item | Origem | Esforço |
-|---|---|---|---|
-| 11 | Replay de transcripts REAIS para validar economia (a simulação paramétrica é honesta mas é modelo) | bench savings | L |
-| 12 | Claude Code: se hooks de comando passarem a aceitar modifiedResult no PostToolUse, trocar advisory por substituição real | IDES.md nota | S |
-| 13 | Monitorar Cursor: se ganharem evento de busca, broadScan passa a disparar sem mudança no núcleo | IDES.md | — |
-| 14 | CI: engines >=16 mas matriz testa 18/20/22 (avaliar custo de um job 16) | auditoria docs | S |
-| 15 | README: cláusula "package-lock é de dev; runtime zero-dep"; campo `"extensions":["."]` do plugin.json sem explicação | auditoria docs | S |
-| 16 | Limpeza: `debug.log` na raiz (gitignored); `'sem-sessao'` compartilhado quando harness não manda session_id | housekeeping | S |
-
-## Fechados nesta sessão (referência)
-
-- Config knobs fora do sanitize truncando tudo → DEFAULTS.limits + guards locais ✅
-- liveOther duplicando guard → reconcile() substitui layout antigo ✅
-- Matcher drift (claude) → atualização automática ✅
-- Dedup hooks[0] → flatMap nos três eventos ✅
-- EPIPE + persist-before-deliver → handler + emitir antes de persistir ✅
-- Colisão de session-id sanitizado → sufixo sha1 do id original ✅
+- Itens F1–F13 originados do gate adversarial v2.1.0 → 2.2.0 (reviewer+tester
+  independentes, achados confirmados por execução, fixes failing-first).

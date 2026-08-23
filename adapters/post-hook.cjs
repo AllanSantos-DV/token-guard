@@ -18,7 +18,17 @@
 
 const P = require('../lib/payload.cjs');
 const CFG = require('../lib/config.cjs');
+const CT = require('../lib/contract.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
+
+/** Caminho alvo da chamada, se houver — alimenta os gatilhos do contrato. */
+function targetPath(input) {
+  const i = input || {};
+  for (const k of ['path', 'filePath', 'file_path', 'absolute_path', 'notebook_path', 'file']) {
+    if (typeof i[k] === 'string' && i[k]) return i[k];
+  }
+  return null;
+}
 
 async function main() {
   // EPIPE (harness fechou o pipe cedo) é evento de stream, não exceção:
@@ -39,14 +49,24 @@ async function main() {
     cfg,
   });
 
-  if (!verdict) return;
+  if (verdict) {
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PostToolUse',
+        additionalContext: verdict.additionalContext,
+      },
+    }));
+  }
 
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'PostToolUse',
-      additionalContext: verdict.additionalContext,
-    },
-  }));
+  // Evidência para o contrato: arquivos que a sessão tocou viram gatilhos
+  // (codigo/teste/docs) na próxima injeção. Falha aqui é silenciosa.
+  const target = targetPath(payload?.tool_input || payload?.toolInput);
+  if (target) {
+    const sid = payload?.session_id || payload?.sessionId;
+    if (sid) {
+      try { CT.recordTouched(root, sid, [target]); } catch { /* fail-open */ }
+    }
+  }
 }
 
 if (require.main === module) {

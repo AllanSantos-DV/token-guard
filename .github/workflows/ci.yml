@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node: [18, 20, 22]
+        node: [16, 18, 20, 22]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -39,8 +39,8 @@ jobs:
       - name: Economia — a promessa central, travada por teste
         run: node test/savings.test.cjs
 
-      - name: Saída — bigResult e injeção de contrato
-        run: node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs
+      - name: Saída — bigResult, injeção de contrato e robustez EPIPE
+        run: node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs && node test/epipe.test.cjs
 
       - name: Instalador — simulação em todos os alvos
         run: node install.cjs --target all --dry-run

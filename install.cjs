@@ -154,7 +154,13 @@ function readJson(file) {
 function writeJson(file, obj, base, label) {
   ensureDir(path.dirname(file));
   const existed = fs.existsSync(file);
-  if (!DRY) fs.writeFileSync(file, JSON.stringify(obj, null, 2) + '\n', 'utf8');
+  if (!DRY) {
+    // Escrita atômica: um crash no meio da instalação nunca pode truncar
+    // o settings.json/hooks.json do usuário. temp + rename é indivisível.
+    const tmp = file + '.tg-tmp-' + process.pid;
+    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2) + '\n', 'utf8');
+    fs.renameSync(tmp, file);
+  }
   log(existed ? 'merge' : 'create', label || rel(base, file));
 }
 
@@ -572,8 +578,23 @@ function installRepo() {
 
   const already = registrationState(liveCmds, canonicalScript, DEST).liveSame;
 
-  if (already && !staleRepo) {
-    skipped.push('.github/hooks/hooks.json (token-guard ja registrado)');
+  if (already) {
+    // Matcher drift: quem instalou versão antiga tem cobertura velha congelada
+    // (ex.: ferramenta nova de busca nunca vigiada). Atualiza em silêncio bom.
+    let driftFixed = false;
+    for (const h of hooks.hooks.PreToolUse) {
+      if (typeof h?.command === 'string' && h.command.includes('token-guard') &&
+          typeof h.matcher === 'string' && h.matcher !== MATCHER_COPILOT) {
+        h.matcher = MATCHER_COPILOT;
+        driftFixed = true;
+      }
+    }
+    if (driftFixed) {
+      writeJson(hooksPath, hooks, DEST,
+        '.github/hooks/hooks.json  (matcher atualizado para a cobertura atual)');
+    } else {
+      skipped.push('.github/hooks/hooks.json (token-guard ja registrado)');
+    }
   } else {
     const before = hooks.hooks.PreToolUse.length;
     hooks.hooks.PreToolUse.push({

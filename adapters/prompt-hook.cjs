@@ -18,6 +18,7 @@
  * pode bloquear ou poluir a sessão.
  */
 
+const crypto = require('crypto');
 const path = require('path');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
@@ -33,7 +34,10 @@ async function main() {
   // Sem cwd do harness não há contexto válido: operar sobre process.cwd()
   // gravaria estado no diretório errado (ex.: o próprio kit). Silêncio.
   if (!root) return;
-  const sessionId = payload?.session_id || payload?.sessionId || 'sem-sessao';
+  // Sem id do harness: deriva da RAIZ (não um 'sem-sessao' global que
+  // misturaria sessões de repositórios diferentes na mesma máquina).
+  const sessionId = payload?.session_id || payload?.sessionId
+    || `sess-${crypto.createHash('sha1').update(root).digest('hex').slice(0, 8)}`;
 
   const cfg = CFG.load(root);
   if (cfg.mode === 'off') return;
@@ -42,7 +46,10 @@ async function main() {
   if (!contract.order.length) return;
 
   const state = CT.readState(root, sessionId);
-  const decision = CT.decide({ contract, touched: [], injected: state.injected });
+  // Evidência acumulada pelo post-hook: arquivos tocados viram gatilhos
+  // (codigo/teste/docs) — o contrato passa a refletir o TIPO de sessão.
+  const touched = CT.readTouched(root, sessionId);
+  const decision = CT.decide({ contract, touched, injected: state.injected });
   if (!decision.text) return;
 
   // EMITE antes de persistir: se a entrega falhar (pipe fechado), o estado

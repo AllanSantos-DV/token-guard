@@ -78,6 +78,26 @@ console.log('\n  [prompt-hook · user prompt submit]');
   check('stdin corrompido sai em silêncio', bad === null);
 }
 
+/* Evidência acumulada pelo post-hook muda o que é injetado: sessão que tocou
+   código recebe a seção quando:codigo além da "sempre". */
+const CT = require(path.join(__dirname, '..', 'lib', 'contract.cjs'));
+{
+  CT.recordTouched(TMP, 'sess-cod', ['src/BigService.java']);
+  const out = run({ cwd: TMP, session_id: 'sess-cod', prompt: 'bora' });
+  check('evidência de código injeta a seção codigo junto',
+    Boolean(out?.additionalContext) && /Comentário registra invariante/.test(out.additionalContext),
+    (out?.additionalContext || '').slice(0, 160));
+  check('estado registra sempre+codigo (não reinjeta em nenhum dos dois)',
+    run({ cwd: TMP, session_id: 'sess-cod' }) === null);
+}
+
+{
+  // Sessão sem id do harness: estado derivado da raiz, não compartilhado.
+  const out1 = run({ cwd: TMP, prompt: 'sem id' });
+  check('sem session_id usa identidade por raiz e injeta',
+    Boolean(out1?.additionalContext));
+}
+
 {
   const noCwd = run({ session_id: 'sess-D' }); // sem cwd: contexto inválido
   check('sem cwd sai em silêncio (não grava estado no diretório errado)', noCwd === null);

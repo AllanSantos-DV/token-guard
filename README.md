@@ -337,6 +337,10 @@ eles permanece. Duas defesas, nesta ordem:
 - **Nunca faz spawn de `process.execPath`.** Dentro de um harness empacotado esse caminho
   aponta para o binário do harness, não para o Node — por isso a auditoria é uma
   biblioteca (`lib/audit.cjs`) que a extensão chama in-process.
+- **`package-lock.json` é artefato de desenvolvimento** (integridade do repositório);
+  em runtime o kit não tem dependência nenhuma para instalar. O import do SDK no
+  adapter Copilot (`@github/copilot-sdk`) é provido pelo próprio host na hora em
+  que a extensão carrega — nunca via npm deste pacote.
 - **Ferramentas casadas por família**, não por nome exato:
   `view`/`read_file`/`Read`, `grep`/`grep_search`/`Grep`, `glob`/`file_search`/`Glob`,
   `bash`/`powershell`/`run_in_terminal`. Harness novo costuma cair numa família existente.
@@ -362,7 +366,7 @@ Comece medindo. Sem o número de antes, não há como provar o de depois.
 ## Testes
 
 ```bash
-npm test                          # todas as suítes (nove)
+npm test                          # todas as suítes
 node selftest.cjs                 # o núcleo, contra o hook real
 node test/adapters.test.cjs       # a tradução dos adapters
 node test/mcp-cost.test.cjs       # o medidor de preâmbulo MCP

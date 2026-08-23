@@ -32,6 +32,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const { decide } = require("../lib/decide.cjs");
 const CFG = require("../lib/config.cjs");
 const AUDIT = require("../lib/audit.cjs");
+const CT = require("../lib/contract.cjs");
 const { postProcess } = require("../lib/postresult.cjs");
 
 let blocked = 0;
@@ -150,19 +151,61 @@ const session = await joinSession({
     },
 
     /**
+     * Injeção do contrato de saída (camada "sempre" + gatilhos por evidência
+     * acumulada nos tool uses anteriores da mesma sessão). Estado compartilha
+     * os mesmos arquivos do hook de comando do Claude Code. Nota: o CLI já
+     * teve bugs ignorando additionalContext em lifecycle hooks (#2142) —
+     * se isso voltar, o sintoma é contrato ausente, jamais bloqueio.
+     */
+    onUserPromptSubmitted: async (_input, invocation) => {
+      try {
+        const root = process.cwd();
+        const cfg = CFG.load(root);
+        if (cfg.mode === "off") return null;
+        const contract = CT.load(root);
+        if (!contract.order.length) return null;
+
+        const sid = invocation?.sessionId || "plugin";
+        const state = CT.readState(root, sid);
+        const touched = CT.readTouched(root, sid);
+        const decision = CT.decide({ contract, touched, injected: state.injected });
+        if (!decision.text) return null;
+
+        CT.writeState(root, sid, {
+          injected: [...state.injected, ...decision.triggers],
+        });
+        return { additionalContext: decision.text };
+      } catch {
+        return null; // fail-open, sempre
+      }
+    },
+
+    /**
      * Pós-execução (regra bigResult): resultado gigante vira stub com preview
      * + caminho da versão integral em .token-guard/results/. Aqui a troca é
      * real — o modelo nunca vê o corpo inteiro. Falha devolve null.
      */
-    onPostToolUse: async (input) => {
+    onPostToolUse: async (input, invocation) => {
       try {
         const root = input?.workingDirectory || process.cwd();
+        const cfg = CFG.load(root);
+
+        // Evidência para o contrato (gatilhos codigo/teste/docs).
+        try {
+          const a = input?.toolArgs || {};
+          const target = ["path", "filePath", "file_path", "absolute_path", "file"]
+            .map((k) => a[k]).find((v) => typeof v === "string" && v);
+          if (target) {
+            CT.recordTouched(root, invocation?.sessionId || "plugin", [target]);
+          }
+        } catch { /* evidência é otimização */ }
+
         const out = postProcess({
           name: input?.toolName,
           input: input?.toolArgs || {},
           result: input?.toolResult,
           root,
-          cfg: CFG.load(root),
+          cfg,
         });
         if (!out) return null;
         trimmed += 1;
