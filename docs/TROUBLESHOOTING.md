@@ -5,10 +5,10 @@
 1. **Reinicie a sessão do agente.** Hooks carregam no boot da sessão.
 2. **Repositório pequeno?** Abaixo de `limits.minRepoFilesForScanGuard` (400
    arquivos) os guards de varredura ficam de propósito — rode
-   `npx token-guard audit` uma vez para calibrar com o número real.
+   `npx @allansantos-dev/token-guard audit` uma vez para calibrar com o número real.
 3. **A ferramenta entra nas famílias vigiadas?** O casamento é por família
    (`read`/`grep`/`glob`/`shell`), não por nome exato — veja `lib/rules.cjs`.
-4. Confira: `npx token-guard status`.
+4. Confira: `npx @allansantos-dev/token-guard status`.
 
 ## Instalei um upgrade e o guard sumiu
 
@@ -20,7 +20,7 @@ registro obsoleto e avisam (`registro obsoleto reparado`).
 
 Em versões anteriores, a config global gravada em `~/.claude/`, `~/.cursor/` ou
 `~/.token-guard/` nunca era lida (só `~/.copilot/`). Atualize: o loader agora lê
-os quatro homes. Conferência imediata: `npx token-guard status` mostra `_source`.
+os quatro homes. Conferência imediata: `npx @allansantos-dev/token-guard status` mostra `_source`.
 
 ## Uma regra específica atrapalha este repositório
 
@@ -56,7 +56,7 @@ primeiro, ou leia via shell com filtro.
 
 Ordem de busca: sobe 12 níveis procurando `token-guard.config.json`; senão globals
 mesclados de `~/.copilot|.claude|.cursor|.token-guard`; senão defaults. JSON
-inválido na config do repo cai nos defaults **e diz isso** em `npx token-guard status`.
+inválido na config do repo cai nos defaults **e diz isso** em `npx @allansantos-dev/token-guard status`.
 Chave com tipo errado volta ao default individual (não derruba as demais).
 
 ## Windows corporativo: tudo parece lento

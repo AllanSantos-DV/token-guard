@@ -13,7 +13,7 @@ loaded**. On a real repository the payload dwarfs the window by three orders of
 magnitude, so selection *is* the architecture.
 
 Run the audit for this repository's real numbers: `node .github/token-guard/token-audit.cjs`
-(repo installs) or `npx token-guard audit` — whichever your install target provides.
+(repo installs) or `npx @allansantos-dev/token-guard audit` — whichever your install target provides.
 
 ## When to use
 
@@ -78,7 +78,7 @@ Use them together:
   of volatile ones so the cached prefix survives.
 - **Prefer CLI over MCP when equal.** A shell command costs one line; an MCP tool costs
   its schema on every request. Reserve MCP for what genuinely needs structure.
-- **Slim your MCP fleet.** Run `npx token-guard mcp-cost` — servers over ~1.5k tokens of
+- **Slim your MCP fleet.** Run `npx @allansantos-dev/token-guard mcp-cost` — servers over ~1.5k tokens of
   schema and tools over ~500 are flagged with actionable advice. Tool search / slimmed
   servers routinely cut preamble 50–85% in published benchmarks.
 - **Delegate verbosity to sub-agents.** Anything where the process is verbose but only

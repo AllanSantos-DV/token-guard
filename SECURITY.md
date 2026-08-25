@@ -13,7 +13,7 @@ faz com a sua máquina e os seus dados:
   processos que sua IDE já rodaria — mas quem chama precisa saber que há spawn.
   No Windows, `.cmd`/`.bat` passam obrigatoriamente por shell (exigência do Node
   pós-CVE-2024-27980), com a linha montada e escapada aqui.
-- `npx token-guard audit` só varre o disco em leitura.
+- `npx @allansantos-dev/token-guard audit` só varre o disco em leitura.
 
 ## O que lê
 

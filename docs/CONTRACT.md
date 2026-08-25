@@ -39,10 +39,10 @@ com poda de 7 dias.
 ## Inspecionar
 
 ```bash
-npx token-guard contract                        # seções, regras, custo em tokens
-npx token-guard contract --touched src/a.ts     # simula a evidência da sessão
-npx token-guard contract --json                 # dados crus
-npx token-guard contract --subagente            # bloco pronto p/ colar no scout
+npx @allansantos-dev/token-guard contract                        # seções, regras, custo em tokens
+npx @allansantos-dev/token-guard contract --touched src/a.ts     # simula a evidência da sessão
+npx @allansantos-dev/token-guard contract --json                 # dados crus
+npx @allansantos-dev/token-guard contract --subagente            # bloco pronto p/ colar no scout
 ```
 
 `TOKEN_GUARD=off` zera o contrato junto com os guards.

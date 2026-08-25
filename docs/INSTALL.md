@@ -9,19 +9,19 @@ corporativa sem `npm install`.
 
 ```bash
 # 1. veja o tamanho do problema antes de instalar qualquer coisa
-npx token-guard audit
+npx @allansantos-dev/token-guard audit
 
 # 2. instale em tudo que é de máquina, começando sem atrito
-npx token-guard init --target all --mode warn
+npx @allansantos-dev/token-guard init --target all --mode warn
 
 # 3. confirme que responde neste ambiente
-npx token-guard test
+npx @allansantos-dev/token-guard test
 ```
 
 Depois de uma semana em `warn`, vire para `block`:
 
 ```bash
-npx token-guard init --target all --mode block --force
+npx @allansantos-dev/token-guard init --target all --mode block --force
 ```
 
 ## Escolhendo o alvo
@@ -43,7 +43,7 @@ Se você trabalha em repositórios que **não são seus** e não pode commitar a
 configuração, use apenas alvos de máquina:
 
 ```bash
-npx token-guard init --target all
+npx @allansantos-dev/token-guard init --target all
 ```
 
 Nada é escrito dentro do repositório. Tudo vai para o seu perfil de usuário:
@@ -60,7 +60,7 @@ Nada é escrito dentro do repositório. Tudo vai para o seu perfil de usuário:
 Se o repositório é seu e você quer que todo mundo herde a economia ao clonar:
 
 ```bash
-npx token-guard init --target repo
+npx @allansantos-dev/token-guard init --target repo
 git add .github/ token-guard.config.json .gitignore
 git commit -m "chore: token-guard"
 ```
@@ -79,7 +79,7 @@ node install.cjs --target all
 
 ```bash
 npm test                       # todas as suítes (núcleo, adapters, mcp-cost, contrato, instalação, economia, hooks)
-npx token-guard status         # config ativa
+npx @allansantos-dev/token-guard status         # config ativa
 node install.cjs --target all --dry-run   # simulação sem escrever nada
 ```
 

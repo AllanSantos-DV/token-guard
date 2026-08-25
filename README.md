@@ -86,32 +86,32 @@ Cada suíte imprime a própria contagem — não confie em números copiados daq
 
 ```bash
 # 1. veja o tamanho do problema antes de instalar qualquer coisa
-npx token-guard audit
+npx @allansantos-dev/token-guard audit
 
 # 2. instale onde você trabalha, começando sem atrito
-npx token-guard init --target all --mode warn
+npx @allansantos-dev/token-guard init --target all --mode warn
 
 # 3. confirme que responde neste ambiente
-npx token-guard test
+npx @allansantos-dev/token-guard test
 ```
 
 Alvos disponíveis:
 
 ```bash
-npx token-guard init --target copilot   # Copilot CLI / App    (bloqueia)
-npx token-guard init --target claude    # Claude Code          (bloqueia)
-npx token-guard init --target cursor    # Cursor               (bloqueia parcial)
-npx token-guard init --target mcp       # VS Code, Windsurf…   (só orienta)
-npx token-guard init --target repo      # .github/ do repo     (viaja no git)
-npx token-guard init --target all       # tudo que é de máquina
+npx @allansantos-dev/token-guard init --target copilot   # Copilot CLI / App    (bloqueia)
+npx @allansantos-dev/token-guard init --target claude    # Claude Code          (bloqueia)
+npx @allansantos-dev/token-guard init --target cursor    # Cursor               (bloqueia parcial)
+npx @allansantos-dev/token-guard init --target mcp       # VS Code, Windsurf…   (só orienta)
+npx @allansantos-dev/token-guard init --target repo      # .github/ do repo     (viaja no git)
+npx @allansantos-dev/token-guard init --target all       # tudo que é de máquina
 ```
 
 Depois:
 
 ```bash
-npx token-guard audit     # veja o tamanho do problema neste repo
-npx token-guard test      # todas as suítes
-npx token-guard status    # confira a configuração ativa
+npx @allansantos-dev/token-guard audit     # veja o tamanho do problema neste repo
+npx @allansantos-dev/token-guard test      # todas as suítes
+npx @allansantos-dev/token-guard status    # confira a configuração ativa
 ```
 
 Reinicie a sessão do agente para carregar o hook.
@@ -231,8 +231,8 @@ carregado **antes da primeira pergunta**: o schema de cada ferramenta de cada se
 declarado. Esse custo é fixo, silencioso e pago em toda sessão, use você a ferramenta ou não.
 
 ```bash
-npx token-guard mcp-cost --list      # só inventaria: nada é executado
-npx token-guard mcp-cost             # mede de verdade, por handshake
+npx @allansantos-dev/token-guard mcp-cost --list      # só inventaria: nada é executado
+npx @allansantos-dev/token-guard mcp-cost             # mede de verdade, por handshake
 ```
 
 Não há como estimar isso de fora: o tamanho do schema só existe depois que o servidor
@@ -421,9 +421,9 @@ evidência — `sempre`, `quando: codigo` quando a sessão tocou código-fonte,
 Um `contract.md` na raiz substitui seções inteiras do padrão. Inspecione com:
 
 ```bash
-npx token-guard contract                          # seções, custo e ordem
-npx token-guard contract --touched src/a.ts       # simula a evidência da sessão
-npx token-guard contract --subagente              # bloco pronto p/ colar no scout
+npx @allansantos-dev/token-guard contract                          # seções, custo e ordem
+npx @allansantos-dev/token-guard contract --touched src/a.ts       # simula a evidência da sessão
+npx @allansantos-dev/token-guard contract --subagente              # bloco pronto p/ colar no scout
 ```
 
 Estado honesto: a biblioteca (`lib/contract.cjs`) e o CLI de inspeção são estáveis;

@@ -1,6 +1,9 @@
 {
-  "name": "token-guard",
+  "name": "@allansantos-dev/token-guard",
   "version": "2.2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Economia de contexto para agentes de IA, agnóstico de IDE: mede o custo real do repositório em tokens, barra as chamadas que estouram a janela devolvendo sempre a alternativa barata, mede o preâmbulo dos servidores MCP e governa o contrato de saída. Adapters para Copilot CLI, Claude Code, Cursor e MCP.",
   "bin": {
     "token-guard": "./cli.cjs"

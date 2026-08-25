@@ -21,7 +21,7 @@ import fs from "node:fs";
  * Contrato de saída:   { permissionDecision, permissionDecisionReason }
  *
  * Escopo: esta máquina, todos os repositórios. Para que o time inteiro herde a
- * economia ao clonar, instale também no repositório: `npx token-guard init`.
+ * economia ao clonar, instale também no repositório: `npx @allansantos-dev/token-guard init`.
  *
  * Este arquivo é APENAS tradução de envelope. Toda regra vive em lib/.
  */

@@ -61,3 +61,18 @@ Cada suíte imprime a própria contagem — não confie em números hardcoded de
 ## Commits
 
 Formato convencional: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
+
+## Publicando no npm
+
+O nome sem escopo (`token-guard`) pertence a outro autor no registry — o pacote
+nosso é o **`@allansantos-dev/token-guard`** (escopo já configurado no
+package.json com `"access": "public"`).
+
+```bash
+npm whoami                       # precisa estar logado como allansantos-dev
+npm publish                      # publishConfig já força --access public
+npx @allansantos-dev/token-guard@latest audit   # fumaça pós-publicação
+```
+
+Só publique a partir de uma tag de release (`v2.2.0`, `v2.3.0`…) e com
+`npm test` verde.

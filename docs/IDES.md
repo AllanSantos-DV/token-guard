@@ -83,7 +83,7 @@ Os alvos coexistem sem conflito — a decisão é a mesma função em `lib/decid
 usa Copilot e Cursor na mesma máquina:
 
 ```bash
-npx token-guard init --target copilot,cursor
+npx @allansantos-dev/token-guard init --target copilot,cursor
 ```
 
 Se um repositório tem `.github/hooks/hooks.json` (alvo `repo`) e a máquina tem a extensão
@@ -92,7 +92,7 @@ para o usuário, apenas um pouco de trabalho redundante.
 
 ## Configuração MCP por IDE
 
-Depois de `npx token-guard init --target mcp`, o snippet fica em `~/.token-guard/mcp.json`.
+Depois de `npx @allansantos-dev/token-guard init --target mcp`, o snippet fica em `~/.token-guard/mcp.json`.
 Cole no arquivo correspondente:
 
 | IDE | Arquivo |
@@ -126,8 +126,8 @@ Cada servidor declarado nesses arquivos carrega o schema de todas as suas ferram
 preâmbulo de toda sessão, independentemente de uso. Para ver o número:
 
 ```bash
-npx token-guard mcp-cost --list   # inventário — nada é executado
-npx token-guard mcp-cost          # medição real, por handshake
+npx @allansantos-dev/token-guard mcp-cost --list   # inventário — nada é executado
+npx @allansantos-dev/token-guard mcp-cost          # medição real, por handshake
 ```
 
 Os arquivos varridos pelo medidor são os declarados em: `~/.claude.json`,

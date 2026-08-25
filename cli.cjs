@@ -3,11 +3,11 @@
 /**
  * cli.cjs — porta de entrada do token-guard.
  *
- *   npx token-guard init [caminho] [--mode warn] [--dry-run] [--global]
- *   npx token-guard audit [caminho] [--md|--json] [--top N]
- *   npx token-guard status [caminho]
- *   npx token-guard contract [caminho]
- *   npx token-guard test
+ *   npx @allansantos-dev/token-guard init [caminho] [--mode warn] [--dry-run] [--global]
+ *   npx @allansantos-dev/token-guard audit [caminho] [--md|--json] [--top N]
+ *   npx @allansantos-dev/token-guard status [caminho]
+ *   npx @allansantos-dev/token-guard contract [caminho]
+ *   npx @allansantos-dev/token-guard test
  *
  * Roteia para os scripts, que continuam executáveis diretamente — quem instalou
  * pelo repositório chama `node .github/token-guard/token-audit.cjs` do mesmo jeito.
@@ -114,9 +114,9 @@ function help() {
 
   COMEÇANDO
 
-    npx token-guard audit                       # veja o tamanho do problema
-    npx token-guard init --target all --mode warn   # instale sem atrito
-    npx token-guard test                        # confirme que responde aqui
+    npx @allansantos-dev/token-guard audit                       # veja o tamanho do problema
+    npx @allansantos-dev/token-guard init --target all --mode warn   # instale sem atrito
+    npx @allansantos-dev/token-guard test                        # confirme que responde aqui
 
   Depois reinicie a sessão do agente para carregar o hook.
   Emergência: TOKEN_GUARD=off desliga sem editar arquivo.
