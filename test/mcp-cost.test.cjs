@@ -17,6 +17,7 @@ const os = require('os');
 const MC = require('../lib/mcp-cost.cjs');
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-mcp-cost-'));
+const TG_HOMES = [];
 const NODE = process.execPath;
 
 let pass = 0;
@@ -188,6 +189,7 @@ console.log('  [descoberta]');
 
 {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-'));
+  TG_HOMES.push(home);
   fs.mkdirSync(path.join(home, '.cursor'), { recursive: true });
   fs.writeFileSync(path.join(home, '.cursor', 'mcp.json'), JSON.stringify({
     mcpServers: {
@@ -207,6 +209,7 @@ console.log('  [descoberta]');
 {
   // O mesmo servidor declarado em duas IDEs é UM custo por sessão, não dois.
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home2-'));
+  TG_HOMES.push(home);
   fs.mkdirSync(path.join(home, '.cursor'), { recursive: true });
   fs.mkdirSync(path.join(home, '.token-guard'), { recursive: true });
   const spec = { mcpServers: { repetido: { command: 'node', args: ['x.js'] } } };
@@ -219,6 +222,7 @@ console.log('  [descoberta]');
 
 {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home3-'));
+  TG_HOMES.push(home);
   fs.mkdirSync(path.join(home, '.cursor'), { recursive: true });
   fs.writeFileSync(path.join(home, '.cursor', 'mcp.json'), '{ isto não é json', 'utf8');
   const found = MC.discover({ home, cwd: home });
@@ -228,6 +232,7 @@ console.log('  [descoberta]');
 
 {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home4-'));
+  TG_HOMES.push(home);
   const found = MC.discover({ home, cwd: home });
   check('máquina sem MCP nenhum não quebra', Array.isArray(found) && found.length === 0);
 }
@@ -235,6 +240,7 @@ console.log('  [descoberta]');
 {
   // A chave externa varia por IDE: "servers" em vez de "mcpServers".
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home5-'));
+  TG_HOMES.push(home);
   fs.mkdirSync(path.join(home, '.cursor'), { recursive: true });
   fs.writeFileSync(path.join(home, '.cursor', 'mcp.json'),
     JSON.stringify({ servers: { alt: { command: 'node', args: ['y.js'] } } }), 'utf8');
@@ -346,5 +352,8 @@ console.log(`  ${pass} passaram · ${fail} falharam`);
 console.log('');
 
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch { /* ignore */ }
+for (const h of TG_HOMES) {
+  try { fs.rmSync(h, { recursive: true, force: true }); } catch { /* ignore */ }
+}
 
 process.exit(fail === 0 ? 0 : 1);

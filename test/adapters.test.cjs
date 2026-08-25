@@ -98,6 +98,35 @@ console.log('  [cursor]');
     r && r.permission === 'deny', JSON.stringify(r));
 }
 
+/* preToolUse genérico (Cursor recente): a via que devolve broadScan ao Cursor.
+   Regressão do gate 2.2.1 — a alegação do README não tinha NENHUM teste. */
+{
+  const r = runJson(CURSOR, {
+    hook_event_name: 'preToolUse',
+    tool_name: 'Grep',
+    tool_input: { pattern: 'TODO', output_mode: 'content' },
+    cwd: TMP,
+  });
+  check('preToolUse genérico nega broadScan (Cursor recente)',
+    r && r.permission === 'deny' && /broadScan/.test(r.agentMessage || ''), JSON.stringify(r));
+
+  const ok = runJson(CURSOR, {
+    hook_event_name: 'preToolUse',
+    tool_name: 'Grep',
+    tool_input: { pattern: 'TODO', output_mode: 'content', head_limit: 40 },
+    cwd: TMP,
+  });
+  check('preToolUse genérico passa chamada barata', ok && ok.permission === 'allow', JSON.stringify(ok));
+
+  const noise = runJson(CURSOR, {
+    hook_event_name: 'preToolUse',
+    tool_name: 'Read',
+    tool_input: { path: path.join(TMP, 'target', 'x.class') },
+    cwd: TMP,
+  });
+  check('preToolUse genérico nega noisePath', noise && noise.permission === 'deny', JSON.stringify(noise));
+}
+
 {
   const r = runJson(CURSOR, {
     hook_event_name: 'beforeShellExecution',
