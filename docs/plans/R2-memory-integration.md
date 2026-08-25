@@ -1,9 +1,9 @@
 # R2 · Integração Memory Server — Spec-Driven Development
 
-> Status: **PLANO · Rev.2** — Rev.1 revisada: 3 altos corrigidos
-> (contrato hasIndexer vs discover() real; fonte de dados do mining por
-> superfície, honestamente; deny-line restrita ao plugin in-process).
-> Próximo passo: revisão #2 até zero bloqueantes.
+> Status: **PLANO · Rev.2 + fixes da revisão #3 aplicados** — rodadas: #1 achou
+> 6 (3 altos), #2 achou 4 (0 bloqueantes: N1-N6, todos editoriais/low),
+> #3 verificou os N-fixes e achou 4 resíduos de edição (D1-D4, corrigidos aqui).
+> **Fase encerra quando uma rodada vier LIMPA (zero achados, inclusive lows).**
 > Fase: R2 do roadmap de mercado (docs/MARKET.md · docs/plans/R1-read-dedup.md §11)
 > Regra da fase: rodadas de revisão devem REDUZIR achados. Zero libera código.
 > **Dependência de ordem**: a coerção por chave no sanitize chega com R1 —
@@ -53,10 +53,11 @@ AGENTE sob demanda) e `cli status`/site (HUMANO); (c) workflow separado.
    Hooks de comando (stateless) e Cursor ficam FORA dessa linha em v1 —
    contadores por sessão exigiriam I/O no hot path que decide() hoje não tem.
 2. **Detecção de indexer configurado** = função PURA sobre a saída REAL de
-   `MC.discover()` (`{name, ide, file, spec:{command,args,url}, transport}`,
+   `MC.discover()` (`{name, ide, file, spec:{command,args,url}|null, transport}`,
    incluindo linhas de erro com `spec:null` — ignoradas). Casa `name` e
-   substrings de `spec.command/args/url` contra padrões conhecidos. FP aqui
-   custa apenas omitir uma dica — fail-open de recomendação.
+   `spec.command/args/url` contra padrões (regex case-insensitive, §5) — a
+   lista normativa única vive em §5. FP aqui custa apenas omitir uma dica —
+   fail-open de recomendação.
 3. **Gatilho de garimpo por superfície (sem mentir)**:
    - Plugin in-process: `byRule.broadScan` real (vereditos deny+ask da sessão) ✓.
    - MCP server: `byRule` conta só autoavaliações via `token_guard_check` —
@@ -156,8 +157,8 @@ ficam de fora — FP demais; o dono estende por config.
 ## 7. Métricas de sucesso
 
 - Dado real imediato: o próprio replay Copilot desta máquina (352k chamadas)
-  quantifica quantos denies de broadScan teriam disparado a recomendação
-  (baseline do gatilho ≥3).
+  quantifica quantos vereditos deny+ask de broadScan teriam disparado a
+  recomendação (baseline do gatilho ≥3).
 - Adoção em si não é auto-mensurável (conselho, não telemetria) — declarado.
 
 ## 8. Riscos e mitigações
@@ -181,7 +182,5 @@ reconciliar docs/MARKET.md §integração com o escopo final.
 
 - [x] Revisão #1 — 3 altos + 3 méd corrigidos nesta Rev.2 (F1 contrato discover real; F2 fontes de mining honestas por superfície; F3 deny-line plugin-only; F4 lista normativa única; F5 postura de privacidade emendada; F6 plumbagem config completa)
 - [x] Revisão #2 (re-gate) — APPROVED com 2 correções editoriais + 4 touch-ups, aplicadas (N1-N6)
-- [ ] Cross-check de reuso: discover()/byRule/status surfaces reaproveitados, nenhum I/O novo no hot path
-- [ ] Dono valida o texto da recomendação e confirma o padrão de detecção do SEU memory server (@allansantos-dev/opencode-memory casa com `opencode-memory`?)
 - [ ] Cross-check de reuso: discover()/byRule/status surfaces reaproveitados, nenhum I/O novo no hot path
 - [ ] Dono valida o texto da recomendação e confirma o padrão de detecção do SEU memory server (@allansantos-dev/opencode-memory casa com `opencode-memory`?)

@@ -1,10 +1,13 @@
 # R1 · Dedupe de Leitura — Spec-Driven Development
 
 > Status: **PLANO · Rev.4 — APROVADO pela revisão #4** (zero bloqueantes;
-> fixes cosméticos N1-N4 aplicados). **Liberado para implementação.**
+> fixes cosméticos N1-N4 aplicados e verificados pela revisão #5, que achou
+> apenas 3 itens de consistência de trilha/cabeçalho — corrigidos aqui).
+> **Liberado para implementação.**
 > Fase: R1 do roadmap de mercado (docs/MARKET.md)
-> Regra da fase cumprida: achados por rodada decresceram 13 → 10 → 5 → 0
-> bloqueantes, com trilha completa na §11.
+> Regra da fase cumprida: achados totais por rodada 13 → ~12 → 10 → 4 → 3
+> (todos os 3 da última são de trilha/formatação; bloqueantes = 0 desde a
+> rodada #2). Trilha completa na §11.
 
 ---
 
@@ -216,11 +219,19 @@ Cursor updated_input rewrite; repo-target contract injection (item próprio).
 - [x] Revisão #1 — 13 achados, 7 mudanças obrigatórias aplicadas nesta Rev.2
 - [x] Revisão #2 independente da Rev.2 — APPROVED WITH CHANGES (0 críticos, 3 altos → Rev.3)
 - [x] Revisão #3 independente da Rev.3 — APPROVED WITH CHANGES (0 críticos, 2 altos → Rev.4)
-- [ ] Revisão #4 independente da Rev.4 — meta: zero bloqueantes
+- [x] Revisão #4 independente da Rev.4 — APPROVED (must-fix N1 aplicado; N2-N4 cosméticos aplicados e verificados pela revisão #5)
 - [x] Cross-check de reuso (touched/stateFile/postProcess/FOLD_CASE reaproveitados)
 - [ ] Dono aprova defaults (dupRead ON / reRead OFF)
 - [ ] Tarefas de wiring estimadas: T-A1 (repo cell), T-B1 (fallback sid), T-C1 (sessionId no hook-cmd), **T-C2 (célula Cursor — gated pelo §6.13)**
 - [ ] Docs pós-implementação: nota #67442 no README/IDES + linha "Cursor sem conversation_id ⇒ dedupe desligado" (F11/F12)
+
+## 11. Mudanças entre revisões (trilha de auditoria)
+
+### Rev.4 → Rev.4+fixes (revisão #5: N1-N4 cosméticos verificados)
+N1-N4 aplicados e verificados nesta rodada; nenhum achado de substância.
+Correções de consistência da própria rodada: narrativa de trajetória corrigida
+(NEW-1), checkbox/trilha da revisão #4 registrados (NEW-2), §11.1 realocado
+para depois do §11 (NEW-3).
 
 ### 11.1 Notas das revisões incorporadas (should/notes)
 
@@ -230,8 +241,6 @@ Cursor updated_input rewrite; repo-target contract injection (item próprio).
 - F9: terminologia unificada em `savedReal`/`savedAdvisory` (§3 "savedChars" abolido).
 - F11: README/IDES ganham linha "Cursor sem conversation_id ⇒ dedupe desligado".
 - F12: tarefa de docs reconciliar IDES.md linha 23 ("✅ substitui v2.1.121+") com #67442 (built-ins podem ignorar).
-
-## 11. Mudanças entre revisões (trilha de auditoria)
 
 ### Rev.3 → Rev.4 (revisão #3: 0 críticos, 2 altos, D3-D10)
 | Achado | Onde endereçado |
