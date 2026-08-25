@@ -2,6 +2,7 @@
 
 [![ci](https://github.com/AllanSantos-DV/token-guard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AllanSantos-DV/token-guard/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/AllanSantos-DV/token-guard)](https://github.com/AllanSantos-DV/token-guard/releases)
+[![npm](https://img.shields.io/npm/v/%40allansantos-dev/token-guard?label=npm&color=C2402A)](https://www.npmjs.com/package/@allansantos-dev/token-guard)
 [![site](https://img.shields.io/badge/site-allansantos-dv.github.io%2Ftoken--guard-1E7F4F)](https://allansantos-dv.github.io/token-guard/)
 
 **[Site &raquo;](https://allansantos-dv.github.io/token-guard/)** &middot; com medidor interativo de janela de contexto, n&uacute;meros medidos e matriz de cobertura.
@@ -56,7 +57,7 @@ e é exatamente ela que este kit governa.
 |---|---|---|
 | `adapters/copilot-cli.mjs` | Copilot CLI / Copilot App (in-process, ~0,15 ms) | ✅ |
 | `adapters/hook-cmd.cjs` | Copilot CLI (`hooks.json`) e Claude Code (`settings.json`) | ✅ |
-| `adapters/cursor-hook.cjs` | Cursor — `beforeReadFile`, `beforeShellExecution`, `beforeMCPExecution` | ⚠️ parcial |
+| `adapters/cursor-hook.cjs` | Cursor — `preToolUse` genérico (recente) + os 3 eventos nomeados | ✅ todas as 4 |
 | `adapters/mcp-server.cjs` | Qualquer IDE com MCP — VS Code, Windsurf, Zed, JetBrains | ❌ só orienta |
 
 ### Ferramentas e procedimento
@@ -100,7 +101,7 @@ Alvos disponíveis:
 ```bash
 npx @allansantos-dev/token-guard init --target copilot   # Copilot CLI / App    (bloqueia)
 npx @allansantos-dev/token-guard init --target claude    # Claude Code          (bloqueia)
-npx @allansantos-dev/token-guard init --target cursor    # Cursor               (bloqueia parcial)
+npx @allansantos-dev/token-guard init --target cursor    # Cursor (recente)      (bloqueia)
 npx @allansantos-dev/token-guard init --target mcp       # VS Code, Windsurf…   (só orienta)
 npx @allansantos-dev/token-guard init --target repo      # .github/ do repo     (viaja no git)
 npx @allansantos-dev/token-guard init --target all       # tudo que é de máquina
@@ -385,7 +386,7 @@ npm run test:hooks                # bigResult + UserPromptSubmit ponta a ponta
 ```
 
 Cada suíte imprime a própria contagem e sai com código 1 se qualquer caso falhar.
-O CI roda todas em Linux e Windows sobre Node 18, 20 e 22 — mais a simulação de
+O CI roda todas em Linux e Windows sobre Node 16, 18, 20 e 22 — mais a simulação de
 instalação (`--dry-run`) e a auditoria do próprio repositório.
 
 **Núcleo:** os quatro guards nos três formatos de payload (mais o envelope do SDK
@@ -426,9 +427,11 @@ npx @allansantos-dev/token-guard contract --touched src/a.ts       # simula a ev
 npx @allansantos-dev/token-guard contract --subagente              # bloco pronto p/ colar no scout
 ```
 
-Estado honesto: a biblioteca (`lib/contract.cjs`) e o CLI de inspeção são estáveis;
-o adapter que injeta automaticamente a cada turno ainda não existe — hoje o consumo
-é manual (`--subagente` no prompt do scout). Detalhes em [docs/CONTRACT.md](docs/CONTRACT.md).
+Estado honesto: a camada "sempre" entra automaticamente — Claude Code injeta via
+`UserPromptSubmit` e o Copilot via `onUserPromptSubmitted`, com os gatilhos por
+evidência (`codigo`/`teste`/`docs`) alimentados pelos arquivos que a sessão tocou.
+Nos harnesses sem hook de prompt (Cursor, MCP), o consumo é manual
+(`--subagente` no prompt do scout). Detalhes em [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ---
 

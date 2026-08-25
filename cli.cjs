@@ -74,7 +74,7 @@ function help() {
 
                             copilot   Copilot CLI / Copilot App   (bloqueia)
                             claude    Claude Code                 (bloqueia)
-                            cursor    Cursor                      (bloqueia parcial)
+                            cursor    Cursor (recente)            (bloqueia)
                             mcp       qualquer IDE com MCP        (só orienta)
                             repo      .github/ do repositório      (viaja no git)
                             all       copilot + claude + cursor + mcp

@@ -54,15 +54,16 @@ Fonte externa que motivou a regra: outputs de ferramenta são apontados como o
 maior custo escondido de sessões agentivas; a Context Editing API da Anthropic
 (`clear_tool_uses`) é a versão server-side da mesma ideia (−84% em eval deles).
 
-### Por que o Cursor é parcial
+### Cursor: cobertura completa nas versões recentes
 
-O Cursor não tem evento genérico de "antes de qualquer ferramenta". Os eventos são
-nomeados, e **não existe evento para grep/glob/busca semântica**. Logo, `broadScan` não tem
-onde disparar. Não é limitação do adapter — é do harness. Se o Cursor adicionar o evento,
-o adapter passa a cobrir sem mudança no núcleo.
+O Cursor passou a expor `preToolUse` genérico (matcher por tipo de ferramenta:
+Shell, Read, Write, Grep, Task, MCP:…). O adapter traduz o evento e o instalador
+o registra junto dos três nomeados — **todas as 4 regras disparam** nas versões
+recentes do IDE. Versões antigas sem `preToolUse` continuam cobertas pelos
+eventos nomeados (blindRead, noisePath, shellDump).
 
-No `cursor-agent` (CLI), hoje só `beforeShellExecution` e `afterShellExecution` são
-entregues, mesmo que você declare os outros no `hooks.json`.
+No `cursor-agent` (CLI), a entrega continua reduzida (só shell) — limitação do
+harness, não deste adapter.
 
 ### Por que o MCP não bloqueia
 
