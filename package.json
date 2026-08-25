@@ -30,6 +30,9 @@
     "test:hooks": "node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs && node test/epipe.test.cjs",
     "audit": "node token-audit.cjs",
     "mcp-cost": "node mcp-cost.cjs",
+    "replay": "node bench/replay-transcripts.cjs",
+    "latency": "node bench/latency.cjs",
+    "savings-bench": "node bench/savings.cjs",
     "status": "node cli.cjs status"
   },
   "files": [

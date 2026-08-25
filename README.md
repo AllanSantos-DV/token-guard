@@ -1,5 +1,9 @@
 # token-guard
 
+[![ci](https://github.com/AllanSantos-DV/token-guard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AllanSantos-DV/token-guard/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/AllanSantos-DV/token-guard)](https://github.com/AllanSantos-DV/token-guard/releases)
+[![site](https://img.shields.io/badge/site-allansantos-dv.github.io%2Ftoken--guard-1E7F4F)](https://allansantos-dv.github.io/token-guard/)
+
 **[Site &raquo;](https://allansantos-dv.github.io/token-guard/)** &middot; com medidor interativo de janela de contexto, n&uacute;meros medidos e matriz de cobertura.
 
 **Economia de contexto para agentes de IA — agnóstico de IDE, como configuração versionada, não como produto.**
@@ -342,7 +346,9 @@ eles permanece. Duas defesas, nesta ordem:
 - **`package-lock.json` é artefato de desenvolvimento** (integridade do repositório);
   em runtime o kit não tem dependência nenhuma para instalar. O import do SDK no
   adapter Copilot (`@github/copilot-sdk`) é provido pelo próprio host na hora em
-  que a extensão carrega — nunca via npm deste pacote.
+  que a extensão carrega — nunca via npm deste pacote. O campo `"extensions": ["."]`
+  do `plugin.json` declara ao Copilot CLI que a extensão se aplica a qualquer
+  diretório de trabalho.
 - **Ferramentas casadas por família**, não por nome exato:
   `view`/`read_file`/`Read`, `grep`/`grep_search`/`Grep`, `glob`/`file_search`/`Glob`,
   `bash`/`powershell`/`run_in_terminal`. Harness novo costuma cair numa família existente.
