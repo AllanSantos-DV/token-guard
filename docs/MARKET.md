@@ -12,7 +12,7 @@
 | Tool responses truncadas DEVEM steerar o agente ("be sure to steer agents with helpful instructions") | Anthropic, Writing tools for agents | ✅ exatamente o bigResult |
 | Limite default de tool response no Claude Code | **25.000 tokens** | ✅ mesmo número (`resultCharsWithoutTrim`≈cap) |
 | Erros/bloqueios acionáveis, nunca códigos opacos | idem | ✅ nunca um deny cego |
-| `response_format: concise/detailed` corta ~⅓ dos tokens do exemplo oficial | idem | 🔵 aplicar às tools do guard (R4) |
+| `response_format: concise/detailed` corta −65% dos tokens do exemplo oficial (206→72) | idem | 🔵 aplicar às tools do guard (R4) |
 | Consolidar ferramentas (`schedule_event` > list_users+list_events+create_event) | idem | ✅ valida integração c/ memory server |
 | Tool result clearing = "a forma mais segura e leve de compaction" | Effective context engineering | ✅ valida bigResult/clearing |
 | Context rot: atenção decai com n² tokens; "smallest set of high-signal tokens" | idem (e research.trychroma.com/context-rot) | ✅ tese central do produto |
@@ -66,7 +66,7 @@ O guard ENXERGUA o garimpo em tempo real (é ele que vê os broadScan/dumps). En
 | R1 | **Dedupe de leitura** (aviso de arquivo já lido na sessão, via estado touched existente) | plugin community equivalente | S |
 | R2 | **Integração memory server** (status detecta garimpo + recomenda; reconhece se instalado) | codebase-memory-mcp 120×; memory tool Anthropic | S-M |
 | R3 | **Seções anti-boilerplate/reuso no contract** (`quando: codigo`: preferir abstração existente, consultar antes de criar helper, registrar decisão em ADR para não regarimpar) | context engineering (instruções certas economizam SAÍDA e re-leitura); DRY como economia de reescrita | S |
-| R4 | **response_format concise/detailed** nas 3 tools MCP do guard | Anthropic: ~⅓ dos tokens | S |
+| R4 | **response_format concise/detailed** nas 3 tools MCP do guard | Anthropic: −65% (206→72 tok) | S |
 | R5 | **Replay v2 com bytes reais** de tool_result (JSONL traz inline) | dado real > estimativa | M |
 | R6 | **Contrato sobrevive à compaction** (PreCompact persist + SessionStart re-injeta) | compaction descarta contexto injetado | M |
 
