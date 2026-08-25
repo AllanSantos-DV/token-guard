@@ -15,15 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 24 = npm 11.5+, requisito do trusted publishing (OIDC).
+      # Sem registry-url de propósito: authToken vazio no .npmrc quebraria o fluxo OIDC.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
 
       - name: Gate — as suítes têm que estar verdes
         run: npm test
 
       - name: Publish
         run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
