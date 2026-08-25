@@ -1,8 +1,9 @@
 # R2 · Integração Memory Server — Spec-Driven Development
 
-> Status: **PLANO · Rev.2 + fixes da revisão #3 aplicados** — rodadas: #1 achou
-> 6 (3 altos), #2 achou 4 (0 bloqueantes: N1-N6, todos editoriais/low),
-> #3 verificou os N-fixes e achou 4 resíduos de edição (D1-D4, corrigidos aqui).
+> Status: **PLANO · Rev.2 + fixes das revisões #3 e #4 aplicados** — rodadas:
+> #1 achou 6 (3 altos), #2 re-gate APPROVED com 0 bloqueantes (2 correções
+> editoriais + 4 touch-ups, N1-N6, todos editoriais/low), #3 verificou os
+> N-fixes e achou 4 resíduos de edição (D1-D4, corrigidos aqui).
 > **Fase encerra quando uma rodada vier LIMPA (zero achados, inclusive lows).**
 > Fase: R2 do roadmap de mercado (docs/MARKET.md · docs/plans/R1-read-dedup.md §11)
 > Regra da fase: rodadas de revisão devem REDUZIR achados. Zero libera código.
