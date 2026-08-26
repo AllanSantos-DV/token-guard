@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>token-guard v3 · o entregável completo</title>
+<meta name="description" content="Visualização do entregável após as 6 fases SDD: dedupe, memória, anti-boilerplate, response_format, replay real e contrato à prova de compaction.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F5EF;--line:#DDE0D3;--ink:#171A1F;--soft:#565B54;
+  --pass:#1E7F4F;--deny:#C2402A;--warn:#B7791F;--card:#FCFCF8;--edge:#C9CCBC;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+body{
+  background:
+    linear-gradient(var(--line) 1px,transparent 1px) 0 -0.5px/100% 28px,
+    linear-gradient(90deg,var(--line) 1px,transparent 1px) -0.5px 0/28px 100%,
+    var(--paper);
+  color:var(--ink);font-family:"Archivo",sans-serif;font-size:17px;line-height:1.55;
+}
+::selection{background:var(--ink);color:var(--paper)}
+:focus-visible{outline:2px solid var(--deny);outline-offset:2px}
+.mono{font-family:"IBM Plex Mono",monospace}
+header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 5vw;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(6px);border-bottom:1.5px solid var(--ink)}
+.wordmark{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:18px;text-decoration:none}
+.wordmark span{background:var(--ink);color:var(--paper);padding:0 6px;margin-right:2px}
+nav{display:flex;gap:22px;font-family:"IBM Plex Mono",monospace;font-size:13px}
+nav a{text-decoration:none;color:var(--soft);text-transform:uppercase;letter-spacing:.08em}
+nav a:hover{color:var(--deny)}
+@media(max-width:820px){nav{display:none}}
+section{padding:70px 5vw;max-width:1180px;margin:0 auto}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--deny);margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.eyebrow::after{content:"";flex:0 0 64px;height:1.5px;background:var(--ink)}
+h2{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:clamp(23px,3.3vw,34px);letter-spacing:-1px;line-height:1.14;margin-bottom:14px}
+.hero{padding-top:80px}
+.hero h1{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:clamp(28px,4.2vw,46px);line-height:1.1;letter-spacing:-2px}
+.hero h1 em{font-style:normal;color:var(--pass)}
+.hero p.sub{margin:20px 0 26px;color:var(--soft);max-width:60ch;font-size:18px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin:18px 0 30px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--soft)}
+.legend i{display:inline-block;width:14px;height:14px;margin-right:6px;vertical-align:-2px;border:1px solid var(--ink)}
+
+/* timeline */
+.tl-wrap{border:2px solid var(--ink);background:var(--card);box-shadow:8px 8px 0 rgba(23,26,31,.85);padding:24px}
+.tl-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:13px;border-bottom:1.5px solid var(--ink);padding-bottom:10px;margin-bottom:18px}
+.tl-head b{font-size:15px}
+.timeline{position:relative;height:64px;border:1.5px solid var(--ink);background:repeating-linear-gradient(-45deg,#EEEFE6 0 6px,#F6F7F0 6px 12px);display:flex;overflow:hidden}
+.tick{flex:1;border-right:1px solid rgba(23,26,31,.12);position:relative}
+.tick .fill{position:absolute;inset:0;opacity:0;transition:opacity .3s ease}
+.tick.on-base .fill{opacity:1;background:var(--ink)}
+.tick.on-save .fill{opacity:1;background:repeating-linear-gradient(-45deg,var(--pass) 0 7px,#155C39 7px 14px)}
+.tick.on-warn .fill{opacity:1;background:repeating-linear-gradient(-45deg,var(--warn) 0 7px,#8F6116 7px 14px)}
+.markers{position:relative;height:26px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--soft);margin-bottom:6px}
+.mk{position:absolute;top:0;white-space:nowrap;transform:translateX(-50%);cursor:pointer;padding:2px 6px;border:1.5px solid transparent;transition:all .12s ease}
+.mk:hover,.mk.active{color:#fff;background:var(--ink);border-color:var(--ink)}
+.mk.active{background:var(--deny);border-color:var(--deny)}
+.stagebox{min-height:150px;margin-top:14px;border:1.5px dashed var(--edge);padding:16px 18px;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.65;white-space:pre-wrap}
+.stagebox .tag{font-weight:700;padding:1px 7px;color:#fff;display:inline-block;margin-bottom:10px}
+.stagebox.save{border-color:var(--pass)} .stagebox.save .tag{background:var(--pass)}
+.stagebox.warnb{border-color:var(--warn)} .stagebox.warnb .tag{background:var(--warn)}
+.note{margin-top:12px;font-size:12.5px;color:var(--soft)}
+
+/* fases */
+.grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+.ph{border:1.5px solid var(--ink);background:var(--card);padding:20px}
+.ph h3{font-family:"IBM Plex Mono",monospace;font-size:15px;margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ph h3 .id{background:var(--ink);color:var(--paper);padding:2px 7px;font-size:12px}
+.ph h3 .ok{margin-left:auto;color:var(--pass);font-weight:600;font-size:12px;border:1.5px solid var(--pass);padding:1px 7px}
+.ph p{font-size:14.5px;color:var(--soft)}
+.ph .delta{margin-top:12px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.8}
+.ph .delta b{color:var(--pass)}
+.before{color:var(--deny);text-decoration:line-through}
+
+/* números */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.st{border-left:3px solid var(--deny);padding:6px 0 6px 16px}
+.st b{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:clamp(30px,3.6vw,44px);letter-spacing:-2px;display:block;line-height:1.05}
+.st span{font-size:14px;color:var(--soft)}
+
+footer{border-top:1.5px solid var(--ink);padding:32px 5vw;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--soft)}
+footer a{color:var(--ink)}
+</style>
+</head>
+<body>
+<header>
+  <a class="wordmark" href="/token-guard/"><span>&#9646;</span>token-guard</a>
+  <nav>
+    <a href="#ciclo">ciclo da sessão</a>
+    <a href="#fases">as seis fases</a>
+    <a href="#numeros">números</a>
+    <a href="/token-guard/">site principal</a>
+  </nav>
+  <a class="mono" style="font-size:13px" href="https://github.com/AllanSantos-DV/token-guard">GitHub &#8599;</a>
+</header>
+</body>
+</html>
+
+<main>
+
+<section class="hero">
+  <div class="eyebrow">entreg&aacute;vel v3 &middot; ap&oacute;s R1&ndash;R6 implementadas</div>
+  <h1>Uma sess&atilde;o longa, <em>seis camadas</em> de economia &mdash; cada uma no momento exato em que o desperd&iacute;cio acontece.</h1>
+  <p class="sub">
+    Hoje (v2.2) o kit bloqueia a entrada e trunca a sa&iacute;da. Com as seis fases
+    implementadas, ele passa a cobrir o ciclo inteiro da sess&atilde;o: releitura
+    redundante, garimpo que merece &iacute;ndice, reescrita por falta de instru&ccedil;&atilde;o
+    de reuso, resposta verbosa sob demanda, medi&ccedil;&atilde;o com dado real e o contrato
+    que sobrevive &agrave; compacta&ccedil;&atilde;o.
+  </p>
+</section>
+
+<!-- ============ CICLO DA SESSÃO ============ -->
+<section id="ciclo">
+  <div class="eyebrow">assinatura &middot; ciclo de vida de uma sessão real</div>
+  <h2>Role a sessão. Veja onde cada fase entra.</h2>
+  <div class="legend">
+    <span><i style="background:var(--ink)"></i>contexto legítimo</span>
+    <span><i style="background:repeating-linear-gradient(-45deg,var(--pass) 0 7px,#155C39 7px 14px)"></i>economia aplicada</span>
+    <span><i style="background:repeating-linear-gradient(-45deg,var(--warn) 0 7px,#8F6116 7px 14px)"></i>alerta / decisão</span>
+  </div>
+
+  <div class="tl-wrap">
+    <div class="tl-head">
+      <b>sessão agêntica · 2h · repo de 215 mil arquivos</b>
+      <span>cada marcador é um evento real típico</span>
+    </div>
+    <div class="markers" id="markers"></div>
+    <div class="timeline" id="timeline" aria-hidden="true"></div>
+    <div class="stagebox" id="stage" aria-live="polite"><span class="tag" style="background:#565B54">COMEÇE</span>
+Clique num marcador acima para ver o evento e qual camada atua.</div>
+    <p class="note">Sequência baseada nos eventos mais comuns do replay real (65 sessões Claude Code + corpus Copilot). Vereditos = comportamento do decide()/postProcess conforme spec aprovada.</p>
+  </div>
+</section>
+
+<!-- ============ AS SEIS FASES ============ -->
+<section id="fases">
+  <div class="eyebrow">as seis fases</div>
+  <h2>O que cada uma trava no produto.</h2>
+  <div class="grid6">
+    <div class="ph">
+      <h3><span class="id">R1</span> dedupe de leitura <span class="ok">spec ✓</span></h3>
+      <p>Leitura idêntica repetida na mesma sessão vira stub: "conteúdo idêntico ao anterior — N chars não relidos". Zero falso positivo: só age quando o conteúdo é literalmente igual.</p>
+      <div class="delta">camada A pós-execução ON · camada B advisory opt-in<br><b>economia:</b> bytes integrais da releitura</div>
+    </div>
+    <div class="ph">
+      <h3><span class="id">R2</span> sensor de garimpo → memória</h3>
+      <p>3+ buscas amplas na sessão? O status recomenda indexação persistente (mercado: ~120× na exploração estrutural). Indexer já configurado? A dica se cala.</p>
+      <div class="delta">superfícies: token_guard_status (plugin/MCP/cli)<br><b>economia:</b> indireta, multiplica com o uso do índice</div>
+    </div>
+    <div class="ph">
+      <h3><span class="id">R3</span> anti-boilerplate no contrato</h3>
+      <p>Duas regras densas na quando:codigo: extração vai ao lugar canônico e registra o caminho; decisão de arquitetura ganha registro datado — a próxima sessão lê o mapa em vez de refazê-lo.</p>
+      <div class="delta">custo: +71 tok/sessão (medido ≤ +80)<br><b>economia:</b> saída — não reescrever o já escrito</div>
+    </div>
+    <div class="ph">
+      <h3><span class="id">R4</span> response_format nas tools MCP</h3>
+      <p>Padrão Anthropic: enum concise/detailed nas 3 tools. Agente econômico pede concise e paga ~⅓. JSON/texto explícitos vencem a dica.</p>
+      <div class="delta">alvos medidos: audit −45% · check −60% · status −30%<br><b>custo fixo:</b> ~90 tok de schema, amortizado na 1ª chamada</div>
+    </div>
+    <div class="ph">
+      <h3><span class="id">R5</span> replay com bytes reais</h3>
+      <p>Fim da estimativa: pareamento tool_use↔tool_result por id mede os BYTES que entraram de verdade. P50/P90/P99/max, sidechain separado, TOKEN_GUARD e config warn/off falham loud.</p>
+      <div class="delta">corpus atual: 65 sessões · 8.197 chamadas<br><b>dado:</b> baseline honesto para toda release futura</div>
+    </div>
+    <div class="ph">
+      <h3><span class="id">R6</span> contrato à prova de compaction</h3>
+      <p>PreCompact zera o estado; o próximo prompt re-injeta sempre + gatilhos de evidência. Sessões longas mantêm as regras — antes, elas morriam na 1ª compactação.</p>
+      <div class="delta">custo consciente: ~180 tok por compaction<br><b>ganho:</b> contexto curado nas sessões que mais duram</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NÚMEROS ============ -->
+<section id="numeros">
+  <div class="eyebrow">o quadro consolidado</div>
+  <h2>Antes × depois, por frente.</h2>
+  <div class="strip">
+    <div class="st"><b>~437k tok</b><span>já medidos no replay real (v2.2): economia líquida que os guards atuais fazem sozinhos</span></div>
+    <div class="st"><b>+R1/R4</b><span>dedupe + concise atacam a maior fatia restante: releituras e respostas verbosas recorrentes</span></div>
+    <div class="st"><b>120×</b><span>o mercado mede nisso a exploração via índice vs garimpo — R2 conecta o usuário a essa classe</span></div>
+    <div class="st"><b>0 estimativas</b><span>R5 troca o teto de 25k pelos bytes reais do transcript — e vira termômetro permanente</span></div>
+    <div class="st"><b>94% FP</b><span>ponto de equilíbrio: os guards só deixam de valer se quase tudo for falso positivo (auditoria do replay diz que não é)</span></div>
+    <div class="st"><b>236 testes</b><span>10 suítes verdes hoje; cada fase nova entra failing-first, como todas as anteriores</span></div>
+  </div>
+</section>
+
+<!-- ============ ORDEM DE ENTREGA ============ -->
+<section id="ordem">
+  <div class="eyebrow">fila de implementa&ccedil;&atilde;o</div>
+  <h2>Ordem planejada, specs aprovadas.</h2>
+  <div class="tablewrap" style="border:1.5px solid var(--ink);background:var(--card);overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;font-size:14.5px">
+    <thead><tr>
+      <th style="text-align:left;padding:10px 14px;border:1px solid var(--edge);font-family:'IBM Plex Mono',monospace;background:var(--ink);color:var(--paper)">Fase</th>
+      <th style="text-align:left;padding:10px 14px;border:1px solid var(--edge);font-family:'IBM Plex Mono',monospace;background:var(--ink);color:var(--paper)">Entregável</th>
+      <th style="text-align:left;padding:10px 14px;border:1px solid var(--edge);font-family:'IBM Plex Mono',monospace;background:var(--ink);color:var(--paper)">Spec</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R1</td><td style="padding:10px 14px;border:1px solid var(--edge)">Dedupe de leitura (2 camadas)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada · rev.4+fixes</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R2</td><td style="padding:10px 14px;border:1px solid var(--edge)">Sensor de garimpo + recomendação de memória</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R3</td><td style="padding:10px 14px;border:1px solid var(--edge)">Anti-boilerplate no contrato (+71 tok medidos)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R4</td><td style="padding:10px 14px;border:1px solid var(--edge)">response_format nas 3 tools MCP</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R6</td><td style="padding:10px 14px;border:1px solid var(--edge)">Contrato sobrevive à compaction</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R5</td><td style="padding:10px 14px;border:1px solid var(--edge)">Replay bytes reais (bench — fecha o ciclo de medição)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="src" style="margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--soft)">
+    Cada fase entra failing-first com gate próprio, como todas as anteriores.
+    Specs completas em docs/plans/ do repositório.
+  </p>
+</section>
+
+</main>
+
+<footer>
+  <span>token-guard v2.2.1 &middot; MIT &middot; Allan Santos</span>
+  <span>
+    <a href="/token-guard/">site</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard">github</a> &nbsp;&middot;&nbsp;
+    <a href="https://www.npmjs.com/package/@allansantos-dev/token-guard">npm</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/tree/main/docs/plans">specs R1&ndash;R6</a>
+  </span>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  /* timeline base */
+  var SEGS=28, tl=document.getElementById("timeline"), mk=document.getElementById("markers"), stage=document.getElementById("stage");
+  var ticks=[];
+  for(var i=0;i<SEGS;i++){var t=document.createElement("div");t.className="tick";var f=document.createElement("div");f.className="fill";t.appendChild(f);tl.appendChild(t);ticks.push(t);}
+  function paint(base,saves,warns){
+    ticks.forEach(function(t,i){t.querySelector(".fill").className="fill";});
+    for(var b=0;b<base;b++) if(ticks[b]) ticks[b].querySelector(".fill").classList.add("on-base");
+    saves.forEach(function(r){ if(ticks[r]) ticks[r].querySelector(".fill").classList.add("on-save"); });
+    warns.forEach(function(r){ if(ticks[r]) ticks[r].querySelector(".fill").classList.add("on-warn"); });
+  }
+  /* eventos da sessão simulada (posição %, título, tag/classe, texto, base, saves, warns) */
+  var EV=[
+    {at:6,label:"session start",cls:"save",tag:"INJEÇÃO · sempre",
+     txt:"UserPromptSubmit injeta a camada \"sempre\" (742 chars, 1×).\n[R3] o bloco já carrega as regras de reuso/anti-boilerplate.\n[R6] quando houver compaction, ele VOLTA — ver marcador 20.",
+     base:4,saves:[],warns:[]},
+    {at:18,label:"read 200KB",cls:"warnb",tag:"DENY · blindRead",
+     txt:"Leitura integral de arquivo grande sem faixa → negada com a alternativa:\n\"localize com busca restrita, releia com view_range\".\n[bigResult] se passar mesmo assim e vier >25k chars, vira stub + integral em disco.",
+     base:9,saves:[12],warns:[]},
+    {at:32,label:"re-read idêntico",cls:"save",tag:"DEDUPE · dupRead [R1]",
+     txt:"Mesma origem, conteúdo idêntico ao anterior → stub:\n\"conteúdo idêntico à leitura anterior de <path> — N chars não relidos\".\nCamada A ON por default; zero falso positivo por construção (hash integral).",
+     base:9,saves:[14,15],warns:[]},
+    {at:47,label:"broadScan ×3",cls:"warnb",tag:"SENSOR · garimpo detectado [R2]",
+     txt:"3º deny de broadScan na sessão → token_guard_status passa a recomendar:\n\"perguntas estruturais recorrentes são mais baratas com um índice persistente\".\nIndexer já configurado? A dica se cala sozinha (detecção por inventário MCP).",
+     base:9,saves:[22,23],warns:[21]},
+    {at:62,label:"check concise",cls:"save",tag:"RESPONSE_FORMAT · concise [R4]",
+     txt:"Agente pede response_format:\"concise\" na tool MCP:\nveredito em ~⅓ dos chars (padrão Anthropic). JSON/texto explícitos vencem a dica.",
+     base:9,saves:[27],warns:[]},
+    {at:78,label:"auto-compact",cls:"warnb",tag:"PRECOMPACT · reset [R6]",
+     txt:"O harness resume o contexto e o contrato sumiria — PreCompact zera o estado\ninjected. Próximo prompt RE-INJETA sempre + gatilhos por evidência\ncodigo/teste/docs (a touched sobrevive em disco). Custo consciente: ~180 tok.",
+     base:6,saves:[8,9],warns:[7]},
+    {at:92,label:"fim de sessão",cls:"save",tag:"REPLAY · bytes reais [R5]",
+     txt:"No fim, bench/replay-transcripts --real-bytes pareia tool_use↔tool_result\npor id e mede os BYTES que entraram de verdade (P50/P90/P99/max) —\na economia desta sessão vira dado, não promessa.",
+     base:9,saves:[26,27],warns:[]}
+  ];
+  var btns=[];
+  EV.forEach(function(ev,idx){
+    var b=document.createElement("button");
+    b.className="mk"; b.textContent=ev.label; b.style.left=ev.at+"%";
+    b.setAttribute("data-i",idx);
+    b.addEventListener("click",function(){select(idx);});
+    mk.appendChild(b); btns.push(b);
+  });
+  function select(idx){
+    btns.forEach(function(b){b.classList.remove("active");});
+    btns[idx].classList.add("active");
+    var ev=EV[idx];
+    paint(Math.round(ev.base),ev.saves,ev.warns);
+    stage.className="stagebox "+ev.cls;
+    stage.innerHTML='<span class="tag">'+ev.tag+'</span>\n'+document.createTextNode(ev.txt).textContent;
+  }
+  select(0);
+
+  /* copiar comandos (herdado do padrão do site principal) */
+  document.querySelectorAll(".copy").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var old=btn.textContent;
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(btn.getAttribute("data-c")).then(done,done);}else{done();}
+      function done(){btn.textContent="copiado";setTimeout(function(){btn.textContent=old;},1400);}
+    });
+  });
+})();
+</script>
+</body>
+</html>
