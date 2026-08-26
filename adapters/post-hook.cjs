@@ -3,80 +3,60 @@
 /**
  * post-hook.cjs — adapter do evento POST-execução (Claude Code PostToolUse).
  *
- * Diferença honesta para o modo plugin do Copilot: o hook de comando do
- * Claude Code não substitui o resultado que já entrou na janela — ele ORIENTA.
- * O que este adapter entrega:
- *   · a versão integral da saída gigante gravada em .token-guard/results/;
- *   · um aviso com a alternativa barata pronta para reexecutar;
- *   · calibração: o agente aprende a limitar na próxima chamada.
- * A economia real por substituição acontece no modo plugin (Copilot SDK,
- * modifiedResult) — veja adapters/copilot-cli.mjs e docs/IDES.md.
+ * Duas funções pós-execução:
+ *   1. bigResult: resultado >25k chars → stub + integral em disco + alternativa
+ *   2. dupRead: registra leituras para dedupe na próxima chamada idêntica
  *
- * Contrato de saída: silêncio = nada a fazer. Erro interno = silêncio
- * (fail-open: um pós-processador jamais pode perturbar a sessão).
+ * Diferença honesta vs Copilot plugin: o hook de comando do CC não substitui
+ * o resultado — orienta. A substituição real é no modo plugin (modifiedResult).
+ *
+ * Fail-open: qualquer erro → silêncio. stdout error → noop.
  */
 
 const P = require('../lib/payload.cjs');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
+const { noteResult } = require('../lib/dupread.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
 
-/** Caminho alvo da chamada, se houver — alimenta os gatilhos do contrato. */
-function targetPath(input) {
-  const i = input || {};
-  for (const k of ['path', 'filePath', 'file_path', 'absolute_path', 'notebook_path', 'file']) {
-    if (typeof i[k] === 'string' && i[k]) return i[k];
-  }
-  return null;
-}
-
 async function main() {
-  // EPIPE (harness fechou o pipe cedo) é evento de stream, não exceção:
-  // sem isto o processo morre com stack — violando o silêncio do fail-open.
   process.stdout.on('error', () => {});
-
   const payload = await P.readPayload();
 
   const name = payload?.tool_name || payload?.toolName || '';
   const root = payload?.cwd || process.cwd();
   const cfg = CFG.load(root);
+  const inp = payload?.tool_input || payload?.toolInput || {};
+  const result = payload?.tool_response ?? payload?.toolResponse ?? payload?.tool_result
+    ?? payload?.tool_output;
 
-  const verdict = postProcess({
-    name,
-    input: payload?.tool_input || payload?.toolInput || {},
-    result: payload?.tool_response ?? payload?.toolResponse ?? payload?.tool_result
-      ?? payload?.tool_output,
-    root,
-    cfg,
-  });
+  // bigResult
+  const trimmed = postProcess({ name, input: inp, result, root, cfg });
+  if (trimmed) {
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PostToolUse',
+        updatedToolOutput:
+          typeof trimmed.modifiedResult === 'string' ? trimmed.modifiedResult : undefined,
+        additionalContext: trimmed.additionalContext,
+      },
+    }));
+    return;
+  }
 
-  if (!verdict) return;
-
-  // Claude Code >= 2.1.121 aceita updatedToolOutput no PostToolUse: a saída
-  // truncada SUBSTITUI a original (mesma economia do plugin Copilot). Em
-  // versões antigas o campo é ignorado e sobra a orientação — nunca bloqueio.
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'PostToolUse',
-      updatedToolOutput:
-        typeof verdict.modifiedResult === 'string' ? verdict.modifiedResult : undefined,
-      additionalContext: verdict.additionalContext,
-    },
-  }));
-
-  // Evidência para o contrato: arquivos que a sessão tocou viram gatilhos
-  // (codigo/teste/docs) na próxima injeção. Falha aqui é silenciosa.
-  const target = targetPath(payload?.tool_input || payload?.toolInput);
-  if (target) {
-    const sid = payload?.session_id || payload?.sessionId;
-    if (sid) {
-      try { CT.recordTouched(root, sid, [target]); } catch { /* fail-open */ }
-    }
+  // dupRead — registra hash da leitura para dedupe futuro
+  const sid = payload?.session_id || payload?.sessionId;
+  if (sid && isReadTool(name)) {
+    try {
+      noteResult({ name, input: inp, result, root, sessionId: sid, cfg });
+    } catch { /* evidência */ }
   }
 }
 
-if (require.main === module) {
-  main().catch(() => { /* fail-open, sempre */ });
+function isReadTool(n) {
+  return /^(view|read|read_file|readfile|cat_file|open_file|get_file_contents|str_replace_editor)$/i
+    .test(String(n || '').toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, ''));
 }
 
-module.exports = { };
+if (require.main === module) main().catch(() => {});
+module.exports = {};
