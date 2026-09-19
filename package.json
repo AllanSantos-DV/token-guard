@@ -23,7 +23,7 @@
     "node": ">=16"
   },
   "scripts": {
-    "test": "node selftest.cjs && node test/adapters.test.cjs && node test/mcp-cost.test.cjs && node test/contract.test.cjs && node test/install.test.cjs && node test/savings.test.cjs && node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs && node test/epipe.test.cjs && node test/ipc-frame.test.cjs && node test/daemon-parity.test.cjs && node test/daemon-server.test.cjs",
+    "test": "node selftest.cjs && node test/adapters.test.cjs && node test/mcp-cost.test.cjs && node test/contract.test.cjs && node test/install.test.cjs && node test/savings.test.cjs && node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs && node test/epipe.test.cjs && node test/ipc-frame.test.cjs && node test/daemon-parity.test.cjs && node test/daemon-server.test.cjs && node test/daemon-contract-parity.test.cjs && node test/daemon-postprocess-parity.test.cjs && node test/daemon-adapters-parity.test.cjs",
     "test:core": "node selftest.cjs",
     "test:adapters": "node test/adapters.test.cjs",
     "test:mcp-cost": "node test/mcp-cost.test.cjs",

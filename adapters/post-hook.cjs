@@ -16,8 +16,9 @@
 const P = require('../lib/payload.cjs');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
-const { noteResult } = require('../lib/dupread.cjs');
+const { noteResult, isRead } = require('../lib/dupread.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
+const { tryDaemon } = require('../lib/daemon-client.cjs');
 
 async function main() {
   process.stdout.on('error', () => {});
@@ -25,13 +26,15 @@ async function main() {
 
   const name = payload?.tool_name || payload?.toolName || '';
   const root = payload?.cwd || process.cwd();
-  const cfg = CFG.load(root);
   const inp = payload?.tool_input || payload?.toolInput || {};
   const result = payload?.tool_response ?? payload?.toolResponse ?? payload?.tool_result
     ?? payload?.tool_output;
+  const sid = payload?.session_id || payload?.sessionId;
 
-  // bigResult
-  const trimmed = postProcess({ name, input: inp, result, root, cfg });
+  const viaDaemon = await tryDaemon('postprocess', { name, input: inp, result, root, sessionId: sid });
+  const trimmed = viaDaemon.ok
+    ? viaDaemon.result.trimmed
+    : postProcess({ name, input: inp, result, root, cfg: CFG.load(root) });
   if (trimmed) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: {
@@ -44,18 +47,13 @@ async function main() {
     return;
   }
 
-  // dupRead — registra hash da leitura para dedupe futuro
-  const sid = payload?.session_id || payload?.sessionId;
-  if (sid && isReadTool(name)) {
+  // dupRead — registra hash da leitura para dedupe futuro. Se o daemon serviu
+  // este postprocess, ele já rodou noteResult internamente (dispatchPostprocess).
+  if (!viaDaemon.ok && sid && isRead(name)) {
     try {
-      noteResult({ name, input: inp, result, root, sessionId: sid, cfg });
+      noteResult({ name, input: inp, result, root, sessionId: sid, cfg: CFG.load(root) });
     } catch { /* evidência */ }
   }
-}
-
-function isReadTool(n) {
-  return /^(view|read|read_file|readfile|cat_file|open_file|get_file_contents|str_replace_editor)$/i
-    .test(String(n || '').toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, ''));
 }
 
 if (require.main === module) main().catch(() => {});
