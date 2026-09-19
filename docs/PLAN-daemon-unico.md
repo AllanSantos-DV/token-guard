@@ -111,6 +111,19 @@ Phases are sequentially ordered; each closes independently and leaves `npm test`
 - **Verification:** `daemon-parity.test.cjs` shows identical sorted-JSON verdicts across all ~40 canonical cases for both paths; repeated-key lookup served from cache.
 - **Gate:** Zero edits to `lib/decide.cjs`, `lib/rules.cjs`, `lib/config.cjs` (diff empty). Criteria touched: foundation for AC1/AC2/AC3.
 - **Depends on:** F1.
+- **✅ DONE.** **DECISION (F2b):** F2 as originally scoped only wired the `check`
+  RPC (`decide()`). Reading `prompt-hook.cjs`/`post-hook.cjs` for F3 revealed
+  those two hooks call `CT.decide()` (`lib/contract.cjs`) and
+  `postProcess()`/`noteResult()` (`lib/postresult.cjs`/`lib/dupread.cjs`) —
+  neither had a daemon RPC. Extended `adapters/daemon-server.cjs` with two more
+  methods, `contract` and `postprocess`, out of F2's original scope, before
+  starting F3's client migration. Zero edits to `lib/contract.cjs`,
+  `lib/postresult.cjs`, `lib/dupread.cjs` beyond exporting `isRead` (dedupe
+  with `post-hook.cjs`'s local regex, not new logic). New methods are
+  deliberately NOT cached (unlike `check`): both are stateful per session.
+  Parity proven in `test/daemon-contract-parity.test.cjs` (14 checks) and
+  `test/daemon-postprocess-parity.test.cjs` (12 checks), same style as
+  `daemon-parity.test.cjs`. Full chain: 84/84 green.
 
 ### Phase F3 — Thin clients (three hooks migrate, ephemeral kept as fallback)
 - **Objective:** Convert the three ephemeral hooks into thin clients that talk to the daemon but retain the exact harness stdout contract and an embedded ephemeral fallback.
@@ -122,6 +135,51 @@ Phases are sequentially ordered; each closes independently and leaves `npm test`
   - Update `test/adapters.test.cjs`, `test/adapters.prompt.test.cjs`, `test/adapters.post.test.cjs` — add cases asserting golden stdout identical whether served by daemon or by embedded ephemeral fallback (contract preservation, D3/Risk-Migration).
 - **Verification:** With daemon DOWN, all three hooks behave exactly as today (fallback exercised); with daemon UP, output byte-equal. `node test/adapters*.test.cjs` green both ways.
 - **Gate:** Fail-open invariant holds (AC4 groundwork): unreachable daemon never blocks/drops a session. Depends on: F2.
+- **✅ DONE.** **DECISION (F3):** the plan pointed at extending
+  `test/adapters.test.cjs`/`test/adapters.prompt.test.cjs`/`test/adapters.post.test.cjs`
+  for the daemon-up/daemon-down parity cases — but `adapters.test.cjs` actually
+  covers `cursor-hook.cjs`/`mcp-server.cjs` (different adapters), and
+  `hook-cmd.cjs` has no dedicated suite at all today. Rather than force parity
+  cases into files that test unrelated adapters, created ONE new file,
+  `test/daemon-adapters-parity.test.cjs`, spawning the real daemon (in-process
+  `createServer()` on a temp endpoint) and comparing real `spawnSync` runs of
+  all three migrated hooks (`hook-cmd.cjs`, `prompt-hook.cjs`, `post-hook.cjs`)
+  with `TOKEN_GUARD_SID` pointed at it vs. the same hooks with no daemon
+  reachable. 7 checks: byte-equal stdout for hook-cmd (deny via `Glob **`) and
+  prompt-hook (sempre injection), structure-equal for post-hook (bigResult,
+  after stripping the `Date.now()`-prefixed saved-file name), and an explicit
+  fail-open check (nonexistent daemon endpoint still exits 0, never blocks the
+  session). Manual byte-for-byte confirmation done first via an ad-hoc
+  scratchpad script before formalizing here. Wired into `package.json`
+  `scripts.test`. Full chain (16 files, run individually since the curated
+  `.vscode/scripts/token-guard-test.mjs` only covers `selftest.cjs` +
+  `test/adapters.test.cjs`): 466/466 checks green, 0 failures, exit 0 on
+  every file.
+- **Gate de revisão (regra CLAUDE.md §5, plano step 4): FECHADO.** Rodada 1
+  (`reviewer`, agente `aca8e90a331557b8d`) retornou **REQUEST_CHANGES**: 1
+  CRITICAL (exceção síncrona não capturada em `handleMessage()` —
+  `adapters/daemon-server.cjs`, RPC `check` com `params.root` não-string
+  derrubava o processo inteiro do daemon compartilhado, sem isolamento entre
+  conexões) + 2 WARNING (escape hatch `TOKEN_GUARD=off` não se propagava pelo
+  daemon, quebrando o contrato documentado em `lib/config.cjs:169-173`;
+  vazamento de socket em `lib/daemon-client.cjs` no handler de erro de frame).
+  Correções aplicadas: `handleMessage()` inteiro envolvido em `try/catch`
+  retornando `{id,error}` sem nunca deixar propagar (mais blindagem de tipo em
+  `params.root`); `tryDaemon()` em `lib/daemon-client.cjs` ganhou
+  `isTokenGuardOff()` — corta ANTES de conectar no daemon quando
+  `TOKEN_GUARD` está off, restaurando o escape hatch; `sock.destroy()`
+  adicionado ao handler `frames.on('error', ...)` do client. Rodada 2 (mesmo
+  agente `reviewer`, id `ade1ff2a775f49a4c`), fresca e independente sobre o
+  diff completo P1+P2 corrigido, com os 3 cenários reproduzidos ao vivo
+  (não só leitura de código): **APPROVE**, zero achados CRITICAL/WARNING.
+  Duas sugestões 🟢 não-bloqueantes (cobertura de teste faltando pro
+  `TOKEN_GUARD=off` com daemon real de pé via `spawnSync`; `msg.id === 0`
+  tratado como inválido em `handleMessage`, inofensivo hoje pois
+  `daemon-client.cjs` nunca gera id 0, mas frágil pra clientes RPC futuros)
+  logadas em `docs/BACKLOG.md` em vez de corrigidas inline (fora do escopo
+  gate). Chain completa (466/466, depois confirmada em 84/84 pelo wrapper
+  curado `token-guard-test.mjs` na rodada 2) verde sem regressão. **F3
+  fechado de fato — não só código, o gate de revisão também.**
 
 ### Phase F4 — Lifecycle / singleton / security / handshake
 - **Objective:** Make the daemon a robust per-machine singleton with version handshake and locked-down pipe ACL, separating automatable logic from OS-level enforcement.

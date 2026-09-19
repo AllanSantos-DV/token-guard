@@ -10,6 +10,8 @@
 | # | Item | Origem | Esforço |
 |---|---|---|---|
 | A1 | **Replay contínuo**: rodar `node bench/replay-transcripts.cjs` periodicamente (a cada release) e auditar a lista de suspeitos que ele imprime — o replay real de 2026-08 achou 2 classes de FP que nenhuma suíte pegava | gate 2.2.0 | S/recorrente |
+| A2 | **Teste `TOKEN_GUARD=off` ponta a ponta com daemon real**: `test/daemon-adapters-parity.test.cjs` cobre fail-open de endpoint inexistente mas não o escape hatch `TOKEN_GUARD=off` com um daemon de pé via `spawnSync` dos 3 hooks — verificado manualmente, mas hoje pode regredir sem teste pegar | gate F3 daemon-único, rodada 2 de revisão (`reviewer` ade1ff2a775f49a4c) | S |
+| A3 | **`handleMessage()` trata `msg.id === 0` como inválido** (`adapters/daemon-server.cjs:89`) — sem resposta, cliente só descobre por timeout. Inofensivo hoje (`lib/daemon-client.cjs` nunca gera id 0, faz `++reqId` antes de usar), mas é fragilidade de contrato pra qualquer cliente RPC futuro que comece a contagem em 0 | gate F3 daemon-único, rodada 2 de revisão (`reviewer` ade1ff2a775f49a4c) | S |
 
 ## Fechado na release 2.2.0 (rodada 2 — "fechar tudo antes de lançar")
 
