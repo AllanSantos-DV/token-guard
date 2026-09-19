@@ -172,6 +172,17 @@ Phases are sequentially ordered; each closes independently and leaves `npm test`
   agente `reviewer`, id `ade1ff2a775f49a4c`), fresca e independente sobre o
   diff completo P1+P2 corrigido, com os 3 cenários reproduzidos ao vivo
   (não só leitura de código): **APPROVE**, zero achados CRITICAL/WARNING.
+
+  **Gap remanescente encontrado no CI de release (2026-09-19), pós-tag:**
+  `isTokenGuardOff()` cobria só `off/0/false`, não `warn` — em runners com o
+  daemon de pé (`ubuntu-latest` em `ci.yml`, todas as versões de Node), o RPC
+  `check` com `TOKEN_GUARD=warn` seguia pro daemon, que calcula `cfg` com o
+  PRÓPRIO env (sem `warn`) e devolve `deny` em vez de `ask` — quebrando
+  silenciosamente o escape hatch de aviso pelo mesmo motivo já documentado
+  pro `off`, só que sem teste de CI real cross-platform até agora (Windows
+  não reproduz: lá o daemon não sobe nesse cenário e o fallback local, que já
+  lê o env certo, mascarava o bug). Corrigido renomeando pra
+  `hasTokenGuardEnvOverride()` e incluindo `warn` no corte antes de conectar.
   Duas sugestões 🟢 não-bloqueantes (cobertura de teste faltando pro
   `TOKEN_GUARD=off` com daemon real de pé via `spawnSync`; `msg.id === 0`
   tratado como inválido em `handleMessage`, inofensivo hoje pois
