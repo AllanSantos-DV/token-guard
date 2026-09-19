@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>token-guard · Daemon Único — Antes vs Depois</title>
+<style>
+  :root{
+    --bg:#0d1117;--panel:#161b22;--border:#30363d;--txt:#e6edf3;--dim:#8b949e;
+    --red:#f85149;--green:#3fb950;--blue:#58a6ff;--amber:#d29922;--purple:#bc8cff;
+    --mono:'Cascadia Code','JetBrains Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',sans-serif;line-height:1.5;overflow-x:hidden}
+  header{text-align:center;padding:24px 16px;border-bottom:1px solid var(--border)}
+  header h1{font-size:22px;font-weight:600}
+  header p{color:var(--dim);font-size:13px;margin-top:4px}
+  .tabs{display:flex;justify-content:center;gap:8px;padding:16px;border-bottom:1px solid var(--border)}
+  .tab{padding:8px 20px;border-radius:6px;cursor:pointer;background:var(--panel);border:1px solid var(--border);font-size:13px;color:var(--dim);transition:.2s}
+  .tab.active{color:var(--txt);border-color:var(--blue);background:#1c2333}
+  .view{display:none;padding:24px;max-width:1200px;margin:0 auto}
+  .view.active{display:block}
+  .scene{position:relative;height:520px;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #21262d}
+  .label{width:130px;font-size:12px;color:var(--dim);flex-shrink:0;text-transform:uppercase;letter-spacing:.5px}
+  .lane{flex:1;display:flex;gap:6px;flex-wrap:wrap;min-height:40px;align-items:center}
+  .node{width:38px;height:38px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--mono);animation:pop .3s ease-out both}
+  .sess{background:#1f3a5f;border:1px solid var(--blue);color:var(--blue)}
+  .eph{background:#3d1f1f;border:1px solid var(--red);color:var(--red)}
+  .daemon{background:#1a3d2a;border:2px solid var(--green);color:var(--green);width:auto;padding:0 14px;height:38px;font-size:12px}
+  .client{background:#2d2440;border:1px solid var(--purple);color:var(--purple)}
+  .arrow{color:var(--dim);font-size:16px}
+  @keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:20px}
+  .metric{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+  .metric .val{font-size:26px;font-weight:700;font-family:var(--mono)}
+  .metric .lbl{font-size:11px;color:var(--dim);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+  .bad .val{color:var(--red)}.good .val{color:var(--green)}.warn .val{color:var(--amber)}
+  .timeline{margin-top:20px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px}
+  .tl-bar{height:24px;border-radius:4px;margin:6px 0;position:relative;overflow:hidden}
+  .tl-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:600;white-space:nowrap}
+  .tl-label{font-size:11px;color:var(--dim);margin-bottom:2px}
+  .controls{display:flex;gap:10px;align-items:center;margin:16px 0;flex-wrap:wrap}
+  button{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--txt);cursor:pointer;font-size:13px;transition:.2s}
+  button:hover{border-color:var(--blue)}
+  button.primary{background:#1f6feb;border-color:#1f6feb}
+  select,input[type=range]{padding:6px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--txt);font-size:13px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;font-size:12px;color:var(--dim)}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .dot{width:12px;height:12px;border-radius:3px}
+  .info-box{background:#1c2333;border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:16px;font-size:13px}
+  .info-box h3{font-size:14px;margin-bottom:8px;color:var(--blue)}
+  .step-num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:6px}
+  .fade-in{animation:fadeIn .4s ease-out}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .pulse{animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .ram-meter{width:100%;height:20px;background:#21262d;border-radius:4px;overflow:hidden;margin:4px 0}
+  .ram-fill{height:100%;transition:width .5s;border-radius:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>token-guard · Daemon Único</h1>
+  <p>Análise comparativa: modelo efêmero (hoje) vs daemon residente (proposto)</p>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-view="overview">Visão Geral</div>
+  <div class="tab" data-view="before">Hoje (Efêmero)</div>
+  <div class="tab" data-view="after">Proposto (Daemon)</div>
+  <div class="tab" data-view="simulate">Simulador</div>
+  <div class="tab" data-view="numbers">Números Reais</div>
+</div>
+
+<!-- OVERVIEW -->
+<div class="view active" id="overview">
+  <div class="legend">
+    <span><div class="dot" style="background:#1f3a5f;border:1px solid var(--blue)"></div> Sessão do agente</span>
+    <span><div class="dot" style="background:#3d1f1f;border:1px solid var(--red)"></div> Node efêmero (morre a cada call)</span>
+    <span><div class="dot" style="background:#1a3d2a;border:2px solid var(--green)"></div> Daemon residente (nasce 1× no logon)</span>
+    <span><div class="dot" style="background:#2d2440;border:1px solid var(--purple)"></div> Cliente fino (conecta ao daemon)</span>
+  </div>
+
+  <div class="info-box fade-in">
+    <h3>O Problema Medido</h3>
+    <p>Cada chamada de ferramenta num hook dispara <code>spawn(node …cjs)</code>: lê stdin → decide → escreve stdout → <strong>morre</strong>. Com múltiplas sessões simultâneas, os spawns se multiplicam e estouram RAM/CPU da máquina corporativa (EDR sem cache escaneia cada processo novo individualmente).</p>
+  </div>
+
+  <div class="metrics">
+    <div class="metric bad"><div class="val">53 ms</div><div class="lbl">Median isolado (spawn)</div></div>
+    <div class="metric bad"><div class="val">263 ms</div><div class="lbl">Median burst 60 req</div></div>
+    <div class="metric bad"><div class="val">409 ms</div><div class="lbl">P95 burst 60 req</div></div>
+    <div class="metric warn"><div class="val">~40 MB</div><div class="lbl">RAM por processo Node</div></div>
+    <div class="metric good"><div class="val">≤ 5 ms</div><div class="lbl">Alvo daemon (median)</div></div>
+    <div class="metric good"><div class="val">&lt; 50 ms</div><div class="lbl">Alvo daemon (burst p95)</div></div>
+  </div>
+
+  <div class="info-box fade-in" style="margin-top:20px">
+    <h3>A Solução Proposta</h3>
+    <p><span class="step-num">1</span>No <code>SessionStart</code>, sobe UM daemon por máquina (named pipe Win / UNIX socket POSIX). Nasce detached, fica residente até shutdown.</p>
+    <p style="margin-top:8px"><span class="step-num">2</span>Todos os hooks (<code>PreToolUse</code>, <code>UserPromptSubmit</code>, <code>PostToolUse</code>) viram <strong>clientes finos</strong>: conectam no pipe já aberto, mandam payload, recebem veredito warm (~1 ms), desconectam.</p>
+    <p style="margin-top:8px"><span class="step-num">3</span>Fault tolerance obrigatória: start-on-demand (cliente sobe daemon se ausente), self-heal (EPIPE → resume 1×), disarm-K=3 (falhou 3× seguidas → volta pro modo efêmero + log alto). Nunca loop infinito contra AV/EDR.</p>
+  </div>
+</div>
+
+<!-- BEFORE -->
+<div class="view" id="before">
+  <h2 style="font-size:16px;margin-bottom:12px;color:var(--red)">Modelo Atual — Efêmero (N sessões × M calls = N×M processos)</h2>
+  <div class="scene" id="scene-before"></div>
+  <div class="controls">
+    <button class="primary" onclick="animateBefore()">▶ Animar</button>
+    <label>Sessões: <select id="sel-sessions-b"><option value="3">3</option><option value="6" selected>6</option><option value="10">10</option></select></label>
+    <label>Calls/sessão: <input type="range" id="rng-calls-b" min="3" max="15" value="8"><span id="calls-val-b">8</span></label>
+  </div>
+  <div class="metrics" id="metrics-before"></div>
+  <div class="info-box">
+    <h3>Gargalos identificados</h3>
+    <p>• <strong>Cold start:</strong> ~31 ms só do Node floor em Windows corporativo (sem contar EDR scan).</p>
+    <p>• <strong>Multiplicação de RAM:</strong> cada spawn pica ~40 MB; 6 sessões × 8 calls = 48 processos simultâneos possíveis → ~1.9 GB de picos concorrentes numa máquina com ~1 GB livre.</p>
+    <p>• <strong>EDR no-cache:</strong> cada processo novo é escaneado individualmente pelo antivírus corporativo. 300–400 spawns/dia = 300–400 scans bloqueantes.</p>
+    <p>• <strong>Timeout cascade:</strong> quando a memória satura, os spawns ficam travados → hooks excedem o timeout de 10 s do harness → tela vermelha inteira.</p>
+  </div>
+</div>
+
+<!-- AFTER -->
+<div class="view" id="after">
+  <h2 style="font-size:16px;margin-bottom:12px;color:var(--green)">Modelo Proposto — Daemon Único (1 processo + N clientes finos)</h2>
+  <div class="scene" id="scene-after"></div>
+  <div class="controls">
+    <button class="primary" onclick="animateAfter()">▶ Animar</button>
+    <label>Sessões: <select id="sel-sessions-a"><option value="3">3</option><option value="6" selected>6</option><option value="10">10</option></select></label>
+    <label>Calls/sessão: <input type="range" id="rng-calls-a" min="3" max="15" value="8"><span id="calls-val-a">8</span></label>
+  </div>
+  <div class="metrics" id="metrics-after"></div>
+  <div class="info-box">
+    <h3>Como resolve</h3>
+    <p>• <strong>Zero cold start:</strong> daemon nasce uma vez no logon; lazy-requires de config/rules ficam quentes na heap residente.</p>
+    <p>• <strong>RAM fixa:</strong> ~40 MB total independentemente de quantas sessões chamam. Clientes finos são threads leves do próprio harness, não processos novos.</p>
+    <p>• <strong>EDR 1× só:</strong> um único processo escaneado no boot. As conexões ao named pipe não disparam scan novo.</p>
+    <p>• <strong>Cache de decisão:</strong> chave <code>{root, ruleSetHash, payload}</code> colapsa repetições a ~0 ms. Mudança de config no disco gera hash diferente → miss automático (invalidação implícita).</p>
+    <p>• <strong>Fallback transparente:</strong> se o daemon estiver fora, o cliente tenta subir 1×; se falhar 3× consecutivas, cai pro modo efêmero atual sem quebrar nada. Fail-open preservado.</p>
+  </div>
+</div>
+
+<!-- SIMULATOR -->
+<div class="view" id="simulate">
+  <h2 style="font-size:16px;margin-bottom:12px">Simulador Interativo</h2>
+  <div class="controls">
+    <label>Modo: <select id="sim-mode"><option value="before">Efêmero (hoje)</option><option value="after">Daemon (proposto)</option></select></label>
+    <label>Nº sessões: <input type="range" id="sim-sessions" min="1" max="12" value="6"><span id="ss-val">6</span></label>
+    <label>Calls por sessão: <input type="range" id="sim-calls" min="1" max="20" value="8"><span id="sc-val">8</span></label>
+    <label>Burst simultâneo?: <select id="sim-burst"><option value="0">Não (sequencial)</option><option value="1">Sim (todas juntas)</option></select></label>
+    <button class="primary" onclick="runSim()">Rodar Simulação</button>
+  </div>
+  <div id="sim-result"></div>
+  <div class="timeline" id="sim-timeline" style="display:none">
+    <h3 style="font-size:13px;margin-bottom:10px">Timeline estimada</h3>
+    <div id="tl-bars"></div>
+  </div>
+</div>
+
+<!-- NUMBERS -->
+<div class="view" id="numbers">
+  <h2 style="font-size:16px;margin-bottom:12px">Números Reais Medidos Nesta Máquina</h2>
+  <div class="info-box">
+    <h3>Benchmark executado (win32, Node v24.14.1)</h3>
+    <table style="width:100%;font-size:13px;border-collapse:collapse">
+      <tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px">Métrica</th><th style="text-align:right;padding:6px">Efêmero (spawn)</th><th style="text-align:right;padding:6px">Plugin in-process</th><th style="text-align:right;padding:6px">Daemon (alvo)</th></tr>
+      <tr><td style="padding:6px">Median isolado</td><td style="text-align:right;padding:6px;color:var(--red)">53 ms</td><td style="text-align:right;padding:6px;color:var(--green)">0.55 ms</td><td style="text-align:right;padding:6px;color:var(--green)">≤ 5 ms</td></tr>
+      <tr><td style="padding:6px">Node floor (-e "0")</td><td style="text-align:right;padding:6px">31 ms</td><td style="text-align:right;padding:6px">—</td><td style="text-align:right;padding:6px">—</td></tr>
+      <tr><td style="padding:6px">Lógica do guard</td><td style="text-align:right;padding:6px">22 ms</td><td style="text-align:right;padding:6px">0.55 ms</td><td style="text-align:right;padding:6px">~1 ms (warm)</td></tr>
+      <tr><td style="padding:6px">Burst 60 req — median</td><td style="text-align:right;padding:6px;color:var(--red)">263 ms</td><td style="text-align:right;padding:6px">—</td><td style="text-align:right;padding:6px;color:var(--green)">&lt; 50 ms</td></tr>
+      <tr><td style="padding:6px">Burst 60 req — p95</td><td style="text-align:right;padding:6px;color:var(--red)">409 ms</td><td style="text-align:right;padding:6px">—</td><td style="text-align:right;padding:6px;color:var(--green)">&lt; 150 ms</td></tr>
+      <tr><td style="padding:6px">Throughput saturação</td><td style="text-align:right;padding:6px;color:var(--red)">~128 req/s ↓</td><td style="text-align:right;padding:6px">—</td><td style="text-align:right;padding:6px;color:var(--green)">linear c/ cores</td></tr>
+      <tr><td style="padding:6px">RAM pico (6 sessões × 8 calls)</td><td style="text-align:right;padding:6px;color:var(--red)">~1.9 GB (picos)</td><td style="text-align:right;padding:6px">compartilhada</td><td style="text-align:right;padding:6px;color:var(--green)">~40 MB fixo</td></tr>
+      <tr><td style="padding:6px">Scans EDR/dia (corp)</td><td style="text-align:right;padding:6px;color:var(--red)">300–400</td><td style="text-align:right;padding:6px">0</td><td style="text-align:right;padding:6px;color:var(--green)">1 (boot)</td></tr>
+    </table>
+  </div>
+  <div class="info-box" style="margin-top:16px">
+    <h3>Status da Implementação (branch feat/daemon-unico)</h3>
+    <p>✅ F1 — Transporte IPC (<code>lib/ipc-frame.cjs</code>): 10/10 testes verdes, teto anti-DoS 4 MB/frame.</p>
+    <p>✅ F2 — Daemon server (<code>adapters/daemon-server.cjs</code>): paridade byte-equivalente confirmada (164 checks), cache com invalidação por ruleSetHash, fail-open espelhando decide():63.</p>
+    <p>✅ F2b — RPC <code>contract</code>/<code>postprocess</code> estendido no daemon (fora do escopo original de F2, DECISION registrada no plano): paridade própria testada (<code>test/daemon-contract-parity.test.cjs</code>, <code>test/daemon-postprocess-parity.test.cjs</code>).</p>
+    <p>✅ F3 — Thin clients (<code>lib/daemon-client.cjs</code> + <code>hook-cmd</code>/<code>prompt-hook</code>/<code>post-hook</code> migrados, fallback embutido pro caminho efêmero): gate de revisão fechado — rodada 1 achou 1 CRITICAL (crash do daemon em RPC malformado) + 2 WARNING (escape hatch <code>TOKEN_GUARD=off</code> quebrado pelo daemon; vazamento de socket), corrigidos e confirmados por rodada 2 independente com <strong>APPROVE</strong>, zero achados. Chain completa 466/466 verde.</p>
+    <p>✅ F4 — Lifecycle/singleton/security (<code>lib/daemon-lifecycle.cjs</code> + <code>claimOrphanMutex</code> em <code>adapters/daemon-server.cjs</code>): garantia real de singleton vem do <code>EADDRINUSE</code> do SO (bind exclusivo), lock-record como pré-checagem; reclaim de mutex de dono morto reframado como otimização best-effort após 8 rodadas de revisão provarem (empiricamente, POSIX real) que atomicidade perfeita nesse nível não é necessária. Gate fechado — rodada 8 achou 2 CRITICAL de infraestrutura de teste (CI sem wiring da suíte; 2 bugs de harness mascarando falso-positivo/negativo), corrigidos e confirmados por rodada 9 independente com <strong>APPROVE</strong>, zero achados. Gap Windows (reclaim inativo no win32) e ruído de log de teste logados no backlog (A4/A5), não bloqueantes.</p>
+    <p>✅ F5 — Fault tolerance (start-on-demand/self-heal/disarm-K em <code>lib/daemon-client.cjs</code>): 16/16 testes verdes em <code>test/daemon-faulttolerance.test.cjs</code>, 100% seams injetados. Gate fechado — 6 rodadas de revisão independente: R1 achou propagação de <code>endpoint</code> quebrada no spawn real (corrigido, argv); R2 achou que o fix só era provado por mock (corrigido, teste de integração com subprocess real); R3 achou 3 gaps de higiene no novo teste (deadline apertado, temp-dir POSIX vazando, risco de zumbi — 2 corrigidos, 1 aceito como DECISION documentada); R4 achou lock-file órfão no Windows (corrigido); R5 <strong>CLOSE_GATE</strong>, zero achados; R6 — rodada FRESCA sobre o diff completo consolidado (não incremental): hand-trace do contador disarm-K, reverificação isolada do escape hatch <code>TOKEN_GUARD=off</code>, checagem da premissa de unificação self-heal/start-on-demand contra <code>lib/ipc-frame.cjs</code> (1 nuance cosmética de documentação, não-bloqueante), grep de uso indevido dos exports de teste — <strong>CLOSE_GATE</strong>, zero achados. Gap A6 (TOKEN_GUARD_SID nunca setado em produção no Windows) confirmado ainda aberto, não resolvido por F5, permanece no backlog.</p>
+    <p>🔲 F6 — Benchmark numérico (AC1–AC3): pendente.</p>
+    <p>🔲 F7 — Instalação/autostart: pendente.</p>
+    <p>🔲 F8 — Release/close: pendente.</p>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById(t.dataset.view).classList.add('active');
+}));
+
+const NODE_DUR=600,EPH_LIFE=1800,DAY_MS=86400000;
+
+function makeEl(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+
+function animateBefore(){
+  const scene=document.getElementById('scene-before');scene.innerHTML='';
+  const ns=+document.getElementById('sel-sessions-b').value;
+  const nc=+document.getElementById('rng-calls-b').value;
+  let totalEph=0,totalRam=0,maxConc=0,currentConc=0;
+  for(let s=0;s<ns;s++){
+    const row=makeEl('div','row');
+    row.appendChild(makeEl('div','label',`Sessão ${s+1}`));
+    const lane=makeEl('div','lane');
+    for(let c=0;c<nc;c++){
+      setTimeout(()=>{
+        const n=makeEl('div','node eph','⚡'+(c+1));
+        n.style.animationDelay='0s';
+        lane.appendChild(n);
+        currentConc++;if(currentConc>maxConc)maxConc=currentConc;
+        totalEph++;totalRam+=40;
+        setTimeout(()=>{n.remove();currentConc--;},EPH_LIFE);
+      },c*NODE_DUR+s*120);
+    }
+    row.appendChild(lane);scene.appendChild(row);
+  }
+  setTimeout(()=>{
+    const m=document.getElementById('metrics-before');
+    m.innerHTML=`
+      <div class="metric bad"><div class="val">${totalEph}</div><div class="lbl">Processos Node criados</div></div>
+      <div class="metric bad"><div class="val">${maxConc}</div><div class="lbl">Pico concorrente</div></div>
+      <div class="metric bad"><div class="val">~${(totalRam/1024).toFixed(1)} GB</div><div class="lbl">RAM em picos</div></div>
+      <div class="metric bad"><div class="val">${totalEph}</div><div class="lbl">Scans EDR (no-cache)</div></div>
+    `;
+  },ns*120+nc*NODE_DUR+500);
+}
+
+function animateAfter(){
+  const scene=document.getElementById('scene-after');scene.innerHTML='';
+  const ns=+document.getElementById('sel-sessions-a').value;
+  const nc=+document.getElementById('rng-calls-a').value;
+  // Daemon row
+  const dRow=makeEl('div','row');
+  dRow.appendChild(makeEl('div','label','DAEMON'));
+  const dLane=makeEl('div','lane');
+  const dn=makeEl('div','node daemon','● token-guard daemon (residente desde logon)');
+  dLane.appendChild(dn);dRow.appendChild(dLane);scene.appendChild(dRow);
+  // Session rows
+  let totalCalls=0;
+  for(let s=0;s<ns;s++){
+    const row=makeEl('div','row');
+    row.appendChild(makeEl('div','label',`Sessão ${s+1}`));
+    const lane=makeEl('div','lane');
+    lane.appendChild(makeEl('div','node sess','S'+(s+1)));
+    lane.appendChild(makeEl('span','arrow','→'));
+    for(let c=0;c<nc;c++){
+      setTimeout(()=>{
+        const cl=makeEl('div','node client','↔');
+        cl.title=`call ${c+1}: conecta → daemon responde (~1ms) → desconecta`;
+        lane.appendChild(cl);
+        totalCalls++;
+        setTimeout(()=>cl.remove(),800);
+      },c*NODE_DUR+s*120);
+    }
+    row.appendChild(lane);scene.appendChild(row);
+  }
+  setTimeout(()=>{
+    const m=document.getElementById('metrics-after');
+    m.innerHTML=`
+      <div class="metric good"><div class="val">1</div><div class="lbl">Processo Node residente</div></div>
+      <div class="metric good"><div class="val">${totalCalls}</div><div class="lbl">Chamas atendidas (IPC)</div></div>
+      <div class="metric good"><div class="val">~40 MB</div><div class="lbl">RAM fixa (independente de N)</div></div>
+      <div class="metric good"><div class="val">1</div><div class="lbl">Scan EDR (só no boot)</div></div>
+    `;
+  },ns*120+nc*NODE_DUR+500);
+}
+
+// Simulator
+document.getElementById('sim-sessions').addEventListener('input',e=>document.getElementById('ss-val').textContent=e.target.value);
+document.getElementById('sim-calls').addEventListener('input',e=>document.getElementById('sc-val').textContent=e.target.value);
+document.getElementById('rng-calls-b').addEventListener('input',e=>document.getElementById('calls-val-b').textContent=e.target.value);
+document.getElementById('rng-calls-a').addEventListener('input',e=>document.getElementById('calls-val-a').textContent=e.target.value);
+
+function runSim(){
+  const mode=document.getElementById('sim-mode').value;
+  const ns=+document.getElementById('sim-sessions').value;
+  const nc=+document.getElementById('sim-calls').value;
+  const burst=document.getElementById('sim-burst').value==='1';
+  const total=ns*nc;
+  const el=document.getElementById('sim-result');
+  const tl=document.getElementById('sim-timeline');
+  const bars=document.getElementById('tl-bars');
+
+  if(mode==='before'){
+    const seqTime=total*53;
+    const burstTime=burst?Math.ceil(total/ns)*263:seqTime;
+    const ramPeak=burst?(ns*Math.ceil(nc/Math.ceil(NODE_DUR/(EPH_LIFE/NODE_DUR)||1))*40):(total*40*0.3);
+    const edr=total;
+    const timeoutRisk=burst&&total>30?'ALTO':'baixo';
+    el.innerHTML=`<div class="info-box fade-in"><h3>Resultado — Modo EFÊMERO</h3>
+      <p>Total de spawns: <strong>${total}</strong></p>
+      <p>Tempo sequencial estimado: <strong>${(seqTime/1000).toFixed(1)}s</strong></p>
+      ${burst?`<p>Tempo em burst (${ns} paralelas): <strong>${(burstTime/1000).toFixed(1)}s</strong></p>`:''}
+      <p>Pico de RAM: <strong>~${(ramPeak/1024).toFixed(1)} GB</strong></p>
+      <p>Scans EDR: <strong>${edr}</strong></p>
+      <p>Risco de timeout: <strong style="color:${timeoutRisk==='ALTO'?'var(--red)':'var(--green)'}">${timeoutRisk}</strong></p>
+    </div>`;
+    tl.style.display='block';
+    bars.innerHTML=`
+      <div class="tl-label">Spawn sequence (${total} × 53ms)</div>
+      <div class="tl-bar"><div class="tl-fill" style="width:${Math.min(seqTime/5000*100,100)}%;background:var(--red)">${(seqTime/1000).toFixed(1)}s</div></div>
+      ${burst?`<div class="tl-label">Burst wall-clock</div><div class="tl-bar"><div class="tl-fill" style="width:${Math.min(burstTime/5000*100,100)}%;background:var(--amber)">${(burstTime/1000).toFixed(1)}s</div></div>`:''}
+      <div class="tl-label">RAM peak vs disponível (1 GB free)</div>
+      <div class="tl-bar"><div class="tl-fill" style="width:${Math.min(ramPeak/1024/1*100,100)}%;background:${ramPeak>1024?'var(--red)':'var(--amber)'}">${(ramPeak/1024).toFixed(1)} GB</div></div>
+    `;
+  } else {
+    const ipcTime=total*1;
+    const ramFixed=40;
+    const edr=1;
+    el.innerHTML=`<div class="info-box fade-in"><h3>Resultado — Modo DAEMON</h3>
+      <p>Spawns: <strong>1</strong> (daemon no boot)</p>
+      <p>Chamadas IPC: <strong>${total}</strong></p>
+      <p>Tempo total estimado: <strong>${(ipcTime/1000).toFixed(2)}s</strong></p>
+      <p>RAM: <strong>~${ramFixed} MB fixo</strong></p>
+      <p>Scans EDR: <strong>${edr}</strong></p>
+      <p>Risco de timeout: <strong style="color:var(--green)">zero</strong></p>
+      <p>Economia vs efêmero: <strong>${((1-ipcTime/(total*53))*100).toFixed(0)}%</strong> em tempo, <strong>${((1-ramFixed/(total*40))*100).toFixed(0)}%</strong> em RAM</p>
+    </div>`;
+    tl.style.display='block';
+    bars.innerHTML=`
+      <div class="tl-label">IPC round-trips (${total} × ~1ms)</div>
+      <div class="tl-bar"><div class="tl-fill" style="width:${Math.max(ipcTime/5000*100,1)}%;background:var(--green)">${(ipcTime/1000).toFixed(2)}s</div></div>
+      <div class="tl-label">RAM (fixo, independente de carga)</div>
+      <div class="tl-bar"><div class="tl-fill" style="width:${ramFixed/1024*100}%;background:var(--green)">${ramFixed} MB</div></div>
+    `;
+  }
+}
+
+// Auto-animate on tab switch
+document.querySelector('[data-view="before"]').addEventListener('click',()=>setTimeout(animateBefore,100));
+document.querySelector('[data-view="after"]').addEventListener('click',()=>setTimeout(animateAfter,100));
+</script>
+</body>
+</html>

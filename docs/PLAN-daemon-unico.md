@@ -192,6 +192,58 @@ Phases are sequentially ordered; each closes independently and leaves `npm test`
 - **Verification:** Unit tests prove singleton/handshake logic deterministically. Security ACL verified only by the manual script (declared honestly, not faked green).
 - **Gate:** AC5 singleton/handshake sub-items covered by automated tests; AC5 security sub-item marked manual-only with explicit script deliverable.
 - **Depends on:** F2.
+- **✅ DONE.** **DECISION (F4 — `claimOrphanMutex`, limite de atomicidade
+  reconhecido, não bug pendente):** a garantia real de singleton NÃO depende
+  de `claimOrphanMutex` ser perfeitamente atômico — vem, sem condição, do
+  `server.listen()`/`EADDRINUSE` arbitrado pelo próprio SO logo abaixo dele
+  (duas camadas: lock-record como pré-checagem rápida, bind real como
+  autoridade final). Rodadas 4→7 de revisão independente perseguiram
+  atomicidade perfeita no reclaim de mutex de dono morto (unlink+recreate →
+  releitura de confirmação → rename-to-destino-fixo → arbiter em duas
+  camadas → rename-from-source); um stress test empírico real (8 processos
+  concorrentes reais × 15 trials, não simulado) provou que MESMO o design
+  mais sofisticado (rename-from-source) ainda corre (TOCTOU: decisão "dono
+  morto" e ação de roubo não são atômicas juntas). Duas correções adicionais
+  foram cogitadas e logicamente refutadas (verify+restore reintroduz o bug
+  da rodada 6; pid-suffix+lowest-pid não garante ordem real de escrita).
+  Decisão: reverter `claimOrphanMutex` pro design simples unlink+recreate
+  (equivalente à rodada 4), reframado em comentário como OTIMIZAÇÃO
+  best-effort de deduplicação, não o limite real de correção — se ele
+  correr, o pior caso é dois processos tentando unlink+listen quase ao
+  mesmo tempo no mesmo socket órfão, autocorrigido pelo bind exclusivo do
+  SO. Validado empiricamente pela rodada 8 (reprodução real em WSL/Ubuntu,
+  16/16 trials, 2 cenários): o invariante real se sustenta mesmo quando o
+  mutex interno corre.
+- **Gate de revisão (regra CLAUDE.md §5): FECHADO.** Rodada 8
+  (`reviewer`, agente `a1eab51c0458f7a43`), reprodução empírica fresca em
+  POSIX real, retornou **REQUEST_CHANGES**: 2 CRITICAL sobre infraestrutura
+  de teste, não lógica de produção — (1) `test/daemon-singleton.test.cjs` e
+  toda a suíte `daemon-*`/`ipc-frame` ausentes de `.github/workflows/ci.yml`
+  nos dois runners, apesar de `package.json` incluir tudo na chain
+  `scripts.test` (AC5 nunca verificado por pipeline automatizado); (2) ao
+  rodar a suíte de fato em POSIX real, 4/31 checks falhavam por dois bugs de
+  HARNESS (não produção): falso-positivo por casar `err.message` (texto-fonte
+  do script `-e` spawnado vazando pro diagnóstico do Node) e falso-negativo
+  por um listener `'error'` redundante nos scripts de teste que matava o
+  processo antes da lógica assíncrona de retry da produção completar. Mais
+  1 WARNING (gap pré-existente, não regressão: `claimOrphanMutex` é código
+  morto no win32 por guard `process.platform !== 'win32'`, deploy alvo
+  primário do projeto — logado como `docs/BACKLOG.md` item A4) e 1 sugestão
+  🟢 (precisão de comentário sobre janela transitória de auto-limitação).
+  Correções aplicadas: CI wiring do step `Daemon — IPC, paridade e singleton
+  (F1-F4)` (mesma ordem/comandos de `scripts.test`); os 3 listeners `'error'`
+  redundantes removidos dos scripts spawnados em `test/daemon-singleton.test.cjs`;
+  `err.stdout` em vez de `err.message` na extração de falha; nuance de
+  comentário adicionada em `claimOrphanMutex`; item A4 registrado no
+  backlog. Rodada 9 (`reviewer`, agente `a9dc5d262c4581c07`), fresca e
+  independente sobre o diff completo das correções, reproduzindo ela mesma
+  (20 execuções em WSL real + `npm test` completo + suíte curada Windows,
+  todas verdes, zero regressão): **APPROVE**, zero achados CRITICAL/WARNING.
+  1 sugestão 🟢 não-bloqueante (ruído de stderr do processo filho vazando no
+  log do teste de socket órfão único — cosmético, não afeta asserção),
+  logada como `docs/BACKLOG.md` item A5 em vez de corrigida inline (fora do
+  escopo gate, por recomendação do próprio revisor). **F4 fechado de fato —
+  não só código, o gate de revisão também.**
 
 ### Phase F5 — Fault tolerance (start-on-demand, self-heal, disarm-K)
 - **Objective:** Guarantee the daemon can never be a worse single point of failure than ephemeral.
@@ -204,6 +256,85 @@ Phases are sequentially ordered; each closes independently and leaves `npm test`
   - Create `test/daemon-faulttolerance.test.cjs` — uses the injected seams (stub `spawnFn` returning error N times, fake `nowFn` clock, memorial `PassThrough` sockets) so all three guarantees are asserted DETERMINISTICALLY with zero real subprocesses and no scheduling races: daemon absent → start-on-demand brings it up and serves; server socket destroyed between calls → self-heal resumes exactly once; stubbed spawn fails 3× consecutively → disarm to ephemeral + assert loud log emitted + assert NO further `spawnFn` invocation. Model style on `test/epipe.test.cjs`.
 - **Verification:** All three guarantees asserted; after disarm, subsequent hook calls take ephemeral path with zero respawn syscalls.
 - **Gate:** Directly satisfies AC4 (fail-open preserved) and AC5 (start-on-demand/self-heal/disarm sub-items). Depends on: F3, F4.
+- **✅ DONE.** `lib/daemon-client.cjs` estendido com `createClient({spawnFn?,
+  nowFn?, connectFn?, sleepFn?})` — start-on-demand (spawn único + polling
+  `hello` bounded via `nowFn`/`sleepFn` injetáveis), self-heal (mesmo
+  mecanismo de bring-up reusado: `connectOnce` já colapsa "nunca subiu" e
+  "caiu no meio" em `{ok:false}`, então um único caminho de retry cobre os
+  dois casos — DECISION registrada em comentário no próprio módulo), disarm-K
+  (`consecutiveSpawnFailures` contado DENTRO de uma chamada de `tryDaemon`,
+  não entre chamadas — os hooks só chamam uma vez por processo curto-vivo;
+  em K=3 desarma o processo pro resto da vida, log de stderr alto-severidade,
+  cai no caminho efêmero local). `test/daemon-faulttolerance.test.cjs`
+  criado com 16 asserções, 100% seams injetados (zero subprocess real no
+  caminho principal) cobrindo as três garantias.
+- **Gate de revisão (regra CLAUDE.md §5): FECHADO.** 5 rodadas independentes
+  de `reviewer` (subagent_type `code-reviewer` está quebrado neste ambiente —
+  spawna com zero tools; `reviewer` foi o substituto usado em todas as
+  rodadas). Rodada 1: achou que `opts.endpoint` (parâmetro público
+  documentado de `tryDaemon`) não era honrado pelo spawn real — o CLI entry
+  de `adapters/daemon-server.cjs` (`if (require.main === module) start()`)
+  ignorava qualquer endpoint customizado, fazendo bring-up escutar sempre em
+  `defaultEndpoint()` enquanto o polling batia no endpoint custom: nunca
+  convergem, exaure `maxSpawnAttempts`, desarma em silêncio. Corrigido:
+  `realSpawn(daemonServerPath, endpoint)` passa o endpoint como argv[1], CLI
+  entry lê `process.argv[2]`. Rodada 2: achou que o teste do fix da rodada 1
+  só provava consistência com mocks, não que um subprocesso REAL de produção
+  honra argv (em vez de recalcular o endpoint por coincidência via
+  `TOKEN_GUARD_SID` herdado do env do processo pai). Corrigido: novo teste de
+  integração real `testRealSubprocessHonorsArgvEndpoint()`, que spawna de
+  verdade via `realSpawn`/`DEFAULT_DAEMON_SERVER_PATH` (exportados de
+  `lib/daemon-client.cjs` só para este teste), deleta `TOKEN_GUARD_SID` do
+  env do processo de teste antes do spawn, usa endpoint arbitrário que não
+  seria o `defaultEndpoint()` de nenhuma forma. Rodada 3: achou 3 gaps de
+  higiene nesse novo teste (nenhum bug de lógica) — deadline de polling
+  apertado (3000ms vs. o padrão-irmão de 5000ms em
+  `test/daemon-singleton.test.cjs`), vazamento do diretório temp POSIX
+  criado via `mkdtempSync`, risco de processo zumbi se o processo de teste
+  morrer antes do `finally`. Corrigidos os dois primeiros (deadline→5000ms,
+  `fs.rmSync(tmpBase,...)` no `finally`); o risco de zumbi foi registrado
+  como DECISION aceita em comentário no código (produção não ganha
+  self-destruct só por causa de um teste; CI deste projeto não usa
+  `timeout-minutes`/`concurrency` que cancelariam o job no meio). Rodada 4:
+  achou que a limpeza da rodada 3 só cobria o lado POSIX — no Windows,
+  `start()` real sempre grava um lock-record (F4) num caminho fixo fora do
+  `tmpBase`/endpoint (`os.tmpdir()/token-guard-locks/<pipe>.lock`, via
+  `defaultLockPath()`), nunca limpo, acumulando arquivos órfãos em execuções
+  locais repetidas. Corrigido: `defaultLockPath` importado (reusado, não
+  duplicado) e removido no `finally` via `fs.rmSync(defaultLockPath(endpoint),
+  {force:true})`. Rodada 5 (`reviewer`, verificação empírica com múltiplas
+  execuções + inspeção direta de `%TEMP%\token-guard-locks\`): **CLOSE_GATE**,
+  zero achados de qualquer severidade. Suíte final: 16/16
+  `daemon-faulttolerance` + zero regressão nas outras 6 suítes de daemon +
+  chain completa de 18 suítes (`npm test`, via wrapper curado + suítes
+  restantes diretas). **Gap A6 pré-existente (TOKEN_GUARD_SID nunca setado
+  em produção no Windows, `defaultEndpoint()` cai no PID por processo)
+  confirmado ainda presente e re-verificado como não-regressão pelas rodadas
+  2 e 3 — F5 é correto em isolamento/testes, mas não resolve A6 por si só;
+  permanece aberto em `docs/BACKLOG.md`.** Rodada 6 (`reviewer`, agente
+  `a7e215d5bd0607df6`) — verificação FRESCA e independente sobre o **diff
+  completo consolidado** (não só o último incremento): releu os 4 arquivos
+  do zero, re-derivou manualmente a semântica do contador disarm-K por
+  hand-trace do loop (em vez de confiar no comentário do módulo), testou o
+  escape hatch `TOKEN_GUARD=off` em runtime isolado (zero connect/spawn
+  antes de qualquer I/O, confirmado), fez `grep` em todo o repo por
+  consumidores de `realSpawn`/`DEFAULT_DAEMON_SERVER_PATH` (nenhum uso fora
+  do próprio módulo e do teste de integração), e rodou de novo toda a chain
+  (16/16 `daemon-faulttolerance` + 7 suítes irmãs + 84/84 do wrapper curado
+  `npm test`). Achado único, não-bloqueante: o comentário sobre
+  self-heal/start-on-demand serem "o mesmo mecanismo" (linhas ~158-166 de
+  `lib/daemon-client.cjs`) descreve a convergência para `{ok:false}` via
+  ECONNREFUSED/EPIPE/EOF mas omite um terceiro caminho real — um frame
+  pequeno porém corrompido no meio do stream não dispara erro de socket
+  (`lib/ipc-frame.cjs`'s `parseStream` descarta silenciosamente JSON
+  malformado, só `FrameOverflowError` acima de 4 MB gera erro explícito),
+  convergindo por timeout (`timeoutMs`, default 200ms) em vez de erro
+  imediato. Comportamento observável correto (ainda converge a `{ok:false}`
+  igual), só a documentação do comentário é imprecisa — classificado pelo
+  próprio revisor como nuance cosmética, não achado. Veredito: **CLOSE_GATE**,
+  zero achados de qualquer severidade. **F5 fechado de fato — não só código,
+  o gate de revisão também, confirmado por 6 rodadas independentes (5
+  incrementais + 1 fresca sobre o todo).**
 
 ### Phase F6 — Validation / benchmark (prove criteria 1–3 numerically)
 - **Objective:** Measure the daemon path and prove latency, burst, and RAM acceptance numbers with automated hard asserts.

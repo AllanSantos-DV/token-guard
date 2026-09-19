@@ -3,6 +3,7 @@
 
 const net = require('net');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { decide } = require('../lib/decide.cjs');
@@ -11,6 +12,7 @@ const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
 const { noteResult, isRead } = require('../lib/dupread.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
+const DL = require('../lib/daemon-lifecycle.cjs');
 
 const PROTOCOL_VERSION = 1;
 const PACKAGE_VERSION = (() => {
@@ -24,6 +26,21 @@ function defaultEndpoint() {
   }
   const dir = process.env.XDG_RUNTIME_DIR || '/tmp';
   return path.join(dir, `token-guard-${process.uid}.sock`);
+}
+
+/**
+ * Caminho do lock-record (pid+versão, F4). POSIX: o socket já tem um path de
+ * fs real, então o lock vive ao lado (`<socket>.lock`). Windows: named pipe
+ * não tem backing de filesystem, então o lock vai num diretório próprio sob
+ * o temp dir, nomeado a partir do próprio endpoint (mesmo SID/pid usado nele).
+ */
+function defaultLockPath(endpointOverride) {
+  const endpoint = endpointOverride || defaultEndpoint();
+  if (process.platform === 'win32') {
+    const name = endpoint.replace(/^\\\\\.\\pipe\\/, '');
+    return path.join(os.tmpdir(), 'token-guard-locks', `${name}.lock`);
+  }
+  return `${endpoint}.lock`;
 }
 
 function ruleSetHash(root) {
@@ -153,22 +170,181 @@ function createServer(ctxOverride) {
   return server;
 }
 
+/**
+ * Reivindica o mutex de reclaim de socket órfão. Caminho livre: `wx` puro
+ * (O_EXCL do SO) — atômico, nunca disputado incorretamente.
+ *
+ * Caminho de dono morto — histórico (rodadas 4-7 de revisão independente
+ * F4): unlink+recreate simples (r4, TOCTOU sem revalidação) → releitura de
+ * confirmação antes do unlink (r5, janela residual estreita mas real) →
+ * rename-to-destino-fixo+releitura (r6, PROVADO incorreto por prova lógica:
+ * rename-para-destino-fixo nunca falha por já existir, não é CAS) → arbiter
+ * em duas camadas cujo self-heal reintroduzia o mesmo unlink+recreate um
+ * nível abaixo (r7, reproduzido empiricamente 15/15 pelo revisor) →
+ * rename-from-source (fix da r7) — que um stress test empírico desta sessão
+ * (8 processos reais concorrentes × 15 trials, script descartável, não
+ * versionado) provou AINDA correr: um processo atrasado pode renomear o
+ * lock que outro processo JÁ recriou como vivo, porque a decisão "dono
+ * morto" (leitura) e a ação de roubo (rename) não são atômicas juntas — o
+ * primitivo de rename em si é exclusivo, mas não valida que o conteúdo
+ * ainda é o mesmo que justificou a decisão de roubar. Uma correção
+ * genuinamente livre desta corrida exigiria um protocolo de
+ * settling/backoff (ex.: bakery algorithm) — desproporcional pro que este
+ * mutex de fato protege.
+ *
+ * DECISÃO DE DESIGN (limite reconhecido, não bug pendente): este mutex é
+ * uma OTIMIZAÇÃO pra evitar que dois processos façam unlink+listen
+ * redundante no MESMO socket órfão ao mesmo tempo. A garantia real de
+ * singleton não depende dele — vem do `server.listen()` mais abaixo, cujo
+ * `EADDRINUSE` é arbitrado pelo próprio SO (duas camadas de defesa:
+ * lock-record como pré-checagem rápida, bind real como autoridade final).
+ * Se este mutex correr, o pior caso é dois processos tentando unlink+listen
+ * no mesmo socket quase ao mesmo tempo — autocorrigido, porque o bind
+ * exclusivo do SO ainda garante que só um processo fica de pé escutando.
+ * Best-effort aqui é suficiente; perseguir exclusão perfeita neste nível
+ * não muda a invariante que realmente importa (nunca dois daemons vivos
+ * escutando o mesmo endpoint).
+ *
+ * Nuance validada na rodada 8 de revisão independente F4 (reprodução
+ * empírica fresca, 16/16 trials em POSIX real): se o processo B "rouba" e
+ * apaga o arquivo de socket bem na janela transitória em que o processo A
+ * está ELE MESMO no meio do próprio unlink→listen (não um daemon A já
+ * estável — esse caso o `probe` abaixo detecta de forma confiável), o
+ * arquivo pode sumir debaixo de A. A não perde o fd que já tem nem aceita
+ * conexão de mais ninguém no mesmo bind, mas fica inalcançável via o path
+ * até sua própria tentativa de retry falhar com EADDRINUSE de novo e
+ * desistir via `giveUp()` — autolimitado, nunca viola "dois processos
+ * aceitando conexão no mesmo path simultaneamente".
+ */
+function claimOrphanMutex(mutexPath) {
+  const token = `${process.pid}:${crypto.randomBytes(8).toString('hex')}`;
+  try {
+    fs.writeFileSync(mutexPath, token, { flag: 'wx' });
+    return true;
+  } catch (err) {
+    if (err.code !== 'EEXIST') return false;
+  }
+  let ownerPid;
+  try { ownerPid = parseInt(fs.readFileSync(mutexPath, 'utf8'), 10); } catch { return false; }
+  if (!Number.isInteger(ownerPid) || ownerPid <= 0 || DL.REAL_DEPS.isAlive(ownerPid)) return false;
+  try {
+    fs.unlinkSync(mutexPath);
+  } catch {
+    return false;
+  }
+  try {
+    fs.writeFileSync(mutexPath, token, { flag: 'wx' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function start(endpointOverride) {
   const endpoint = endpointOverride || defaultEndpoint();
-  const server = createServer();
-  server.listen(endpoint, () => {
-    process.stderr.write(`token-guard daemon pronto em ${endpoint} (${PACKAGE_VERSION})\n`);
+  const lockFile = defaultLockPath(endpoint);
+
+  // F4 (D4/D5): antes de tentar o listen, decide via lock-record se já existe
+  // outro daemon vivo neste endpoint. Isto é só a primeira linha de defesa —
+  // a autoridade real é o próprio `listen()` abaixo (EADDRINUSE), que cobre a
+  // janela de corrida entre este check e o listen.
+  const lockResult = DL.acquireLock({
+    lockFile, pid: process.pid, protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION,
   });
+  if (!lockResult.acquired) {
+    process.stderr.write(`token-guard daemon já em execução (pid ${lockResult.existing.pid}) — encerrando (singleton)\n`);
+    process.exit(0);
+    return null;
+  }
+  // Lock reclamado de um daemon anterior que morreu sem limpar: no POSIX o
+  // arquivo de socket pode ter sobrevivido ao processo morto e bloquear o
+  // listen() com EADDRINUSE mesmo sem ninguém escutando — remove antes.
+  if (lockResult.reclaimedStale && process.platform !== 'win32') {
+    try { fs.unlinkSync(endpoint); } catch { /* pode já não existir */ }
+  }
+
+  const server = createServer();
+
+  // Mutex de arquivo (create exclusivo `wx` — atômico no POSIX) pro trecho
+  // crítico de reclaim de socket órfão abaixo. Sem isto, dois daemons
+  // concorrentes reclamando o MESMO socket órfão simultaneamente podiam
+  // ambos "vencer" (um deles apaga o socket que o outro acabou de vincular)
+  // e ficar dois processos vivos ao mesmo tempo — achado da rodada 2 de
+  // revisão independente F4, sobre o fix do achado CRITICAL da rodada 1.
+  let orphanMutexPath = null;
+  const releaseOrphanMutex = () => {
+    if (!orphanMutexPath) return;
+    try { fs.unlinkSync(orphanMutexPath); } catch { /* best-effort */ }
+    orphanMutexPath = null;
+  };
+
+  const onListening = () => {
+    releaseOrphanMutex();
+    // D5: restringe o socket POSIX ao dono (equivalente Windows — DACL do
+    // named pipe — não é exposto pela API pública do Node; verificação fica
+    // no script manual scripts/verify-daemon-security.ps1, não fingida aqui).
+    if (process.platform !== 'win32') {
+      try { fs.chmodSync(endpoint, 0o700); } catch { /* best-effort */ }
+    }
+    process.stderr.write(`token-guard daemon pronto em ${endpoint} (${PACKAGE_VERSION})\n`);
+  };
+  // Já retried o listen uma vez após remover um socket órfão? Cobre o caso em
+  // que o lock-record está ausente/corrompido (então `acquireLock` não marcou
+  // `reclaimedStale`) mas o arquivo de socket de um daemon anterior morto
+  // sobreviveu no disco — sem isto, esse cenário derrubava o daemon novo pra
+  // sempre com um falso "já em execução" (achado de revisão independente F4).
+  let retriedOrphanUnlink = false;
+  const giveUp = () => {
+    releaseOrphanMutex();
+    process.stderr.write(`token-guard daemon já em execução em ${endpoint} — encerrando (singleton)\n`);
+    process.exit(0);
+  };
+  server.once('listening', onListening);
   server.on('error', (err) => {
+    releaseOrphanMutex();
+    if (DL.isSingletonConflict(err)) {
+      if (!retriedOrphanUnlink && process.platform !== 'win32') {
+        retriedOrphanUnlink = true;
+        orphanMutexPath = `${endpoint}.reclaim`;
+        if (!claimOrphanMutex(orphanMutexPath)) {
+          // outro processo já está no meio de um reclaim deste MESMO
+          // endpoint agora (e está vivo) — não corre junto (exatamente a
+          // race encontrada na revisão F4); desiste nesta tentativa,
+          // fail-open pro caminho ephemeral do cliente (lib/daemon-client.cjs).
+          orphanMutexPath = null;
+          giveUp();
+          return;
+        }
+        // EADDRINUSE aqui pode ser um socket de verdade (daemon vivo cujo
+        // lock-record sumiu por fora — ex.: apagado manualmente) OU um
+        // arquivo de socket órfão de um processo morto. Sonda com uma
+        // conexão real antes de decidir: conectou = tem alguém do outro
+        // lado, desiste; recusado/sem ninguém = órfão, remove e tenta de novo.
+        const probe = net.connect(endpoint);
+        probe.once('connect', () => { probe.destroy(); giveUp(); });
+        probe.once('error', () => {
+          try {
+            fs.unlinkSync(endpoint);
+            server.listen(endpoint);
+          } catch {
+            giveUp();
+          }
+        });
+        return;
+      }
+      giveUp();
+      return;
+    }
     process.stderr.write(`token-guard daemon falhou: ${err.message}\n`);
     process.exit(1);
   });
+  server.listen(endpoint);
   return server;
 }
 
-if (require.main === module) start();
+if (require.main === module) start(process.argv[2] || undefined);
 
 module.exports = {
   createServer, dispatch, dispatchContract, dispatchPostprocess, handleMessage, start,
-  defaultEndpoint, ruleSetHash, PROTOCOL_VERSION, PACKAGE_VERSION,
+  defaultEndpoint, defaultLockPath, ruleSetHash, PROTOCOL_VERSION, PACKAGE_VERSION,
 };
