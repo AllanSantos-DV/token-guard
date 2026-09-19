@@ -408,6 +408,57 @@ correções:**
 - **Verification:** Dry-run prints correct platform-specific registration; running twice is stable.
 - **Gate:** Satisfies AC6 (autostart registered on Windows AND POSIX). Graceful degradation: if policy blocks autostart, start-on-demand (F5) still works — assert that interaction. Depends on: F4, F5.
 
+**✅ F7 FECHADO.** `install.cjs` estende `installClaude()` (único alvo cujos
+hooks falam com o daemon — confirmado por grep: `hook-cmd.cjs`,
+`post-hook.cjs`, `prompt-hook.cjs` importam `lib/daemon-client.cjs`;
+`cursor-hook.cjs`/`mcp-server.cjs` não) com `installDaemonAutostart(dir)`,
+chamado logo após `writeGlobalConfig()`. `RUNTIME_DIRS = ['lib', 'adapters']`
+já copiava `daemon-server.cjs`/`daemon-client.cjs`/`daemon-lifecycle.cjs`/
+`ipc-frame.cjs` para todo install — zero mudança necessária aí, item do plano
+já satisfeito antes de F7 começar.
+
+**Por plataforma** (`targetPlatform()`, lida via seam de teste
+`TOKEN_GUARD_FORCE_PLATFORM` — nunca setada em produção):
+- **win32**: `schtasks /create /tn TokenGuardDaemon ... /sc onlogon /f`
+  (idempotente via `/f`) + `setx TOKEN_GUARD_SID <sid-estável>`. Falha de
+  qualquer um dos dois (`runQuiet`) rebaixa pra `skip` com nota explicando que
+  o daemon continua subindo on-demand via F5 — nunca mascarado como sucesso.
+- **linux**: unit `systemd --user` em `~/.config/systemd/user/token-guard-daemon.service`
+  + `systemctl --user daemon-reload && enable --now`.
+- **darwin**: `~/Library/LaunchAgents/com.token-guard.daemon.plist` +
+  `launchctl unload`/`load -w`.
+
+Ambos os ramos POSIX usam `writeUnitFile()` — mesmo padrão idempotente de
+`writeJson()` (write atômico via temp+rename, só regrava se o conteúdo
+mudou, senão empurra pro array `skipped`).
+
+**Gap A6 fechado** (documentado como pendência explícita nas rodadas 2/3/6 do
+gate de F5, seção acima): no Windows, `defaultEndpoint()` de
+`adapters/daemon-server.cjs` cai em `process.env.TOKEN_GUARD_SID ||
+String(process.pid)` — cada processo de hook efêmero tem seu próprio PID, o
+que impedia o daemon autostart e um hook-client subsequente de convergirem
+pro mesmo named pipe. F7 fecha isso persistindo `TOKEN_GUARD_SID` via `setx`
+(grava em `HKCU\Environment`, herdado por processos filhos após novo
+logon/sessão do Windows) com um valor estável por usuário
+(`os.userInfo().username`, sanitizado). POSIX não tinha esse gap
+(`process.uid` já é estável).
+
+**Testado** — `test/install.test.cjs`, nova seção "`[claude] autostart do
+daemon (F7)`", 11 checks:
+- Ramo win32 nativo: **só `--dry-run`** (decisão deliberada — `schtasks`/`setx`
+  reais mutariam a máquina do dev/CI de verdade; não há sandboxing de
+  Task Scheduler/registro disponível). Assert que o dry-run anuncia
+  `TOKEN_GUARD_SID=` e a task `ONLOGON` sem invocar nada real.
+- Ramos POSIX (`TOKEN_GUARD_FORCE_PLATFORM=linux`/`darwin`): exercitados
+  **não-dry, de verdade**, com segurança nesta máquina Windows — `systemctl`/
+  `launchctl` não existem aqui, então `runQuiet` engole o ENOENT; só o
+  arquivo de unidade (sob `HOME` falso de teste) é verificado. Cobre criação,
+  conteúdo (`ExecStart`/`RunAtLoad` + path de `daemon-server.cjs`), e
+  idempotência (2ª rodada não reescreve, loga "já registrado").
+
+`npm test` verde (84/84 suítes via wrapper curado; 27/27 checks em
+`install.test.cjs` isolado, incluindo os 11 novos de F7).
+
 ### Phase F8 — Release / close
 - **Objective:** Ship safely: wire every new artifact into the executable gates, version bump, changelog, ownership confirmation, packaging smoke, tag.
 - **Deliverables:**
