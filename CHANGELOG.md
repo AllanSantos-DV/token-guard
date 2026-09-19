@@ -3,6 +3,52 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.3.0] — 2026-09-19
+
+**Daemon-único**: os três hooks do Claude Code (`hook-cmd`, `prompt-hook`,
+`post-hook`) passam a falar, por padrão, com um daemon persistente por
+usuário em vez de subir um processo Node novo a cada chamada — o custo
+medido do cold-start (53 ms/263 ms/409 ms por hook) some. Fallback pro
+caminho efêmero de sempre é automático e byte-idêntico sempre que o daemon
+não está de pé, falha, ou está desligado via `TOKEN_GUARD=off`.
+
+### Adicionado
+- **Transporte IPC** (`lib/ipc-frame.cjs`) — framing length-prefixed sobre
+  named pipe (Windows) / unix socket (POSIX), teto anti-DoS de 4 MB/frame.
+- **Daemon server** (`adapters/daemon-server.cjs`) — serve `check` (paridade
+  com `decide()`), `contract` (paridade com o fluxo de `prompt-hook.cjs`) e
+  `postprocess` (paridade com `post-hook.cjs`), com cache invalidado por
+  `ruleSetHash` e fail-open espelhando o comportamento síncrono existente.
+- **Thin clients** (`lib/daemon-client.cjs`) — os 3 hooks tentam o daemon
+  primeiro; qualquer falha (timeout, ECONNREFUSED, frame corrompido) cai no
+  caminho local de sempre, sem diferença observável de stdout.
+- **Lifecycle/singleton** (`lib/daemon-lifecycle.cjs`) — garantia real de
+  singleton via `EADDRINUSE` do SO; lock-record como pré-checagem; reclaim
+  de mutex de dono morto em POSIX (best-effort, gap conhecido no Windows —
+  `docs/BACKLOG.md` A4).
+- **Fault tolerance** — start-on-demand, self-heal e disarm-K (desiste de
+  tentar o daemon após K falhas consecutivas na mesma sessão, evitando
+  timeout repetido) em `lib/daemon-client.cjs`.
+- **Benchmark numérico** (`bench/daemon-bench.cjs`, `npm run bench:daemon`)
+  — prova as 3 métricas de aceite sobre o daemon REAL (não mock): latência
+  isolada 1,24 ms (≤5ms), burst de 60 req mediana 35,8 ms/p95 58,8 ms
+  (<50ms/≤150ms), pico de RSS 55,6 MB (≤70MB).
+- **Autostart** (`install.cjs`, alvo `claude`) — Windows via Task Scheduler
+  (`ONLOGON`) + `setx TOKEN_GUARD_SID` (fecha o gap de descoberta
+  cliente↔daemon por PID); POSIX via `systemd --user` (Linux) / `launchd`
+  (macOS). Idempotente, respeita `--dry-run`.
+
+### Notas de migração
+- Nenhuma ação necessária — o caminho efêmero continua sendo o fallback
+  automático e permanente.
+- No Windows, o daemon só fica "quente" entre chamadas depois de um novo
+  logon/sessão (necessário para `TOKEN_GUARD_SID` valer); até lá, sobe
+  on-demand a cada hook (mesmo custo de hoje, sem regressão).
+- `TOKEN_GUARD=off` desliga o daemon E o caminho local — comportamento
+  inalterado.
+
+Detalhes completos: `docs/REQUEST-daemon-unico.md`, `docs/PLAN-daemon-unico.md`.
+
 ## [2.2.0] — 2026-08-23
 
 Economia de SAÍDA, contrato com evidência real, replay sobre sessões reais e o
