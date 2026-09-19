@@ -188,6 +188,73 @@ console.log('\n  [máquina] preservação de assets do usuário');
   fs.rmSync(emptyRepo, { recursive: true, force: true });
 }
 
+console.log('\n  [claude] autostart do daemon (F7)');
+{
+  // Windows nativo: SÓ dry-run — schtasks/setx real mutaria a máquina do
+  // dev/CI de verdade (Task Scheduler + registro HKCU), então o caminho
+  // não-dry-run do ramo win32 nunca é exercitado por este teste.
+  const repo = mkrepo('daemon-win-dry');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-daemon-win-'));
+  const r = runInstall(['--target', 'claude', '--dry-run', repo], { HOME: home, USERPROFILE: home });
+  check('dry-run win32 sai 0', r.status === 0, r.stderr);
+  check('dry-run win32 anuncia TOKEN_GUARD_SID (setx)',
+    /\[dry-run\].*TOKEN_GUARD_SID=/.test(r.stdout), r.stdout);
+  check('dry-run win32 anuncia a task ONLOGON',
+    /\[dry-run\].*Task Scheduler "TokenGuardDaemon".*ONLOGON/.test(r.stdout), r.stdout);
+  fs.rmSync(repo, { recursive: true, force: true });
+  fs.rmSync(home, { recursive: true, force: true });
+}
+
+{
+  // POSIX (systemd --user), via seam de teste TOKEN_GUARD_FORCE_PLATFORM:
+  // exercita o caminho real (não-dry-run) com segurança nesta máquina
+  // Windows — systemctl não existe aqui, então a chamada dá ENOENT e é
+  // engolida por runQuiet(); o arquivo de unidade é escrito só sob o HOME
+  // falso, nunca toca ~/.config real.
+  const repo = mkrepo('daemon-systemd');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-systemd-'));
+  const envForce = { HOME: home, USERPROFILE: home, TOKEN_GUARD_FORCE_PLATFORM: 'linux' };
+
+  const first = runInstall(['--target', 'claude', repo], envForce);
+  check('primeira instalacao systemd sai 0', first.status === 0, first.stderr);
+  const unitPath = path.join(home, '.config', 'systemd', 'user', 'token-guard-daemon.service');
+  check('unit systemd criada', fs.existsSync(unitPath));
+  const unitContent = fs.existsSync(unitPath) ? fs.readFileSync(unitPath, 'utf8') : '';
+  check('unit systemd referencia node + daemon-server.cjs',
+    unitContent.includes('daemon-server.cjs') && /ExecStart=/.test(unitContent), unitContent);
+
+  const second = runInstall(['--target', 'claude', repo], envForce);
+  check('segunda instalacao systemd e idempotente (conteudo identico, skip)',
+    second.status === 0 && second.stdout.includes('ja registrado') &&
+    fs.readFileSync(unitPath, 'utf8') === unitContent, second.stdout);
+
+  fs.rmSync(repo, { recursive: true, force: true });
+  fs.rmSync(home, { recursive: true, force: true });
+}
+
+{
+  // POSIX (launchd/macOS), mesmo seam de teste.
+  const repo = mkrepo('daemon-launchd');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-launchd-'));
+  const envForce = { HOME: home, USERPROFILE: home, TOKEN_GUARD_FORCE_PLATFORM: 'darwin' };
+
+  const first = runInstall(['--target', 'claude', repo], envForce);
+  check('primeira instalacao launchd sai 0', first.status === 0, first.stderr);
+  const plistPath = path.join(home, 'Library', 'LaunchAgents', 'com.token-guard.daemon.plist');
+  check('plist launchd criado', fs.existsSync(plistPath));
+  const plistContent = fs.existsSync(plistPath) ? fs.readFileSync(plistPath, 'utf8') : '';
+  check('plist launchd referencia node + daemon-server.cjs',
+    plistContent.includes('daemon-server.cjs') && plistContent.includes('RunAtLoad'), plistContent);
+
+  const second = runInstall(['--target', 'claude', repo], envForce);
+  check('segunda instalacao launchd e idempotente (conteudo identico, skip)',
+    second.status === 0 && second.stdout.includes('ja registrado') &&
+    fs.readFileSync(plistPath, 'utf8') === plistContent, second.stdout);
+
+  fs.rmSync(repo, { recursive: true, force: true });
+  fs.rmSync(home, { recursive: true, force: true });
+}
+
 console.log('');
 console.log(`  ${pass} passaram · ${fail} falharam`);
 process.exit(fail ? 1 : 0);

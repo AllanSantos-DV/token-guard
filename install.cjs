@@ -44,6 +44,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execFileSync } = require('child_process');
 
 const SRC = __dirname;
 const HOME = os.homedir();
@@ -248,6 +249,178 @@ const MATCHER_COPILOT =
 const MATCHER_CLAUDE = 'Read|Grep|Glob|Bash|LS|NotebookRead|Search';
 
 /* ------------------------------------------------------------------ */
+/* Autostart do daemon (F7) — so junto do alvo claude: hoje e o unico  */
+/* consumidor de lib/daemon-client.cjs (hook-cmd/post-hook/prompt-hook);*/
+/* cursor-hook.cjs e o mcp-server.cjs nao falam com o daemon.           */
+/* ------------------------------------------------------------------ */
+
+const DAEMON_TASK_NAME = 'TokenGuardDaemon';
+const DAEMON_SERVICE_NAME = 'token-guard-daemon';
+
+/** Seam de teste: producao nunca seta esta var, so os testes de F7 pra
+ *  exercitar os ramos POSIX (systemd/launchd) a partir de uma maquina
+ *  Windows sem fingir process.platform (imutavel) nem mockar o modulo. */
+function targetPlatform() {
+  return process.env.TOKEN_GUARD_FORCE_PLATFORM || process.platform;
+}
+
+function sanitizeSid(raw) {
+  const s = String(raw || '').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 64);
+  return s || 'default';
+}
+
+/**
+ * Fecha o Gap A6 (docs/BACKLOG.md): `defaultEndpoint()` no Windows
+ * (`adapters/daemon-server.cjs`) cai em `TOKEN_GUARD_SID || pid` — sem essa
+ * var setada de fora, cada hook (PID proprio, processo curto) calcula um
+ * named pipe DIFERENTE do daemon subido no logon e nunca o encontra; o
+ * daemon nunca fica quente. Deriva um valor estavel por conta de usuario
+ * (mesmo em toda reinstalacao/boot), sanitizado pra ir num nome de pipe.
+ */
+function stableWindowsSid() {
+  try {
+    return sanitizeSid(os.userInfo().username);
+  } catch {
+    return sanitizeSid(process.env.USERNAME || process.env.USER);
+  }
+}
+
+function runQuiet(cmd, args) {
+  try {
+    execFileSync(cmd, args, { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function taskExists(name) {
+  try {
+    execFileSync('schtasks', ['/query', '/tn', name], { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Escreve um arquivo de unidade (systemd/launchd) so se o conteudo mudou —
+ *  mesma logica de writeJson (atomica, idempotente por diff de conteudo). */
+function writeUnitFile(unitPath, content, label) {
+  const existed = fs.existsSync(unitPath);
+  const prev = existed ? fs.readFileSync(unitPath, 'utf8') : null;
+  if (prev === content) {
+    skipped.push(`${rel(HOME, unitPath)} (ja registrado)`);
+    return;
+  }
+  ensureDir(path.dirname(unitPath));
+  const tmp = unitPath + '.tg-tmp-' + process.pid;
+  fs.writeFileSync(tmp, content, 'utf8');
+  fs.renameSync(tmp, unitPath);
+  log(existed ? 'update' : 'create', `${rel(HOME, unitPath)}  (${label})`);
+}
+
+function installAutostartWindows(daemonScript) {
+  const sid = stableWindowsSid();
+  const tr = `"${process.execPath}" "${daemonScript}"`;
+
+  if (DRY) {
+    log('create', `[dry-run] TOKEN_GUARD_SID=${sid}  (setx, persistido no perfil do usuario)`);
+    log('create', `[dry-run] Task Scheduler "${DAEMON_TASK_NAME}" -> ${tr}  (ONLOGON)`);
+    return;
+  }
+
+  const existed = taskExists(DAEMON_TASK_NAME);
+
+  const sidOk = runQuiet('setx', ['TOKEN_GUARD_SID', sid]);
+  log(sidOk ? 'create' : 'skip', sidOk
+    ? `TOKEN_GUARD_SID=${sid}  (setx — vale para sessoes novas apos reiniciar o Windows/logon)`
+    : 'TOKEN_GUARD_SID nao pode ser gravado (setx falhou) — daemon so sobe on-demand (F5), nunca fica quente');
+
+  const taskOk = runQuiet('schtasks',
+    ['/create', '/tn', DAEMON_TASK_NAME, '/tr', tr, '/sc', 'onlogon', '/rl', 'limited', '/f']);
+  log(taskOk ? (existed ? 'update' : 'create') : 'skip',
+    taskOk
+      ? `Task Scheduler "${DAEMON_TASK_NAME}"  (ONLOGON, ${tr})`
+      : `Task Scheduler "${DAEMON_TASK_NAME}" nao pode ser registrada (schtasks falhou) — daemon so sobe on-demand (F5)`);
+}
+
+function installAutostartSystemd(daemonScript) {
+  const unitPath = path.join(HOME, '.config', 'systemd', 'user', `${DAEMON_SERVICE_NAME}.service`);
+  const unit =
+`[Unit]
+Description=token-guard daemon (daemon-unico)
+
+[Service]
+ExecStart=${nodeCmd(daemonScript)}
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+`;
+
+  if (DRY) {
+    log('create', `[dry-run] ${rel(HOME, unitPath)}  (systemd --user)`);
+    return;
+  }
+
+  writeUnitFile(unitPath, unit, 'systemd --user');
+
+  const reloaded = runQuiet('systemctl', ['--user', 'daemon-reload']);
+  const enabled = reloaded &&
+    runQuiet('systemctl', ['--user', 'enable', '--now', `${DAEMON_SERVICE_NAME}.service`]);
+  if (!enabled) {
+    notes.push('daemon   · systemctl --user indisponivel nesta sessao — rode manualmente: ' +
+      `systemctl --user enable --now ${DAEMON_SERVICE_NAME}.service (o daemon continua subindo on-demand via F5 ate la).`);
+  }
+}
+
+function installAutostartLaunchd(daemonScript) {
+  const label = 'com.token-guard.daemon';
+  const plistPath = path.join(HOME, 'Library', 'LaunchAgents', `${label}.plist`);
+  const plist =
+`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>${label}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${process.execPath}</string>
+    <string>${daemonScript}</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><false/>
+</dict>
+</plist>
+`;
+
+  if (DRY) {
+    log('create', `[dry-run] ${rel(HOME, plistPath)}  (launchd)`);
+    return;
+  }
+
+  writeUnitFile(plistPath, plist, 'launchd');
+
+  runQuiet('launchctl', ['unload', plistPath]);
+  const loaded = runQuiet('launchctl', ['load', '-w', plistPath]);
+  if (!loaded) {
+    notes.push(`daemon   · launchctl indisponivel nesta sessao — rode manualmente: launchctl load -w ${plistPath} ` +
+      '(o daemon continua subindo on-demand via F5 ate la).');
+  }
+}
+
+/** dir: diretorio ja resolvido de instalacao do alvo claude
+ *  (~/.claude/token-guard), onde adapters/daemon-server.cjs foi copiado
+ *  por installRuntime() alguns comandos acima. */
+function installDaemonAutostart(dir) {
+  const daemonScript = path.join(dir, 'adapters', 'daemon-server.cjs');
+  const plat = targetPlatform();
+  if (plat === 'win32') installAutostartWindows(daemonScript);
+  else if (plat === 'darwin') installAutostartLaunchd(daemonScript);
+  else installAutostartSystemd(daemonScript);
+}
+
+/* ------------------------------------------------------------------ */
 /* Alvo: copilot                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -430,7 +603,10 @@ function installClaude() {
   }
 
   writeGlobalConfig(base, base);
+  installDaemonAutostart(dir);
   notes.push('claude   · reinicie a sessao do Claude Code para carregar o hook.');
+  notes.push('claude   · daemon-unico: reinicie o Windows/logon (ou abra sessao nova) para o ' +
+    'TOKEN_GUARD_SID valer e o daemon ficar quente entre chamadas; ate la, sobe on-demand (F5).');
 }
 
 /* ------------------------------------------------------------------ */
