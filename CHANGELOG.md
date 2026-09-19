@@ -3,6 +3,19 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.3.1] — 2026-09-19
+
+### Corrigido
+- **Escape hatch `TOKEN_GUARD=warn` não se propagava pelo daemon** — com o
+  daemon de pé, o RPC `check` seguia pro daemon mesmo com `TOKEN_GUARD=warn`
+  setado no processo chamador; o daemon calcula `cfg` com o próprio env (sem
+  `warn`) e devolvia `deny` em vez de `ask`, quebrando silenciosamente o modo
+  de aviso pro mesmo motivo já corrigido pro `off` em 2.3.0 (`lib/daemon-client.cjs:29-32`).
+  `hasTokenGuardEnvOverride()` agora corta ANTES de conectar no daemon pra
+  `off`/`0`/`false`/`warn`, igual já fazia só pra `off`. Achado no gate de CI
+  do release 2.3.0 (falhava em `ubuntu-latest`, todas as versões de Node;
+  Windows mascarava por não reproduzir o cenário de daemon-de-pé no teste).
+
 ## [2.3.0] — 2026-09-19
 
 **Daemon-único**: os três hooks do Claude Code (`hook-cmd`, `prompt-hook`,
