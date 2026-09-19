@@ -190,12 +190,16 @@ console.log('\n  [máquina] preservação de assets do usuário');
 
 console.log('\n  [claude] autostart do daemon (F7)');
 {
-  // Windows nativo: SÓ dry-run — schtasks/setx real mutaria a máquina do
-  // dev/CI de verdade (Task Scheduler + registro HKCU), então o caminho
-  // não-dry-run do ramo win32 nunca é exercitado por este teste.
+  // Windows: SÓ dry-run — schtasks/setx real mutaria a máquina do dev/CI de
+  // verdade (Task Scheduler + registro HKCU), então o caminho não-dry-run do
+  // ramo win32 nunca é exercitado por este teste. TOKEN_GUARD_FORCE_PLATFORM
+  // força o ramo win32 mesmo rodando em CI Linux/macOS (mesmo seam usado
+  // pelos testes POSIX abaixo) — sem ele, o teste só passava por acidente
+  // quando executado numa máquina Windows de verdade.
   const repo = mkrepo('daemon-win-dry');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-daemon-win-'));
-  const r = runInstall(['--target', 'claude', '--dry-run', repo], { HOME: home, USERPROFILE: home });
+  const r = runInstall(['--target', 'claude', '--dry-run', repo],
+    { HOME: home, USERPROFILE: home, TOKEN_GUARD_FORCE_PLATFORM: 'win32' });
   check('dry-run win32 sai 0', r.status === 0, r.stderr);
   check('dry-run win32 anuncia TOKEN_GUARD_SID (setx)',
     /\[dry-run\].*TOKEN_GUARD_SID=/.test(r.stdout), r.stdout);
