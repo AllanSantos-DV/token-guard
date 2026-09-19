@@ -3,6 +3,20 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.3.2] — 2026-09-19
+
+### Corrigido
+- **Teste win32 do autostart do daemon (F7) não exercitava o ramo win32 fora
+  do Windows** — `test/install.test.cjs` checava strings de saída específicas
+  do dry-run win32 (`TOKEN_GUARD_SID=`, task `ONLOGON`) sem forçar a
+  plataforma via `TOKEN_GUARD_FORCE_PLATFORM` (seam já usado pelos testes
+  POSIX vizinhos, `install.cjs:264`). Em `ubuntu-latest` o ramo win32 de
+  `install.cjs` nunca rodava, e as asserções falhavam silenciosamente por
+  ausência das strings esperadas. Corrigido adicionando
+  `TOKEN_GUARD_FORCE_PLATFORM: 'win32'` à chamada de `runInstall()` do teste.
+  Achado no gate de CI do release 2.3.1 (falhava em `ubuntu-latest`, todas as
+  versões de Node; Windows mascarava por rodar o ramo win32 de verdade).
+
 ## [2.3.1] — 2026-09-19
 
 ### Corrigido
