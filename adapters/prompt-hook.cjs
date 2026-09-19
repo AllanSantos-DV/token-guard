@@ -22,6 +22,21 @@ const crypto = require('crypto');
 const path = require('path');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
+const { tryDaemon } = require('../lib/daemon-client.cjs');
+
+/** Caminho local (sem daemon) — leitura+decisão idêntica ao RPC `contract`. */
+function decideLocal(root, sessionId, state) {
+  const cfg = CFG.load(root);
+  if (cfg.mode === 'off') return { triggers: [], text: '' };
+
+  const contract = CT.load(root);
+  if (!contract.order.length) return { triggers: [], text: '' };
+
+  // Evidência acumulada pelo post-hook: arquivos tocados viram gatilhos
+  // (codigo/teste/docs) — o contrato passa a refletir o TIPO de sessão.
+  const touched = CT.readTouched(root, sessionId);
+  return CT.decide({ contract, touched, injected: state.injected });
+}
 
 async function main() {
   const P = require('../lib/payload.cjs');
@@ -39,17 +54,13 @@ async function main() {
   const sessionId = payload?.session_id || payload?.sessionId
     || `sess-${crypto.createHash('sha1').update(root).digest('hex').slice(0, 8)}`;
 
-  const cfg = CFG.load(root);
-  if (cfg.mode === 'off') return;
-
-  const contract = CT.load(root);
-  if (!contract.order.length) return;
-
+  // Estado da sessão (injected) fica sempre local — o daemon nunca persiste.
   const state = CT.readState(root, sessionId);
-  // Evidência acumulada pelo post-hook: arquivos tocados viram gatilhos
-  // (codigo/teste/docs) — o contrato passa a refletir o TIPO de sessão.
-  const touched = CT.readTouched(root, sessionId);
-  const decision = CT.decide({ contract, touched, injected: state.injected });
+
+  const viaDaemon = await tryDaemon('contract', { root, sessionId });
+  const decision = viaDaemon.ok
+    ? { triggers: viaDaemon.result.triggers, text: viaDaemon.result.text }
+    : decideLocal(root, sessionId, state);
   if (!decision.text) return;
 
   // EMITE antes de persistir: se a entrega falhar (pipe fechado), o estado

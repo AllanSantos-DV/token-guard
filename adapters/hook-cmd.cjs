@@ -29,10 +29,14 @@
 
 const P = require('../lib/payload.cjs');
 const { decide } = require('../lib/decide.cjs');
+const { tryDaemon } = require('../lib/daemon-client.cjs');
 
 async function main() {
   const payload = await P.readPayload();
-  const verdict = decide(payload);
+  const root = P.cwd(payload);
+
+  const viaDaemon = await tryDaemon('check', { root, payload });
+  const verdict = viaDaemon.ok ? viaDaemon.result.verdict : decide(payload);
   if (!verdict) return;
 
   process.stdout.write(JSON.stringify({
