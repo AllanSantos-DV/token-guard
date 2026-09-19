@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { createServer, dispatch } = require('../adapters/daemon-server.cjs');
 const { encodeFrame, parseStream } = require('../lib/ipc-frame.cjs');
-const { CASES, cleanup } = require('./fixtures/cases.cjs');
+const { CASES, TMP, cleanup } = require('./fixtures/cases.cjs');
 
 let pass = 0;
 let fail = 0;
@@ -87,6 +87,18 @@ async function rpc(endpoint, msg) {
 
     const d = dispatch({ payload: {} });
     check('dispatch direto funciona sem socket', d.ok === true);
+
+    const cfgDir = path.join(TMP, '.token-guard');
+    fs.mkdirSync(cfgDir, { recursive: true });
+    const cfgPath = path.join(cfgDir, 'config.json');
+    fs.writeFileSync(cfgPath, JSON.stringify({ threshold: 1000 }));
+    const r4 = await rpc(endpoint, { id: 7, method: 'check', params: { root: TMP, payload: denyPayload } });
+    check('primeiro check apos criar config é miss', r4.result && r4.result.ok && !r4.result.cached);
+    fs.writeFileSync(cfgPath, JSON.stringify({ threshold: 2000 }));
+    const r5 = await rpc(endpoint, { id: 8, method: 'check', params: { root: TMP, payload: denyPayload } });
+    check('mudanca de config no disco gera nova chave (miss)', r5.result && r5.result.ok && !r5.result.cached);
+    const r6 = await rpc(endpoint, { id: 9, method: 'check', params: { root: TMP, payload: denyPayload } });
+    check('repeticao pos-mudanca bate no cache', r6.result && r6.result.cached === true);
   } finally {
     server.close();
     if (typeof endpoint === 'string' && !endpoint.startsWith('\\\\')) {

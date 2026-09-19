@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>token-guard · Validação de Arquitetura — Efêmero vs Daemon Global</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#30363d;
+    --txt:#e6edf3; --mut:#8b949e; --dim:#6e7681;
+    --now:#f85149; --prop:#3fb950; --accent:#58a6ff; --warn:#d29922;
+    --mono:'SF Mono','Consolas','Menlo',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.6;padding:0 0 80px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+  header{padding:48px 0 28px;border-bottom:1px solid var(--line);margin-bottom:36px}
+  h1{font-size:30px;font-weight:700;letter-spacing:-.5px}
+  h1 .sub{display:block;font-size:15px;color:var(--mut);font-weight:400;margin-top:8px}
+  h2{font-size:21px;margin:44px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  h3{font-size:15px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)}
+  p{color:var(--mut);margin-bottom:12px}
+  code,.m{font-family:var(--mono);font-size:.9em;background:var(--panel2);padding:1px 6px;border-radius:4px;color:var(--txt)}
+  .lead{font-size:16px;color:var(--txt);background:var(--panel);border-left:3px solid var(--accent);padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:8px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:28px 0}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .kpi .n{font-size:30px;font-weight:700;font-family:var(--mono);line-height:1}
+  .kpi .l{font-size:12px;color:var(--mut);margin-top:8px;text-transform:uppercase;letter-spacing:.4px}
+  .kpi.now .n{color:var(--now)} .kpi.prop .n{color:var(--prop)} .kpi.warn .n{color:var(--warn)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:24px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;position:relative}
+  .card.now{border-top:3px solid var(--now)} .card.prop{border-top:3px solid var(--prop)}
+  .badge{position:absolute;top:18px;right:20px;font-size:11px;font-family:var(--mono);padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+  .badge.now{background:rgba(248,81,73,.15);color:var(--now)} .badge.prop{background:rgba(63,185,80,.15);color:var(--prop)}
+  .card h3{color:var(--txt);text-transform:none;letter-spacing:0;font-size:17px;font-weight:600}
+  ul{list-style:none;margin:10px 0} li{padding:7px 0 7px 26px;position:relative;color:var(--txt);font-size:14px;border-bottom:1px solid rgba(48,54,61,.5)}
+  li:last-child{border-bottom:none}
+  li.bad::before{content:"✕";position:absolute;left:0;color:var(--now);font-weight:700}
+  li.good::before{content:"✓";position:absolute;left:0;color:var(--prop);font-weight:700}
+  li.risk::before{content:"⚠";position:absolute;left:0;color:var(--warn);font-weight:700}
+  .diag{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:22px;margin:16px 0;font-family:var(--mono);font-size:12.5px;white-space:pre;overflow-x:auto;color:var(--mut);line-height:1.5}
+  .diag b{color:var(--txt);font-weight:600}
+  .diag .r{color:var(--now)} .diag .g{color:var(--prop)} .diag .a{color:var(--accent)} .diag .y{color:var(--warn)}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);text-transform:uppercase;font-size:11px;letter-spacing:.5px;background:var(--panel)}
+  td.now{color:var(--now);font-family:var(--mono)} td.prop{color:var(--prop);font-family:var(--mono)} td.warnc{color:var(--warn);font-family:var(--mono)}
+  tr:hover td{background:rgba(88,166,255,.04)}
+  .bar{height:14px;border-radius:3px;display:inline-block;vertical-align:middle}
+  .note{font-size:13px;color:var(--dim);margin-top:10px;padding-left:14px;border-left:2px solid var(--line)}
+  .callout{background:rgba(210,153,34,.08);border:1px solid var(--warn);border-radius:10px;padding:18px 22px;margin:20px 0}
+  .callout b{color:var(--warn)}
+  .verdict{background:linear-gradient(135deg,rgba(63,185,80,.08),rgba(88,166,255,.05));border:1px solid var(--prop);border-radius:12px;padding:26px;margin:32px 0}
+  .verdict h3{color:var(--prop);font-size:16px;margin-bottom:14px}
+  .pill{display:inline-block;font-size:11px;font-family:var(--mono);padding:2px 9px;border-radius:6px;margin-right:6px;background:var(--panel2);border:1px solid var(--line);color:var(--mut)}
+  footer{margin-top:56px;padding-top:24px;border-top:1px solid var(--line);color:var(--dim);font-size:13px}
+  @media(max-width:860px){.cols,.kpis{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>token-guard · Validação de Arquitetura
+    <span class="sub">Hook efêmero por chamada → Daemon ÚNICO GLOBAL por máquina (nasce/morre com o Windows)</span>
+  </h1>
+</header>
+
+<p class="lead"><b>Tese final:</b> na máquina corporativa (VPN + AV Windows + AV empresa + validador de processo + auditoria), <b>cada spawn dispara análise completa do EDR, sem cache</b>. São 300–400 spawns/dia = 300–400 análises individuais que travam execução. Sob burst (60+ req simultâneos de 8 sessões + subagentes), o throughput satura em ~128 req/s e a mediana vai de 53 ms → 263 ms → timeouts de 5–15 s no harness. Não é otimização — é a única saída viável: <b>um daemon residente por máquina</b>, nascido no logon do Windows, atendendo todas as IDEs como cliente fino. Um único processo analisado uma vez, depois quente para sempre.</p>
+
+<div class="kpis">
+  <div class="kpi warn"><div class="n">263<span style="font-size:15px"> ms</span></div><div class="l">mediana HOJE sob 60 req simultâneos</div></div>
+  <div class="kpi now"><div class="n">409<span style="font-size:15px"> ms</span></div><div class="l">p95 sob carga (estoura timeout)</div></div>
+  <div class="kpi prop"><div class="n">~1<span style="font-size:15px"> ms</span></div><div class="l">latência PROPOSTA (IPC local, sempre quente)</div></div>
+  <div class="kpi prop"><div class="n">1</div><div class="l">processo na máquina INTEIRA (não por sessão)</div></div>
+</div>
+
+<h2>1 · Por que "por sessão" está errado — o daemon é GLOBAL</h2>
+
+<div class="callout">
+<b>Correção de escopo (do dono):</b> o hook <code>Stop</code> dispara a CADA turno do agente, não no fim da sessão. Então NÃO dá pra matar o daemon no Stop — ele morreria entre uma fala e outra. O modelo certo é: <b>um daemon por máquina, singleton global</b>. Nasce no logon do Windows, atende todas as IDEs e sessões, e morre só no shutdown. Isso elimina de vez o problema de zumbi órfão (ele é esperado ficar rodando) e transforma o pico de RAM em um custo FIXO de ~40 MB.
+</div>
+
+<table>
+  <thead><tr><th>Escopo do daemon</th><th>Vida</th><th>Consequência</th></tr></thead>
+  <tbody>
+    <tr><td>Por sessão (errado)</td><td class="warnc">morre no Stop de cada turno</td><td>nasceria/morreria o tempo todo — inútil</td></tr>
+    <tr><td><b>Global por máquina (correto)</b></td><td class="prop">nasce no logon, morre no shutdown</td><td>sempre quente; 1 processo serve TUDO</td></tr>
+  </tbody>
+</table>
+
+<h2>2 · O gargalo medido nesta máquina — latência ISOLADA</h2>
+<div class="diag">bench/latency.cjs · mediana de 30 · win32 · Node v24.14.1 · UMA chamada por vez
+──────────────────────────────────────────────────────────
+ plugin (in-process)      <span class="g">0,552 ms</span>   ← o teto do que dá pra chegar
+ hook (spawn completo)    <span class="r">53,0  ms</span>
+ piso do Node (-e "0")    <span class="y">31,0  ms</span>   ← só ligar o runtime, sem guard
+
+ custo da lógica do guard no spawn: <span class="r">22,0 ms</span>  · razão spawn/plugin: <span class="r">96×</span></div>
+<p class="note">Isolado, 53 ms parece pouco. Mas esse número engana: foi medido UMA chamada por vez. O cenário real é dezenas batendo juntas — ver seção 3.</p>
+
+<h2>3 · O gargalo REAL — concorrência (o que estoura seu timeout)</h2>
+
+<p>Benchmark com <code>spawn</code> assíncrono: N processos do hook disparados SIMULTANEAMENTE, simulando suas 8 sessões do Claude Code + subagentes. Medição real desta máquina:</p>
+
+<table>
+  <thead><tr><th>Requisições simultâneas</th><th>Mediana</th><th>p95</th><th>Máx</th><th>Throughput</th><th>Visual (mediana)</th></tr></thead>
+  <tbody>
+    <tr><td>10</td><td class="now">53 ms</td><td class="now">65 ms</td><td>65 ms</td><td>106 req/s</td><td><span class="bar" style="width:11px;background:var(--now)"></span></td></tr>
+    <tr><td>30</td><td class="now">138 ms</td><td class="now">201 ms</td><td>202 ms</td><td>130 req/s</td><td><span class="bar" style="width:28px;background:var(--now)"></span></td></tr>
+    <tr><td><b>60</b> (seu cenário: 8 sessões × subagentes)</td><td class="now"><b>263 ms</b></td><td class="now"><b>409 ms</b></td><td class="now">433 ms</td><td>128 req/s</td><td><span class="bar" style="width:53px;background:var(--now)"></span></td></tr>
+    <tr><td>120</td><td class="now">630 ms</td><td class="now">905 ms</td><td class="now">943 ms</td><td>116 req/s</td><td><span class="bar" style="width:126px;background:var(--now)"></span></td></tr>
+  </tbody>
+</table>
+
+<div class="diag">LEITURA DO GRÁFICO — por que trava
+──────────────────────────────────────────────────────────
+ mediana:   53 ──► 138 ──► <span class="r">263</span> ──► 630 ms   (×12 de 10→120 req)
+ throughput: 106 ► 130 ► <span class="y">128</span> ► 116 req/s       (SATURA em ~128 e CAI)
+
+ Cada spawn novo paga os 31ms de cold-start + disputa antivírus/FS/CPU.
+ Com 60 juntos, a fila forma: o último espera ~433ms. O timeout do harness
+ (tipicamente 1–5s acumulando tool-calls) ESTOURA. Não é a lógica do guard —
+ são os cold-starts competindo.</div>
+
+<ul>
+  <li class="bad"><b>Latência degrada ~5× sob carga:</b> de 53 ms (isolado) para 263 ms (mediana) / 409 ms (p95) com 60 req simultâneos.</li>
+  <li class="bad"><b>Throughput satura em ~128 req/s e DESPENCA:</b> passar de 60→120 req quase dobra a latência mas não aumenta vazão — a máquina está no limite de criar processos Node.</li>
+  <li class="bad"><b>É multiplicativo com subagentes:</b> cada agente delega para vários subagentes, cada um disparando seus próprios hooks. 8 sessões reais geram facilmente >60 spawns concorrentes — exatamente onde a mediana já passou de 250 ms.</li>
+</ul>
+
+<h2>4 · A proposta: daemon ÚNICO global + clientes finos</h2>
+
+<div class="diag">PROPOSTA — UM processo para a máquina inteira
+──────────────────────────────────────────────────────────
+ Logon Windows ─► sobe DAEMON GLOBAL (singleton via named pipe/SID-lock)
+                   │  • carrega V8, fs, config, regras UMA vez no boot
+                   │  • mantém repo-stats + contadores QUENTES p/ sempre
+                   ▼
+        ┌──────────────────────────────────────┐
+ Copilot ┤ connect(pipe)                        │
+ Claude A ┤ connect(pipe) ─ payload(reqId) ─► decide() ─► resp  ← ~1ms
+ Claude B ┤ connect(pipe) ─ payload(reqId) ─► decide() ─► resp  ← ~1ms
+ Cursor  ┤ connect(pipe) ─ payload(reqId) ─► decide() ─► resp  ← ~1ms
+ subagts ┤ ...dezenas de clientes CONCORRENTES...│
+        └──────────────────────────────────────┘
+          TODOS batem no MESMO processo vivo, SEM cold-start
+ Shutdown Windows ─► daemon morre junto (esperado, não é zumbi)</div>
+
+<ul>
+  <li class="good"><b>Zero cold-start sob concorrência:</b> os 31 ms de piso somem POR COMPLETO — não há mais N processos disputando criação. Resta IPC local (~0,1–0,5 ms) sobre o mesmo heap aquecido.</li>
+  <li class="good"><b>Throughput ilimitado pelo gargalo de spawn:</b> o nó de ~128 req/s era o teto de CRIAR processos. Um daemon só despacha frames — escala com o event loop do Node (milhares de conexões leves).</li>
+  <li class="good"><b>RAM fixa, não pico:</b> em vez de 60×40 MB = 2,4 GB simultâneos nos picos, é 1×40 MB permanente. Some o estouro que você vê na máquina.</li>
+  <li class="good"><b>Serve TODAS as IDEs de uma vez:</b> Copilot CLI, Claude Code, Cursor compartilham o mesmo daemon global — instalei token-guard, o daemon nasce com o Windows e ninguém mais paga spawn.</li>
+  <li class="good"><b>Reúso total do núcleo:</b> o daemon chama o MESMO <code>lib/decide.cjs</code>. Só troca o envelope stdin/stdout por frames JSON-RPC com <code>requestId</code> (o parser do <code>mcp-server.cjs</code> já resolve multiplexação).</li>
+</ul>
+
+<h2>5 · Capacidade: quantas requisições o daemon aguenta?</h2>
+<p>A pergunta central: um único processo Node segura dezenas/centenas de clientes concorrentes? Resposta curta — <b>sim, com folga</b>, porque a decisão é síncrona e leve (~22 ms de lógica pura, sem I/O bloqueante no caminho quente).</p>
+<table>
+  <thead><tr><th>Fator</th><th>Análise</th><th>Risco</th></tr></thead>
+  <tbody>
+    <tr><td>Lógica por request</td><td class="prop">CPU-bound pura, ~22 ms aquecida, sem await no hot path</td><td>Baixo — serializa no event loop mas é rápido</td></tr>
+    <tr><td>Conexões simultâneas</td><td class="prop">Node abre milhares de sockets leves naturalmente</td><td>Baixo — dezenas é trivial</td></tr>
+    <tr><td>Fila sob burst (60+ juntos)</td><td class="warnc">requests esperam na fila do event loop; 60×22ms ≈ 1,3s se TODOS caírem no mesmo tick</td><td>Médio — mitigar com worker_threads OU cache de decisão por path</td></tr>
+    <tr><td>I/O de disco no hot path</td><td class="warnc">repo-stats/config ficam EM MEMÓRIA no daemon (não relê a cada call)</td><td>Baixo — é justamente a vantagem do resident state</td></tr>
+  </tbody>
+</table>
+<p class="note">Ponto de atenção honesto: se 60 decisões de 22 ms chegarem no MESMO instante, o event loop serializa e o último aguarda ~1,3 s. Soluções na manga: (a) cache de decisão keyed por <code>{path,rule-set-hash}</code> — repetidas saem em ~0 ms; (b) pool de <code>worker_threads</code> dentro do daemon para paralelizar a CPU-bound; (c) backpressure explícito. Nenhuma exige mudar o <code>lib/decide.cjs</code>.</p>
+
+<h2>6 · Antes × Depois</h2>
+<table>
+  <thead><tr><th>Dimensão</th><th>Hoje (efêmero, isolado)</th><th>Hoje (efêmero, 60 concurrentes)</th><th>Proposto (daemon global)</th></tr></thead>
+  <tbody>
+    <tr><td>Latência mediana</td><td class="now">53 ms</td><td class="now">263 ms</td><td class="prop">~1 ms</td></tr>
+    <tr><td>Latência p95 sob carga</td><td>—</td><td class="now">409 ms (timeout)</td><td class="prop">~2–3 ms</td></tr>
+    <tr><td>Processos criados</td><td class="now">N×M (cada chamada)</td><td class="now">dezenas simultâneos</td><td class="prop">1 (vida toda)</td></tr>
+    <tr><td>Pico de RAM</td><td class="now">~40 MB/call</td><td class="now">até ~2,4 GB nos bursts</td><td class="prop">~40 MB fixos</td></tr>
+    <tr><td>Throughput máx</td><td>—</td><td class="now">satura ~128 req/s e cai</td><td class="prop">limitado só pela CPU (cache/threads)</td></tr>
+    <tr><td>Estado (config/stats/counters)</td><td class="now">reidratado a cada call</td><td class="now">reidratado N vezes no burst</td><td class="prop">residente em memória</td></tr>
+    <tr><td>Lógica de decisão</td><td colspan="3" style="text-align:center;color:var(--mut)">idêntica — mesmo <code>lib/decide.cjs</code>, zero risco funcional</td></tr>
+    <tr><td>Fail-open mantido?</td><td colspan="3" style="text-align:center;color:var(--mut)">sim — daemon inacessível ⇒ cliente cai no fallback efêmero atual</td></tr>
+  </tbody>
+</table>
+
+<h2>7 · Pontos de atenção (viabilidade real)</h2>
+<ul>
+  <li class="risk"><b>Instalação como serviço de logon:</b> precisa registrar o start no boot do Windows (Run key / Task Scheduler at logon / startup). No POSIX: systemd-user / launchd. É o mecanismo que garante "nasce com o Windows".</li>
+  <li class="risk"><b>Singleton robusto:</b> lock por SID (named pipe no Win / socket UNIX path hash no POSIX). Segundo start detecta "já existe" e vira cliente. Self-heal: se o pipe some (crash), o próximo cliente reassume o daemon.</li>
+  <li class="risk"><b>Segurança local (ACL):</b> named pipe restrito ao usuário (<code>PIPE_REJECT_REMOTE_CLIENTS</code> + DACL do SID), senão qualquer processo da conta injeta payloads falsos no guard.</li>
+  <li class="risk"><b>Stale code no upgrade:</b> handshake de versão no connect; mismatch ⇒ derruba daemon velho e reassume com o binário novo (importante porque ele fica dias no ar).</li>
+  <li class="risk"><b>Burst CPU-bound:</b> 60 decisões simultâneas serializam no event loop (~1,3s no pior caso). Mitigar com cache por path + opcional worker_threads. Ver seção 5.</li>
+  <li class="risk"><b>Ganho nulo onde já é plugin:</b> no Copilot CLI o in-process JÁ custa 0,55 ms. O daemon vale para o modo hook (Claude Code / Cursor) e unifica tudo num só processo global.</li>
+</ul>
+
+<h2>8 · Arquitetura de segurança (fault tolerance — obrigatória)</h2>
+<p>O dono exige três garantias além do happy-path. Sem elas o daemon vira ponto único de falha pior que o efêmero:</p>
+<table>
+  <thead><tr><th>Garantia</th><th>Cenário</th><th>Mecanismo</th></tr></thead>
+  <tbody>
+    <tr><td><b>Start on demand</b></td><td>Daemon ainda não subiu (primeiro prompt do dia, ou AV travando o boot)</td><td>No connect-fail, o PRÓPRIO cliente tenta subir o daemon (spawn 1× com lock), espera o pipe nascer, reconecta. Nunca deixa o hook sem guard.</td></tr>
+    <tr><td><b>Self-heal no crash</b></td><td>Named pipe caiu no meio do dia (crash do Node, kill acidental)</td><td>Cliente detecta EPIPE/EOF → tenta reassumir UMA vez via start-on-demand. O segundo processo a chegar pega o lock e sobe de novo. Análise do AV acontece 1×, não N×.</td></tr>
+    <tr><td><b>Disarm em erro crítico</b></td><td>Tentou subir no próximo prompt e deu erro irrecuperável (binário corrompido, permissão negada pelo AV)</td><td>Após K falhas consecutivas (ex.: 3), o cliente DESARMA o modo daemon e cai no fallback efêmero atual + loga loudly. Nunca entra em loop infinito de respawn contra o antivírus.</td></tr>
+  </tbody>
+</table>
+
+<h2>9 · Por que o daemon VENCE na máquina corporativa (não é otimização)</h2>
+<div class="diag">MÁQUINA CORPORATIVA — custo real por spawn = análise EDR individual, SEM CACHE
+──────────────────────────────────────────────────────────────────
+ HOJE (efêmero):                          PROPOSTA (daemon global):
+  300–400 spawns/dia                       1 spawn/dia (no logon)
+   └─ cada um → análise EDR completa         └─ análise UMA vez, depois quente
+   └─ SEM CACHE (mesmo binário              └─ burst: dezenas de clientes
+      idêntico = re-analisado)                 batem no MESMO processo vivo
+                                              └─ zero novas análises de AV
+  Sob 60 req simultâneos:                  Sob 60 req simultâneos:
+   mediana 263ms · p95 409ms                ~1ms flat (IPC local)
+   throughput satura ~128/s                 throughput limitado só pela CPU
+   → TIMEOUTS de 5–15s no harness           → timeouts ELIMINADOS
+
+ Restrições da máquina: VPN + Windows Defender + AV empresa + validador de
+ processo + auditoria. 16GB RAM / 1GB livre. Disco no limite. Cada processo
+ novo TRAVA execução para análise — não há cache entre spawns idênticos.</div>
+<ul>
+  <li class="good"><b>Elimina o gargalo do EDR:</b> na máquina corporativa o custo dominante NÃO é o Node cold-start (31 ms) nem a lógica (22 ms) — é a análise INDIVIDUAL de cada processo novo pelo AV da empresa, que não tem cache. 300–400 spawns/dia = 300–400 análises. Um daemon = 1 análise no boot, mais nada o resto do dia.</li>
+  <li class="good"><b>RAM livre é pré-requisito:</b> 16 GB com 1 GB sobrando + disco no limite — os picos de N×M × 40 MB são insustentáveis lá. O daemon fixa o consumo em ~40 MB permanentes.</li>
+  <li class="good"><b>Unifica todos os modos:</b> o que já roda como plugin (Copilot CLI, in-process) continua; o que roda como hook (Claude Code/Cursor) migra para o mesmo daemon global. Uma instalação, um processo residente, todas as IDEs.</li>
+  <li class="good"><b>Burst absorvido sem nova análise:</b> quando 60 hooks disparam juntos, NO EFÊMERO viram 60 processos novos = 60 análises EDR simultâneas travando tudo. NO DAEMON viram 60 frames IPC no MESMO processo já aprovado — nenhuma análise extra.</li>
+</ul>
+
+<div class="verdict">
+  <h3>Veredito da validação</h3>
+  <p style="color:var(--txt)"><b>Viável e de altíssimo retorno.</b> Os dados provam a sua tese: o problema NÃO é a latência de 53 ms isolada — é que sob concorrência real (suas 8 sessões + subagentes ≈ 60+ spawns) a mediana vai a <b>263 ms</b> e o p95 a <b>409 ms</b>, saturando o throughput em ~128 req/s e estourando o timeout. O daemon global colapsa isso: 1 processo residente (nasce/morre com o Windows), ~1 ms por chamada, RAM fixa em ~40 MB, servindo todas as IDEs ao mesmo tempo. O núcleo <code>lib/decide.cjs</code> é reaproveitado integralmente — risco funcional ~zero; o trabalho é wrapper de transporte (pipe/socket + requestId) + ciclo de vida (start no logon, singleton por SID, handshake de versão) + mitigação de burst (cache/threads).</p>
+  <p style="margin-top:12px">
+    <span class="pill">problema real: concorrência, não latência isolada</span>
+    <span class="pill">evidência: 53→263 ms mediana sob 60 req</span>
+    <span class="pill">escopo: daemon GLOBAL por máquina (não por sessão)</span>
+    <span class="pill">vida: nasce no logon, morre no shutdown</span>
+    <span class="pill">risco-chave: burst CPU-bound (mitigar c/ cache+threads)</span>
+  </p>
+</div>
+
+<footer>
+  Gerado a partir da leitura de: lib/rules.cjs · lib/payload.cjs · lib/decide.cjs · adapters/{copilot-cli,prompt-hook,post-hook,mcp-server,hook-cmd,cursor-hook} · bench/latency.cjs.<br>
+  Latência isolada: <code>node bench/latency.cjs</code>. Concorrência: benchmark ad-hoc com <code>child_process.spawn</code> assíncrono (10/30/60/120 req simultâneos). Todos números DESTA máquina (win32, Node v24.14.1). Meça na sua.
+</footer>
+
+</div>
+</body>
+</html>

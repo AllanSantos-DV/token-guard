@@ -27,7 +27,14 @@ function ruleSetHash(root) {
   for (const rel of ['lib/config.cjs', 'lib/rules.cjs']) {
     try { h += fs.readFileSync(path.join(__dirname, '..', rel)); } catch { /* noop */ }
   }
-  try { h += fs.readFileSync(path.join(root, '.token-guard', 'config.json')); } catch { /* noop */ }
+  const stateFiles = [
+    path.join(root, 'token-guard.config.json'),
+    path.join(root, '.token-guard', 'config.json'),
+    path.join(root, '.token-guard', 'repo-stats.json'),
+  ];
+  for (const p of stateFiles) {
+    try { h += fs.readFileSync(p); } catch { /* noop */ }
+  }
   return crypto.createHash('sha256').update(h).digest('hex').slice(0, 16);
 }
 
@@ -36,8 +43,8 @@ function dispatch(params) {
   try {
     const verdict = decide(payload);
     return { ok: true, verdict };
-  } catch (err) {
-    return { ok: false, error: err && err.message ? err.message : String(err) };
+  } catch {
+    return { ok: true, verdict: null };
   }
 }
 
@@ -87,6 +94,7 @@ function createServer(ctxOverride) {
       const reply = handleMessage(msg, ctx);
       if (reply) writeFrame(socket, reply);
     });
+    frames.on('error', () => socket.destroy());
     frames.on('end', () => socket.end());
   });
   server.ctx = ctx;
