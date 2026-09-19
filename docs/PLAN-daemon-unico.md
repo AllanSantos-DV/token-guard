@@ -472,6 +472,13 @@ daemon (F7)`", 11 checks:
 - **Verification:** From the extracted tarball, `npm test` runs all 15 suites (10 existing + 5 new) green AND `npm run bench:daemon` exits 0 meeting AC1–AC3 thresholds; tag created.
 - **Gate:** Final G-quality-gate: ALL acceptance criteria closed, every new artifact reachable through `npm test`/`npm run bench:daemon`, packaged-install suite green from tarball, no unpublished/untracked artifacts. Depends on: F1–F7.
 
+**✅ DONE (v2.3.0), gate fechado.** `chore(release): v2.3.0` — bump, CHANGELOG, ownership confirmado, `npm pack --dry-run` smoke, tag anotada local `v2.3.0` criada. Push da branch/tag/PR **não** incluído aqui — ação visível a outros, requer confirmação explícita do usuário (pendente).
+
+**Validação real (não dry-run) nesta máquina — root-caused, não bug:**
+- `schtasks /create` (F7, Windows) falhou com "Acesso negado" mesmo pra task ONLOGON mínima, não-elevada. Reprodução isolada (`execFileSync` com o mesmo argv de `install.cjs`) confirmou: sessão atual não é Administrator — restrição de ambiente, não defeito no código. Casa com `platform_target: win32 corporate` do REQUEST: o caminho de degradação graciosa pro F5 é o caminho de produção real em Windows corporativo travado por política, não caso de borda teórico.
+- F5 (start-on-demand) validado E2E com o daemon REAL instalado (`~/.claude/token-guard`, não mock, não teste unitário): caminho *allow* — `Glob **` neste próprio repo (62 arquivos, `.token-guard/repo-stats.json`), abaixo do teto `minRepoFilesForScanGuard: 400` — bypass correto por design (`lib/rules.cjs:188-190`, "repositório pequeno, custo é irrelevante"). Caminho *deny* — mesmo payload contra um root sintético com `repoStats.totalFiles: 5000` — retornou `broadScan` corretamente. Os dois bateram byte-a-byte com `decide()` local chamado direto.
+- Um "achado" de quebra de paridade nesta investigação (daemon devolvendo `verdict:null` onde eu esperava `deny`) foi investigado e descartado: causa raiz era um bug no MEU script de reprodução (`root` corrompido por escaping de aspas/backslash no bash ao montar o payload), não no produto. A config real do repo (62 arquivos) explica o `null` corretamente — reproduzido de forma limpa (escrevendo o script via `Write`, sem escaping de shell) confirma `decide()` local e daemon concordam.
+
 ---
 
 ## 6 · Acceptance coverage (every REQUEST criterion → owning phase)
