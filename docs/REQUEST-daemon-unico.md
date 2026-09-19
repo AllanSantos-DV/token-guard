@@ -29,7 +29,7 @@ Substituir o modelo efêmero (um processo por chamada) por um **daemon único re
 ## Critérios de aceite (gate G-final)
 1. Latência mediana por chamada no modo hook ≤ 5 ms nesta máquina (vs 53 ms hoje).
 2. Sob burst de 60 req simultâneos, nenhum timeout do harness (mediana < 50 ms, p95 < 150 ms).
-3. Pico de RAM fixo ~40 MB (1 processo), sem multiplicação por sessões.
+3. Pico de RAM do processo único ≤ 70 MB sob burst de 60 req concorrentes nesta máquina (win32, Node v24.14.1) — sem multiplicação por sessões (1 processo residente serve N sessões). Recalibrado em F6 (era ~40 MB): medição em camadas mostrou que o `node.exe` sozinho, sem nenhum código do projeto, já custa ~48 MB de RSS nesta plataforma/versão — piso do runtime, não da aplicação. Overhead atribuível ao daemon em si (cache de decisão, `contract`, `postprocess`) fica em ~5-7 MB acima desse piso em uso estável; o teto de 70 MB dá folga pro custo transitório de dezenas de conexões concorrentes vivas durante um burst.
 4. Fail-open preservado: daemon inacessível ⇒ cliente cai no efêmero atual, nunca derruba nem bloqueia a sessão.
 5. Suite atual (`npm test`) verde + testes novos cobrindo: transporte/framing, singleton/lock, start-on-demand, self-heal, disarm após K falhas, handshake de versão.
 6. Instalação registra o autostart corretamente no Windows e no POSIX.
