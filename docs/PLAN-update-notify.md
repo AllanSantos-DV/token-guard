@@ -2,7 +2,7 @@
 
 ```yaml
 slug: update-notify
-status: READY (implementado, 53 testes verdes, gate de revisão fechado — aguardando release v2.4.0)
+status: DONE (v2.4.0 publicada no npm registry em 2026-09-20 — workflow "Publish to npm" run 35515048850, tag v2.4.0, sha 6ca31072d9a032fe9d9d0775071b6b3d5edadf08)
 request: (verbal, sem docs/REQUEST — feature pequena, contexto abaixo)
 owner_scope: checagem explícita, sob demanda do usuário (cli.cjs status); NÃO toca hooks nem daemon
 platform_target: win32 + POSIX, Node >=16 (matriz CI: 16/18/20/22 × ubuntu/windows)
