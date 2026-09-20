@@ -3,6 +3,17 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.4.0] — 2026-09-20
+
+### Adicionado
+- **Aviso opt-out de nova versão publicada no npm** — `token-guard status` e
+  `token-guard --version` agora checam, sob demanda (nunca em background, nunca
+  nos hooks/daemon), se há uma versão mais nova publicada no registry npm.
+  Consulta no máximo 1x por dia (cache em `~/.token-guard/update-check.json`,
+  TTL 24h); qualquer falha de rede ou disco é best-effort e silenciosa, nunca
+  quebra o comando. Desligue com `TOKEN_GUARD_UPDATE_CHECK=off`. Ver
+  `docs/PLAN-update-notify.md`.
+
 ## [2.3.2] — 2026-09-19
 
 ### Corrigido
