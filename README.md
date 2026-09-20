@@ -220,8 +220,17 @@ abaixo disso o custo é irrelevante e a disciplina só atrapalha.
 | Testar sem atrito | `TOKEN_GUARD=warn` |
 | Uma regra não serve a este repo | `"rules": { "shellDump": false }` |
 | Um caminho específico é legítimo | `"allowlist": ["..."]` |
+| Não quero aviso de nova versão | `TOKEN_GUARD_UPDATE_CHECK=off` no ambiente |
 
-Um guard sem saída de emergência vira dívida. Estas quatro existem de propósito.
+Um guard sem saída de emergência vira dívida. Estas cinco existem de propósito.
+
+### Aviso de nova versão
+
+`token-guard status` e `token-guard --version` checam, sob demanda (nunca em
+background, nunca nos hooks), se há uma versão mais nova publicada no npm.
+Consulta o registry no máximo 1x por dia (cache em
+`~/.token-guard/update-check.json`); sem rede, não trava nem avisa — fica em
+silêncio. Desligue com `TOKEN_GUARD_UPDATE_CHECK=off`.
 
 ---
 

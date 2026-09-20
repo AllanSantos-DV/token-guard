@@ -39,7 +39,22 @@ function run(script, args) {
   process.exit(r.status === null ? 1 : r.status);
 }
 
-function status(args) {
+function updateCacheFile() {
+  return path.join(require('os').homedir(), '.token-guard', 'update-check.json');
+}
+
+async function printUpdateNotice(prefix) {
+  try {
+    const UC = require('./lib/update-check.cjs');
+    const localVersion = require('./package.json').version;
+    const r = await UC.checkForUpdate({ localVersion, cacheFile: updateCacheFile() });
+    if (r.checked && r.updateAvailable) {
+      console.log(`${prefix}v${r.latestVersion} disponível (você está na v${r.localVersion}) — npm i -g @allansantos-dev/token-guard`);
+    }
+  } catch { /* aviso de update é best-effort, nunca pode quebrar status/--version */ }
+}
+
+async function status(args) {
   const root = path.resolve(args.find((a) => !a.startsWith('--')) || process.cwd());
   const CFG = require('./lib/config.cjs');
   const cfg = CFG.load(root);
@@ -61,6 +76,7 @@ function status(args) {
     console.log('');
     console.log('  ATENÇÃO: o guard está DESLIGADO (mode "off" ou TOKEN_GUARD=off).');
   }
+  await printUpdateNotice('  atualização:     ');
   console.log('');
 }
 
@@ -131,18 +147,28 @@ if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
 }
 
 if (cmd === 'status') {
-  status(rest);
-  process.exit(0);
+  status(rest).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+} else if (cmd === '--version' || cmd === '-v' || cmd === 'version') {
+  const localVersion = require('./package.json').version;
+  (async () => {
+    try {
+      const UC = require('./lib/update-check.cjs');
+      const r = await UC.checkForUpdate({ localVersion, cacheFile: updateCacheFile() });
+      if (r.checked && r.updateAvailable) {
+        console.log(`${localVersion} (nova versão disponível: ${r.latestVersion} — npm i -g @allansantos-dev/token-guard)`);
+      } else {
+        console.log(localVersion);
+      }
+    } catch {
+      console.log(localVersion);
+    }
+    process.exit(0);
+  })();
+} else {
+  const script = SCRIPTS[cmd];
+  if (!script) {
+    console.error(`token-guard: comando desconhecido "${cmd}". Use \`token-guard help\`.`);
+    process.exit(1);
+  }
+  run(script, rest);
 }
-
-if (cmd === '--version' || cmd === '-v' || cmd === 'version') {
-  console.log(require('./package.json').version);
-  process.exit(0);
-}
-
-const script = SCRIPTS[cmd];
-if (!script) {
-  console.error(`token-guard: comando desconhecido "${cmd}". Use \`token-guard help\`.`);
-  process.exit(1);
-}
-run(script, rest);
