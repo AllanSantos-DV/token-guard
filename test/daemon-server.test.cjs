@@ -51,6 +51,11 @@ async function rpc(endpoint, msg) {
   });
 
   try {
+    // A3 (backlog): id===0 é um id válido (falsy mas endereçável) — não pode
+    // ser tratado como mensagem sem id.
+    const zeroId = await rpc(endpoint, { id: 0, method: 'ping' });
+    check('id===0 responde normalmente (não é tratado como ausente)', zeroId && zeroId.id === 0 && zeroId.result && zeroId.result.pong === true, JSON.stringify(zeroId));
+
     const hello = await rpc(endpoint, { id: 1, method: 'hello' });
     check('hello responde protocolVersion', hello.result && typeof hello.result.protocolVersion === 'number');
     check('hello responde packageVersion', hello.result && typeof hello.result.packageVersion === 'string');

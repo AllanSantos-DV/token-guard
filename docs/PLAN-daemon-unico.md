@@ -2,7 +2,7 @@
 
 ```yaml
 slug: daemon-unico
-status: PLANNED
+status: DONE (v2.3.0) — F1-F8 fechadas, gate final verde. Backlog A7 (2026-09-20): header YAML estava desatualizado (PLANNED) enquanto o corpo (§5) já registrava todas as fases DONE/FECHADO; corrigido para refletir o estado real do doc.
 request: docs/REQUEST-daemon-unico.md
 validation: docs/daemon-validation.html
 owner_scope: hook/spawn mode only (Claude Code / Cursor); Copilot CLI plugin path untouched

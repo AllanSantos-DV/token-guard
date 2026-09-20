@@ -3,6 +3,38 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.4.1] — 2026-09-20
+
+### Corrigido
+- **Windows: named pipe órfão podia derrubar o daemon novo pra sempre** — o
+  retry de reclaim de socket órfão em `adapters/daemon-server.cjs` só rodava
+  em POSIX; no Windows, `EADDRINUSE` sem lock-record correspondente caía
+  direto em desistência, sem tentar de novo na janela entre o processo antigo
+  morrer e o kernel liberar o handle do named pipe. Adicionado retry-com-backoff
+  específico de win32 (3 tentativas, 50ms).
+- **`handleMessage()` tratava `id: 0` como requisição sem id** — `!msg.id` é
+  `true` pra `id: 0` em JS, então a resposta era silenciosamente descartada.
+  Corrigido para `msg.id === undefined || msg.id === null`.
+- **`SEMVER_RE`/`compareVersions` (`lib/update-check.cjs`) não seguiam a
+  precedência oficial do semver.org** — zero à esquerda em identificadores
+  numéricos era aceito, e sufixos de pre-release/build eram ignorados na
+  comparação (uma versão `X.Y.Z-beta.1` publicada como `latest` não
+  disparava aviso). Ambos corrigidos para o algoritmo/regex oficiais.
+- **`REAL_DEPS.readCache` aceitava `checkedAt: Infinity`**, fazendo o cache
+  de aviso de atualização nunca expirar. Corrigido com `Number.isFinite`.
+
+### Testes
+- Cobertura E2E nova para `TOKEN_GUARD=off`/`warn` ponta a ponta com um
+  daemon real de pé (`test/daemon-adapters-parity.test.cjs`).
+- Regressão live win32 pro retry de named pipe órfão
+  (`test/daemon-singleton.test.cjs`, gated à plataforma).
+- `id: 0` como RPC id válido (`test/daemon-server.test.cjs`).
+- Precedência de pre-release/build, rejeição de zero à esquerda,
+  `writeCache` contra diretório pai inexistente, e `fetchLatest` rejeitando
+  (`test/update-check.test.cjs`).
+- `stdio` explícito em `test/daemon-singleton.test.cjs` para evitar ruído de
+  stderr do filho vazando pro log de CI.
+
 ## [2.4.0] — 2026-09-20
 
 ### Adicionado

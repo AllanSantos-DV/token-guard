@@ -104,7 +104,9 @@ function dispatchPostprocess(params) {
 }
 
 function handleMessage(msg, ctx) {
-  if (!msg || typeof msg !== 'object' || !msg.id) return null;
+  // `!msg.id` rejeitava id===0 (falsy mas um id válido) — trata só
+  // ausência/tipo errado como mensagem sem id endereçável.
+  if (!msg || typeof msg !== 'object' || msg.id === undefined || msg.id === null) return null;
   const method = msg.method;
 
   try {
@@ -294,6 +296,29 @@ function start(endpointOverride) {
   // sobreviveu no disco — sem isto, esse cenário derrubava o daemon novo pra
   // sempre com um falso "já em execução" (achado de revisão independente F4).
   let retriedOrphanUnlink = false;
+  // Windows: named pipes não têm backing de arquivo — o kernel libera o
+  // handle quando o processo dono termina, mesmo abruptamente, então não
+  // existe "arquivo de socket órfão" pra fazer unlink (a lógica acima é
+  // POSIX-only por natureza, não por lacuna). Mas um EADDRINUSE pode ainda
+  // ocorrer numa janela curta entre a morte do processo dono e a liberação
+  // efetiva do handle pelo kernel — sem retry, esse caso caía direto em
+  // "já em execução" permanente mesmo com o lock-record confirmando dono
+  // morto (achado do backlog A4). Retry com backoff curto (sem unlink, que
+  // não se aplica) cobre essa janela.
+  const WIN32_RETRY_DELAY_MS = 50;
+  const WIN32_MAX_RETRIES = 3;
+  let win32RetryCount = 0;
+  // Guarda o timer pendente pra poder cancelar: sem isto, um `close()`
+  // chamado durante a janela de retry (até 150ms) é desfeito silenciosamente
+  // — o timer ainda dispara `server.listen()` depois do close, reabrindo o
+  // servidor num bind novo mesmo tendo sido "fechado" (achado de revisão
+  // independente, reproduzido: `listen()` pós-`close()` reabre com sucesso,
+  // não lança). Esse caminho é exercitado em test/daemon-singleton.test.cjs
+  // ("win32 close() durante janela de retry"), que prova o cancelamento.
+  let win32RetryTimer = null;
+  server.once('close', () => {
+    if (win32RetryTimer) { clearTimeout(win32RetryTimer); win32RetryTimer = null; }
+  });
   const giveUp = () => {
     releaseOrphanMutex();
     process.stderr.write(`token-guard daemon já em execução em ${endpoint} — encerrando (singleton)\n`);
@@ -303,7 +328,19 @@ function start(endpointOverride) {
   server.on('error', (err) => {
     releaseOrphanMutex();
     if (DL.isSingletonConflict(err)) {
-      if (!retriedOrphanUnlink && process.platform !== 'win32') {
+      if (process.platform === 'win32') {
+        if (win32RetryCount < WIN32_MAX_RETRIES) {
+          win32RetryCount++;
+          win32RetryTimer = setTimeout(() => {
+            win32RetryTimer = null;
+            server.listen(endpoint);
+          }, WIN32_RETRY_DELAY_MS);
+          return;
+        }
+        giveUp();
+        return;
+      }
+      if (!retriedOrphanUnlink) {
         retriedOrphanUnlink = true;
         orphanMutexPath = `${endpoint}.reclaim`;
         if (!claimOrphanMutex(orphanMutexPath)) {

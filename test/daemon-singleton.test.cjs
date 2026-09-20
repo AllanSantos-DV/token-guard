@@ -13,7 +13,9 @@ let fail = 0;
 function check(label, cond, detail) {
   if (cond) { pass++; return; }
   fail++;
-  console.error(`  ✗ ${label}${detail ? ' — ' + detail : ''}`);
+  // `detail === ''` (ex.: stdout vazio de um processo filho) é diagnóstico
+  // relevante, não "sem detalhe" — só omite quando detail é de fato undefined.
+  console.error(`  ✗ ${label}${detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}`);
 }
 
 /** Filesystem mockado em memória — prova a lógica pura sem tocar disco/pipe real. */
@@ -154,7 +156,10 @@ function mockDeps(initialFiles) {
     // module) start();`): sem listener concorrente algum.
     let out = '';
     try {
-      out = execFileSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 5000 });
+      // stdio explícito: nunca herdar/misturar o stderr do filho (mensagens
+      // reais de daemon-server.cjs, ex. "daemon pronto em ...") no stdout do
+      // processo de teste — só stdout é capturado e comparado.
+      out = execFileSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       // Só stdout real do filho — nunca err.message: o texto-fonte do script
       // `-e` (que contém literalmente a string 'OK:listening') pode vazar
@@ -241,6 +246,120 @@ function mockDeps(initialFiles) {
     check('corrida de roubo de mutex morto: ambos processos saem sem crash (código 0)', s1.code === 0 && s2.code === 0, `codes=${s1.code},${s2.code}`);
 
     try { fs.rmSync(tmpBase, { recursive: true, force: true }); } catch { /* noop */ }
+  }
+
+  // --- Live (Windows): EADDRINUSE transitório num named pipe — sem arquivo
+  // de socket órfão pra fazer unlink (não existe backing de fs pra named
+  // pipe), mas `start()` deve fazer retry com backoff curto em vez de
+  // desistir na primeira tentativa (backlog A4: gap onde win32 nunca
+  // tentava de novo, mesmo cobrindo só a janela transitória entre a morte
+  // do dono anterior e a liberação efetiva do handle pelo kernel). Prova
+  // observável: mantém o pipe ocupado por uma janela curta, mas libera
+  // ANTES do daemon novo esgotar as tentativas — se não houvesse retry, o
+  // daemon novo desistiria (singleton) mesmo o pipe ficando livre logo depois. ---
+  if (process.platform === 'win32') {
+    const endpoint = `\\\\.\\pipe\\token-guard-a4-retry-test-${process.pid}`;
+    const holder = net.createServer();
+    await new Promise((res, rej) => { holder.once('error', rej); holder.listen(endpoint, res); });
+
+    const daemonServerPath = path.join(__dirname, '..', 'adapters', 'daemon-server.cjs');
+    const retryScript = `
+      const DS = require(${JSON.stringify(daemonServerPath)});
+      const server = DS.start(${JSON.stringify(endpoint)});
+      if (!server) { console.log('FAIL:no-server'); process.exit(1); }
+      server.once('listening', () => { console.log('OK:listening'); server.close(() => process.exit(0)); });
+      setTimeout(() => { console.log('FAIL:timeout'); process.exit(1); }, 4000);
+    `;
+    const childPromise = new Promise((resolve) => {
+      const child = spawn(process.execPath, ['-e', retryScript]);
+      let out = '';
+      child.stdout.on('data', (d) => { out += d; });
+      child.on('close', (code) => resolve({ code, out }));
+    });
+
+    // Libera o pipe DEPOIS do primeiro EADDRINUSE do filho, mas ANTES de
+    // esgotar as 3 tentativas de retry (50ms cada) — janela deliberadamente
+    // no meio da sequência de retries.
+    await new Promise((r) => setTimeout(r, 90));
+    holder.close();
+
+    const result = await childPromise;
+    check('win32 EADDRINUSE transitório: retry recupera e escuta (não desiste na 1ª tentativa)', result.out.includes('OK:listening'), result.out.trim());
+    check('win32 retry: processo filho sai sem crash (código 0)', result.code === 0, `code=${result.code}`);
+  }
+
+  // --- Live (Windows): close() chamado logo após o 1º EADDRINUSE — no
+  // instante em que o handler interno de retry já agendou o setTimeout mas
+  // antes dele disparar (bem no início da janela de até 150ms, não em algum
+  // ponto arbitrário dela) — tem que cancelar esse timer pendente. Sem isto,
+  // o timer dispara `server.listen()` depois do close, reabrindo o servidor
+  // silenciosamente mesmo tendo sido "fechado" (achado de revisão
+  // independente, reproduzido isoladamente: `listen()` pós-`close()` reabre
+  // com sucesso, não lança).
+  //
+  // Timing do cenário SEM o fix, verificado empiricamente desativando o
+  // `clearTimeout` uma vez e restaurando em seguida (não é especulação): se o
+  // pipe ficasse ocupado pelos 150ms inteiros da janela de retry, as 3
+  // tentativas se esgotariam TODAS dentro dessa janela e o processo filho
+  // desistiria (`giveUp()` → exit antecipado, stdout vazio) sem jamais chegar
+  // a reabrir — ou seja, segurar o pipe além de 150ms mascararia o bug atrás
+  // de um sintoma diferente (saída antecipada), não de um 'listening'
+  // observável. Por isso o holder libera o pipe em 80ms: cedo o bastante
+  // pra sobrar pelo menos uma tentativa de retry (a de ~100ms) livre pra
+  // de fato reabrir o server SE o timer não tiver sido cancelado — e ainda
+  // assim depois da 1ª tentativa (~0ms) e da 1ª reagenda (~50ms), pra não
+  // interferir no comportamento do fix em si.
+  //
+  // Margem de corrida do caminho CORRIGIDO (mesma classe de risco do teste
+  // "win32 EADDRINUSE transitório" acima, que também depende de timing): o
+  // `close()` do filho é chamado dentro do handler `once('error', ...)`, ou
+  // seja, no instante t≈0 — bem antes do 1º retry (50ms). O evento `'close'`
+  // do `net.Server` (que dispara o `clearTimeout`) não envolve I/O real nesse
+  // caminho (o listen já tinha falhado, não há handle aberto pra desmontar),
+  // então a margem de ~50ms até o 1º retry é folgada, não uma corrida
+  // apertada — mas, como qualquer teste com timing real de SO, uma máquina
+  // sob carga extrema poderia em tese atrasar o `'close'` além disso. ---
+  if (process.platform === 'win32') {
+    const endpoint2 = `\\\\.\\pipe\\token-guard-a4-retry-close-race-${process.pid}`;
+    const holder2 = net.createServer();
+    await new Promise((res, rej) => { holder2.once('error', rej); holder2.listen(endpoint2, res); });
+
+    const daemonServerPath = path.join(__dirname, '..', 'adapters', 'daemon-server.cjs');
+    const retryCloseScript = `
+      const DS = require(${JSON.stringify(daemonServerPath)});
+      const server = DS.start(${JSON.stringify(endpoint2)});
+      if (!server) { console.log('FAIL:no-server'); process.exit(1); }
+      let sawListening = false;
+      server.once('listening', () => { sawListening = true; });
+      server.once('error', () => {
+        server.close(() => {
+          setTimeout(() => {
+            console.log(sawListening ? 'BUG:relistened-after-close' : 'OK:stayed-closed');
+            process.exit(0);
+          }, 300);
+        });
+      });
+      setTimeout(() => { console.log('FAIL:no-error-event'); process.exit(1); }, 4000);
+    `;
+    const childPromise2 = new Promise((resolve) => {
+      const child = spawn(process.execPath, ['-e', retryCloseScript]);
+      let out = '';
+      child.stdout.on('data', (d) => { out += d; });
+      child.on('close', (code) => resolve({ code, out }));
+    });
+
+    // Libera em 80ms: depois da 1ª tentativa (t≈0) e da 1ª reagenda (~50ms),
+    // mas antes da 2ª reagenda (~100ms) esgotar as 3 tentativas — deixa uma
+    // janela real pra um timer não-cancelado conseguir reabrir o server.
+    await new Promise((r) => setTimeout(r, 80));
+    holder2.close();
+
+    const result2 = await childPromise2;
+    check(
+      'win32 close() durante janela de retry: timer cancelado, server não reabre sozinho',
+      result2.out.includes('OK:stayed-closed'),
+      { code: result2.code, out: result2.out.trim() },
+    );
   }
 
   console.log(`\n  daemon-singleton: ${pass} passaram · ${fail} falharam`);

@@ -26,6 +26,15 @@ async function main() {
     check('A1c: local maior (patch)', UC.compareVersions('2.3.2', '2.3.1') > 0);
     check('A1d: minor diferente', UC.compareVersions('2.2.9', '2.3.0') < 0);
     check('A1e: major diferente', UC.compareVersions('1.9.9', '2.0.0') < 0);
+    // A1f-j (backlog A10): precedência de pre-release/build por semver.org #11
+    check('A1f: release > pre-release da mesma versão', UC.compareVersions('2.4.0', '2.4.0-beta.1') > 0);
+    check('A1g: pre-release < release da mesma versão', UC.compareVersions('2.4.0-beta.1', '2.4.0') < 0);
+    check('A1h: pre-release alfanumérico > pre-release numérico no mesmo campo', UC.compareVersions('2.4.0-beta', '2.4.0-1') > 0);
+    check('A1i: pre-release numérico compara por valor, não lexicograficamente', UC.compareVersions('2.4.0-9', '2.4.0-10') < 0);
+    check('A1j: pre-release com mais campos > prefixo idêntico com menos campos', UC.compareVersions('2.4.0-alpha.1', '2.4.0-alpha') > 0);
+    check('A1k: pre-release lexicográfico entre alfanuméricos', UC.compareVersions('2.4.0-alpha', '2.4.0-beta') < 0);
+    check('A1l: build metadata (+...) ignorado na precedência', UC.compareVersions('2.4.0+build1', '2.4.0+build2') === 0);
+    check('A1m: pre-release idêntica é igual (0), não maior nem menor', UC.compareVersions('2.4.0-beta.1', '2.4.0-beta.1') === 0);
   }
 
   // A2 isStale
@@ -51,6 +60,11 @@ async function main() {
     // bypass da rodada 3: prefixo numérico válido + sufixo malicioso no pre-release
     check('A3i: prefixo N.N.N válido + sufixo pre-release malicioso (ANSI) → null', UC.extractVersion(200, JSON.stringify({ version: '2.4.0-\u001b[31mPWNED\u001b[0m' })) === null);
     check('A3j: prefixo N.N.N válido + sufixo build malicioso (ANSI) → null', UC.extractVersion(200, JSON.stringify({ version: '2.4.0+\u001b[31mPWNED\u001b[0m' })) === null);
+    // A3o-r (backlog A9): regex semver oficial rejeita zero à esquerda
+    check('A3o: major com zero à esquerda → null', UC.extractVersion(200, '{"version":"01.2.3"}') === null);
+    check('A3p: minor com zero à esquerda → null', UC.extractVersion(200, '{"version":"1.02.3"}') === null);
+    check('A3q: pre-release puramente numérico com zero à esquerda → null', UC.extractVersion(200, '{"version":"1.2.3-01"}') === null);
+    check('A3r: patch "0" (sem zero à esquerda de verdade) → aceita', UC.extractVersion(200, '{"version":"1.2.0"}') === '1.2.0');
   }
 
   // A3k: buildRegistryUrl — codifica corretamente pacote com escopo (@ e /)
@@ -152,16 +166,20 @@ async function main() {
       check('A4g: slow-drip (socket nunca ocioso) ainda resolve via deadline absoluto', v === null && elapsed < 1000, `elapsed=${elapsed}ms`);
     }
 
-    // A4h: branch https: — porta fechada em 127.0.0.1, exercita a seleção do módulo https
-    // (sem TLS real: conexão recusada antes do handshake, mas prova que `client = https`
-    // é escolhido corretamente e falha graciosamente, igual ao branch http já coberto)
+    // A4h (backlog A12): branch https: contra um servidor HTTP PURO real (sem TLS) —
+    // distingue de fato a seleção do módulo. Se `fetchVersionFromUrl` selecionasse
+    // (por bug) o módulo `http` para uma URL `https:`, a requisição chegaria pura
+    // no servidor de teste e teria SUCESSO (200 + version válido). Como o código
+    // correto escolhe `https`, o cliente tenta handshake TLS contra um servidor que
+    // fala HTTP puro e falha no protocolo — prova observável de que o branch https:
+    // foi de fato exercitado, não apenas "conexão recusada" (que seria indistinguível
+    // do branch http: com porta fechada).
     {
-      const closedPort = await new Promise((resolve) => {
-        const probe = http.createServer();
-        probe.listen(0, '127.0.0.1', () => { const { port } = probe.address(); probe.close(() => resolve(port)); });
-      });
-      const v = await UC.fetchVersionFromUrl(`https://127.0.0.1:${closedPort}/pkg/latest`, 2000);
-      check('A4h: branch https: (porta fechada) → null, sem travar', v === null);
+      const srv = await withServer((req, res) => { res.writeHead(200, { 'content-type': 'application/json' }); res.end('{"version":"9.9.9"}'); });
+      const { port } = srv.address();
+      const v = await UC.fetchVersionFromUrl(`https://127.0.0.1:${port}/pkg/latest`, 2000);
+      await new Promise((r) => srv.close(r));
+      check('A4h: branch https: contra servidor HTTP puro → falha no handshake TLS (não usa http: por engano) → null', v === null, `v=${v}`);
     }
 
     // A4i: fetchLatestReal (= REAL_DEPS.fetchLatest em produção) — composição
@@ -255,6 +273,22 @@ async function main() {
     check('B4d: latestVersion do cache fora do formato semver → readCache real rejeita, dispara fetch', fetchCalls === 1);
   }
 
+  // B5 (backlog A13): REAL_DEPS.writeCache real (não mockado) contra um diretório
+  // pai genuinamente inexistente — prova que o mkdirSync recursivo funciona de
+  // verdade, não só a suposição de que ele funcionaria.
+  {
+    const nestedCacheFile = path.join(TMP, 'nested', 'does', 'not', 'exist', 'update-check.json');
+    check('B5a: diretório pai realmente não existe antes da escrita', !fs.existsSync(path.dirname(nestedCacheFile)));
+    const r = await UC.checkForUpdate(
+      { localVersion: '2.3.2', cacheFile: nestedCacheFile },
+      { fetchLatest: async () => '2.4.0' }
+    );
+    check('B5b: checkForUpdate com REAL_DEPS.writeCache cria os diretórios aninhados', fs.existsSync(nestedCacheFile));
+    const written = JSON.parse(fs.readFileSync(nestedCacheFile, 'utf8'));
+    check('B5c: conteúdo gravado é o esperado', written.latestVersion === '2.4.0' && r.updateAvailable === true);
+    fs.rmSync(path.join(TMP, 'nested'), { recursive: true, force: true });
+  }
+
   // C1: fetch falha (null), sem cache prévio
   {
     fs.rmSync(cacheFile, { force: true });
@@ -275,6 +309,34 @@ async function main() {
     check('C2: rede falha mas cache antigo é usado best-effort', r.checked === true && r.updateAvailable === true && r.latestVersion === '2.5.0');
     const stillOnDisk = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
     check('C2b: checkedAt do cache em disco NÃO é reescrito quando o fetch falha (best-effort, sem debounce)', stillOnDisk.checkedAt === 0, JSON.stringify(stillOnDisk));
+  }
+
+  // C3 (backlog A14): fetchLatest REJEITA (não apenas retorna null) — exercita o
+  // catch em torno de `deps.fetchLatest(...)` dentro de checkForUpdate, que antes
+  // não tinha nenhum teste cobrindo o caminho de rejeição real (timeout/DNS real
+  // rejeitam a Promise, REAL_DEPS.fetchLatest só resolve null por contrato, mas o
+  // catch existe justamente para proteger contra deps customizadas/futuras que rejeitem).
+  {
+    fs.rmSync(cacheFile, { force: true });
+    let threw = false;
+    let r = null;
+    try {
+      r = await UC.checkForUpdate(
+        { localVersion: '2.3.2', cacheFile },
+        { fetchLatest: async () => { throw new Error('ECONNRESET simulado'); } }
+      );
+    } catch (e) { threw = true; }
+    check('C3a: fetchLatest rejeitando não derruba checkForUpdate', !threw);
+    check('C3b: sem cache prévio → checked:false reason:offline (mesmo tratamento de fetch=null)', r && r.checked === false && r.reason === 'offline', JSON.stringify(r));
+  }
+  {
+    // C3c: fetchLatest rejeita, mas há cache válido anterior → usa o cache (best-effort)
+    fs.writeFileSync(cacheFile, JSON.stringify({ latestVersion: '2.5.0', checkedAt: 0 }));
+    const r = await UC.checkForUpdate(
+      { localVersion: '2.3.2', cacheFile, ttlMs: 1000 },
+      { fetchLatest: async () => { throw new Error('timeout simulado'); } }
+    );
+    check('C3c: fetchLatest rejeita mas cache antigo é usado best-effort', r.checked === true && r.updateAvailable === true && r.latestVersion === '2.5.0', JSON.stringify(r));
   }
 
   // D1: escape hatch — nem fs nem rede são tocados
