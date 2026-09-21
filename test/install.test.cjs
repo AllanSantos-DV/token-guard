@@ -14,6 +14,8 @@
  * HOME/USERPROFILE redirecionados para um home falso — nada toca a máquina real.
  */
 
+require('./bootstrap.cjs');
+
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');

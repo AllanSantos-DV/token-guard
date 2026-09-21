@@ -9,6 +9,8 @@
  * (seed fixa), rodando o decide() REAL — não um modelo dele.
  */
 
+require('./bootstrap.cjs');
+
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

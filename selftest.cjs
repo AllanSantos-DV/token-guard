@@ -18,7 +18,7 @@ const os = require('os');
 const GUARD = path.join(__dirname, 'token-guard.cjs');
 
 const FX = require('./test/fixtures/cases.cjs');
-const { CASES, TMP, BIG, SMALL, OUTSIDE, FOLD_CASE } = FX;
+const { CASES, TMP } = FX;
 
 function run(payload, env, spawnCwd) {
   const res = spawnSync(process.execPath, [GUARD], {
@@ -99,6 +99,5 @@ if (fail) {
   console.log('');
 }
 
-try { fs.rmSync(TMP, { recursive: true, force: true }); } catch { /* noop */ }
-try { if (typeof OUTSIDE !== 'undefined') fs.rmSync(OUTSIDE, { recursive: true, force: true }); } catch { /* noop */ }
+FX.cleanup();
 process.exit(fail ? 1 : 0);

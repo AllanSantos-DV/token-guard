@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+require('./bootstrap.cjs');
+
 const fs = require('fs'), os = require('os'), path = require('path'), http = require('http');
 const { spawnSync } = require('child_process');
 let pass = 0, fail = 0;

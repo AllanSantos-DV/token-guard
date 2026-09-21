@@ -1,5 +1,7 @@
 'use strict';
 
+const BOOT = require('./bootstrap.cjs');
+
 const net = require('net');
 const os = require('os');
 const path = require('path');
@@ -7,6 +9,7 @@ const fs = require('fs');
 const { createServer, dispatch } = require('../adapters/daemon-server.cjs');
 const { encodeFrame, parseStream } = require('../lib/ipc-frame.cjs');
 const { CASES, TMP, cleanup } = require('./fixtures/cases.cjs');
+const CFG = require('../lib/config.cjs');
 
 let pass = 0;
 let fail = 0;
@@ -99,6 +102,28 @@ async function rpc(endpoint, msg) {
     check('mudanca de config no disco gera nova chave (miss)', r5.result && r5.result.ok && !r5.result.cached);
     const r6 = await rpc(endpoint, { id: 9, method: 'check', params: { root: TMP, payload: denyPayload } });
     check('repeticao pos-mudanca bate no cache', r6.result && r6.result.cached === true);
+
+    const st = await rpc(endpoint, { id: 10, method: 'stats' });
+    check('stats responde o pid do processo do daemon', st.result && st.result.pid === process.pid);
+    check('stats responde RSS em bytes', st.result && st.result.rssBytes > 1e6);
+    check('stats responde uptime e contadores do cache',
+      st.result && Number.isFinite(st.result.uptimeMs)
+      && st.result.cacheEntries > 0 && st.result.hits > 0 && st.result.misses > 0,
+      JSON.stringify(st.result));
+
+    // A config global pesa no veredito tanto quanto a do root: se ela não entrar
+    // na chave do cache, o daemon serve para sempre o veredito anterior à edição.
+    const globalCfgDir = path.join(BOOT.ISOLATED_HOME, '.token-guard');
+    fs.mkdirSync(globalCfgDir, { recursive: true });
+    const globalCfg = path.join(globalCfgDir, CFG.CONFIG_NAME);
+    fs.writeFileSync(globalCfg, JSON.stringify({ threshold: 4242 }));
+    const r7 = await rpc(endpoint, { id: 11, method: 'check', params: { root: TMP, payload: denyPayload } });
+    check('criar config global invalida o cache (miss)', r7.result && r7.result.ok && !r7.result.cached);
+    fs.writeFileSync(globalCfg, JSON.stringify({ threshold: 4243 }));
+    const r8 = await rpc(endpoint, { id: 12, method: 'check', params: { root: TMP, payload: denyPayload } });
+    check('editar config global invalida o cache (miss)', r8.result && r8.result.ok && !r8.result.cached);
+    const r9 = await rpc(endpoint, { id: 13, method: 'check', params: { root: TMP, payload: denyPayload } });
+    check('sem nova edição, volta a bater no cache', r9.result && r9.result.cached === true);
   } finally {
     server.close();
     if (typeof endpoint === 'string' && !endpoint.startsWith('\\\\')) {

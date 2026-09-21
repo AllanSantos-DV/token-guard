@@ -1,5 +1,7 @@
 'use strict';
 
+const BOOT = require('../bootstrap.cjs');
+
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -93,6 +95,7 @@ const CASES = [
 function cleanup() {
   try { fs.rmSync(TMP, { recursive: true, force: true }); } catch { /* noop */ }
   try { fs.rmSync(OUTSIDE, { recursive: true, force: true }); } catch { /* noop */ }
+  BOOT.restore();
 }
 
 module.exports = { CASES, TMP, BIG, SMALL, OUTSIDE, FOLD_CASE, cleanup };

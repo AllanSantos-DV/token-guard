@@ -8,6 +8,8 @@
  * Node puro, spawn async — sync não deixa fechar o pipe no meio.
  */
 
+require('./bootstrap.cjs');
+
 const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');

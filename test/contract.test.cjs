@@ -11,6 +11,8 @@
  * Node puro, sem framework, pelo mesmo motivo do resto do projeto: zero deps.
  */
 
+require('./bootstrap.cjs');
+
 const path = require('path');
 const fs = require('fs');
 const os = require('os');

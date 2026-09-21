@@ -6,6 +6,8 @@
  * Mesmo estilo de test/daemon-parity.test.cjs.
  */
 
+require('./bootstrap.cjs');
+
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
