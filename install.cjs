@@ -9,11 +9,12 @@
  *
  *   copilot   ~/.copilot/extensions/token-guard/
  *             Extensão in-process do Copilot CLI / Copilot App. Bloqueio real,
- *             latência ~0,15 ms, e ainda expõe token_audit e token_guard_status.
+ *             latência sub-milissegundo, e ainda expõe token_audit e token_guard_status.
  *
  *   claude    ~/.claude/token-guard/ + merge em ~/.claude/settings.json
  *             Hook PreToolUse do Claude Code. Bloqueio real. Paga cold start
- *             do Node (~200-300 ms) apenas nas ferramentas casadas pelo matcher.
+ *             do Node (centenas de ms; meça com bench/latency.cjs) apenas nas
+ *             ferramentas casadas pelo matcher.
  *
  *   cursor    ~/.cursor/token-guard/ + merge em ~/.cursor/hooks.json
  *             Hooks beforeReadFile / beforeShellExecution / beforeMCPExecution.
@@ -270,12 +271,15 @@ function sanitizeSid(raw) {
 }
 
 /**
- * Fecha o Gap A6 (docs/BACKLOG.md): `defaultEndpoint()` no Windows
- * (`adapters/daemon-server.cjs`) cai em `TOKEN_GUARD_SID || pid` — sem essa
- * var setada de fora, cada hook (PID proprio, processo curto) calcula um
- * named pipe DIFERENTE do daemon subido no logon e nunca o encontra; o
- * daemon nunca fica quente. Deriva um valor estavel por conta de usuario
- * (mesmo em toda reinstalacao/boot), sanitizado pra ir num nome de pipe.
+ * SID estavel por conta de usuario (mesmo valor em toda reinstalacao/boot),
+ * sanitizado pra ir num nome de named pipe. Gravado via setx pra que o
+ * endpoint do daemon seja explicito e sobrescrevivel pelo usuario.
+ * INVARIANTE: precisa render o MESMO valor que `defaultWindowsSid()` de
+ * adapters/daemon-server.cjs, que e o fallback quando `TOKEN_GUARD_SID` nao
+ * esta no ambiente. Divergencia entre as duas = hook e daemon em pipes
+ * diferentes, daemon nunca quente. Este instalador e deliberadamente
+ * zero-require do projeto (roda de copia, antes dos arquivos existirem no
+ * destino), por isso a regra e duplicada em vez de importada.
  */
 function stableWindowsSid() {
   try {
