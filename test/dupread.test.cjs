@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+require('./bootstrap.cjs');
+
 const fs = require('fs'), os = require('os'), path = require('path');
 let pass = 0, fail = 0;
 function check(label, ok, detail) {

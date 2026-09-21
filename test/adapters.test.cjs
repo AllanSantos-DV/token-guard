@@ -10,6 +10,10 @@
  * Node puro, sem framework, pelo mesmo motivo do resto do projeto: zero deps.
  */
 
+// Os hooks spawnados abaixo herdam process.env — o bootstrap é o que garante
+// que eles não leiam a config global nem alcancem o daemon da sessão real.
+require('./bootstrap.cjs');
+
 const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');

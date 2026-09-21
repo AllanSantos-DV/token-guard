@@ -1,5 +1,7 @@
 'use strict';
 
+require('./bootstrap.cjs');
+
 const net = require('net');
 const os = require('os');
 const path = require('path');

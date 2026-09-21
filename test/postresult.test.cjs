@@ -9,6 +9,8 @@
  *   · fail-open absoluto: objeto circular, root impossível — nunca lança.
  */
 
+require('./bootstrap.cjs');
+
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

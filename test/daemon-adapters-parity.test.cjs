@@ -12,6 +12,8 @@
  * contra o daemon real — sem tocar nos arquivos de teste de outros adapters.
  */
 
+require('./bootstrap.cjs');
+
 const { spawnSync } = require('child_process');
 const net = require('net');
 const os = require('os');

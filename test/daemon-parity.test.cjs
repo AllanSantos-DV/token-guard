@@ -1,5 +1,7 @@
 'use strict';
 
+require('./bootstrap.cjs');
+
 const path = require('path');
 const { CASES, cleanup } = require('./fixtures/cases.cjs');
 const { decide } = require('../lib/decide.cjs');

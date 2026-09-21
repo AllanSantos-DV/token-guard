@@ -7,6 +7,8 @@
  * hookSpecificOutput, com silêncio como fail-open.
  */
 
+require('./bootstrap.cjs');
+
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
