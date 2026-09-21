@@ -19,13 +19,34 @@ const PACKAGE_VERSION = (() => {
   try { return require('../package.json').version; } catch { return '0.0.0'; }
 })();
 
+/** Daemon sem requisição por este tempo se autoencerra (0 desativa). */
+const IDLE_TIMEOUT_MS = Number(process.env.TOKEN_GUARD_DAEMON_IDLE_MS) || 10 * 60 * 1000;
+
+/**
+ * Fallback do SID no Windows: estável por usuário, equivalente ao
+ * `process.uid` do ramo POSIX abaixo.
+ * INVARIANTE: precisa render o MESMO valor que `stableWindowsSid()` de
+ * install.cjs (que grava `TOKEN_GUARD_SID` via setx) — sanitização e teto de
+ * 64 caracteres inclusive. Se as duas divergirem, o hook e o daemon do logon
+ * calculam pipes diferentes e o daemon nunca fica quente. install.cjs é
+ * deliberadamente zero-require do projeto, por isso a regra é duplicada.
+ */
+function defaultWindowsSid() {
+  try {
+    const username = os.userInfo().username;
+    if (username) return username.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 64);
+  } catch { /* ambiente sem userInfo (raro) */ }
+  return 'default';
+}
+
 function defaultEndpoint() {
   if (process.platform === 'win32') {
-    const sid = process.env.TOKEN_GUARD_SID || String(process.pid);
+    const sid = process.env.TOKEN_GUARD_SID || defaultWindowsSid();
     return `\\\\.\\pipe\\token-guard-${sid}`;
   }
   const dir = process.env.XDG_RUNTIME_DIR || '/tmp';
-  return path.join(dir, `token-guard-${process.uid}.sock`);
+  const sid = process.env.TOKEN_GUARD_SID || process.uid;
+  return path.join(dir, `token-guard-${sid}.sock`);
 }
 
 /**
@@ -48,11 +69,15 @@ function ruleSetHash(root) {
   for (const rel of ['lib/config.cjs', 'lib/rules.cjs']) {
     try { h += fs.readFileSync(path.join(__dirname, '..', rel)); } catch { /* noop */ }
   }
-  const stateFiles = [
-    path.join(root, 'token-guard.config.json'),
+  // A config global (`~/.claude|.copilot|.cursor|.token-guard/`) e a config de
+  // um ancestral do workspace decidem tanto quanto a do root — se não entrarem
+  // na chave, o daemon serve para sempre o veredito que cacheou antes da edição.
+  const stateFiles = new Set([
+    path.join(root, CFG.CONFIG_NAME),
     path.join(root, '.token-guard', 'config.json'),
     path.join(root, '.token-guard', 'repo-stats.json'),
-  ];
+    ...CFG.configFilesInEffect(root),
+  ]);
   for (const p of stateFiles) {
     try { h += fs.readFileSync(p); } catch { /* noop */ }
   }
@@ -103,7 +128,16 @@ function dispatchPostprocess(params) {
   }
 }
 
+/** Anexado a toda resposta (sucesso ou erro) — permite ao cliente detectar um daemon desatualizado sem pagar um roundtrip 'hello' extra. */
+const HANDSHAKE = { protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION };
+
 function handleMessage(msg, ctx) {
+  const reply = routeMessage(msg, ctx);
+  if (reply) reply.handshake = HANDSHAKE;
+  return reply;
+}
+
+function routeMessage(msg, ctx) {
   if (!msg || typeof msg !== 'object' || !msg.id) return null;
   const method = msg.method;
 
@@ -114,6 +148,28 @@ function handleMessage(msg, ctx) {
 
   if (method === 'ping') {
     return { id: msg.id, result: { pong: true } };
+  }
+
+  // Introspecção do próprio processo: o RSS medido de fora (`tasklist`/`ps`)
+  // custa um spawn, e spawn no Windows bloqueia o event loop de quem mede —
+  // o que contamina justamente a latência que o benchmark quer medir.
+  if (method === 'stats') {
+    return {
+      id: msg.id,
+      result: {
+        pid: process.pid,
+        rssBytes: process.memoryUsage().rss,
+        uptimeMs: Math.round(process.uptime() * 1000),
+        cacheEntries: ctx.cache.size,
+        hits: ctx.hits,
+        misses: ctx.misses,
+      },
+    };
+  }
+
+  if (method === 'shutdown') {
+    if (typeof ctx.requestShutdown === 'function') setImmediate(ctx.requestShutdown);
+    return { id: msg.id, result: { ok: true } };
   }
 
   if (method === 'check') {
@@ -155,11 +211,13 @@ function createServer(ctxOverride) {
     cache: new Map(),
     hits: 0,
     misses: 0,
+    lastActivity: Date.now(),
   };
   const server = net.createServer((socket) => {
     socket.on('error', () => {});
     const frames = parseStream(socket);
     frames.on('data', (msg) => {
+      ctx.lastActivity = Date.now();
       const reply = handleMessage(msg, ctx);
       if (reply) writeFrame(socket, reply);
     });
@@ -168,6 +226,28 @@ function createServer(ctxOverride) {
   });
   server.ctx = ctx;
   return server;
+}
+
+/** Sem `.unref()` de propósito: este timer é o que mantém o daemon vivo até decidir morrer. */
+function scheduleIdleShutdown(server, lockFile, idleTimeoutMs, depsOverride) {
+  const deps = {
+    nowFn: Date.now,
+    setIntervalFn: setInterval,
+    clearIntervalFn: clearInterval,
+    unlinkFn: (p) => { try { fs.unlinkSync(p); } catch { /* best-effort */ } },
+    exitFn: (code) => process.exit(code),
+    ...depsOverride,
+  };
+  if (!(idleTimeoutMs > 0)) return null;
+  const checkEveryMs = Math.min(idleTimeoutMs, 60000);
+  const timer = deps.setIntervalFn(() => {
+    if (deps.nowFn() - server.ctx.lastActivity < idleTimeoutMs) return;
+    deps.clearIntervalFn(timer);
+    process.stderr.write(`token-guard daemon ocioso por ${idleTimeoutMs}ms — encerrando.\n`);
+    deps.unlinkFn(lockFile);
+    server.close(() => deps.exitFn(0));
+  }, checkEveryMs);
+  return timer;
 }
 
 /**
@@ -264,6 +344,11 @@ function start(endpointOverride) {
   }
 
   const server = createServer();
+  server.ctx.requestShutdown = () => {
+    process.stderr.write('token-guard daemon: shutdown solicitado (versão desatualizada) — encerrando.\n');
+    try { fs.unlinkSync(lockFile); } catch { /* best-effort */ }
+    server.close(() => process.exit(0));
+  };
 
   // Mutex de arquivo (create exclusivo `wx` — atômico no POSIX) pro trecho
   // crítico de reclaim de socket órfão abaixo. Sem isto, dois daemons
@@ -287,6 +372,7 @@ function start(endpointOverride) {
       try { fs.chmodSync(endpoint, 0o700); } catch { /* best-effort */ }
     }
     process.stderr.write(`token-guard daemon pronto em ${endpoint} (${PACKAGE_VERSION})\n`);
+    scheduleIdleShutdown(server, lockFile, IDLE_TIMEOUT_MS);
   };
   // Já retried o listen uma vez após remover um socket órfão? Cobre o caso em
   // que o lock-record está ausente/corrompido (então `acquireLock` não marcou
@@ -346,5 +432,7 @@ if (require.main === module) start(process.argv[2] || undefined);
 
 module.exports = {
   createServer, dispatch, dispatchContract, dispatchPostprocess, handleMessage, start,
-  defaultEndpoint, defaultLockPath, ruleSetHash, PROTOCOL_VERSION, PACKAGE_VERSION,
+  scheduleIdleShutdown,
+  defaultEndpoint, defaultWindowsSid, defaultLockPath, ruleSetHash, PROTOCOL_VERSION, PACKAGE_VERSION,
+  IDLE_TIMEOUT_MS,
 };
