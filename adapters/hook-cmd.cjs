@@ -15,8 +15,8 @@
  * decisão in-process e por isso não paga o custo de spawn. Veja README › Escopo.
  *
  * ORÇAMENTO DE TEMPO
- * O custo dominante aqui é o cold start do Node (~200-300 ms em Windows
- * corporativo), não a lógica. A defesa é o "matcher" em hooks.json, que impede
+ * O custo dominante aqui é o cold start do Node (centenas de ms em Windows
+ * corporativo, medido por bench/latency.cjs), não a lógica. A defesa é o "matcher" em hooks.json, que impede
  * o processo de nascer para ferramentas que nunca seriam barradas.
  *
  * Contrato de saída (verificado no runtime, aceito pelos dois harnesses):

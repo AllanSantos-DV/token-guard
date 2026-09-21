@@ -31,7 +31,7 @@ Escape hatch por ambiente (vence tudo): `TOKEN_GUARD=off` (ou `0`, `false`) desl
 | `noiseDirs` | string[] | Substitui a lista inteira (use só para isso). |
 | `sourceExtExtra` | string[], `[]` | **Soma** extensões contadas como código-fonte na auditoria. |
 | `sourceExt` | string[] | Substitui a lista inteira. |
-| `allowlist` | string[] | Substrings de caminho sempre liberadas (case-insensitive). |
+| `allowlist` | string[] | Substrings de caminho liberadas (case-insensitive) nas regras que julgam caminho — `noisePath` e `blindRead`. Não alcança `broadScan`/`shellDump`, que julgam escopo/teto da busca. |
 | `$comment*` | qualquer | Ignorada pelo loader: convenção de comentário em JSON (`$comment`, `$comment_mode`, …). |
 
 ### Defaults embutidos
