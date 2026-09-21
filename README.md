@@ -50,13 +50,21 @@ e é exatamente ela que este kit governa.
 | `lib/mcp-cost.cjs` | A medição do preâmbulo MCP: quanto os servidores declarados custam por sessão — com recomendações acionáveis por servidor e ferramenta. |
 | `lib/contract.cjs` | O contrato de saída: regras por gatilho de evidência, injetadas 1×/sessão via UserPromptSubmit ([docs](docs/CONTRACT.md)). |
 | `lib/postresult.cjs` | A regra `bigResult`: resultado de ferramenta gigante vira stub + versão integral em disco + alternativa barata. |
+| `lib/dupread.cjs` | Dedupe de leitura: o mesmo arquivo lido de novo na sessão volta como ponteiro, não como conteúdo. |
+| `lib/ipc-frame.cjs` | Framing por prefixo de tamanho — o transporte que liga hook e daemon. |
+| `lib/daemon-client.cjs` | O cliente fino dos hooks: fala com o daemon, sobe um se não houver, desarma após 3 falhas e cai no caminho efêmero. |
+| `lib/daemon-lifecycle.cjs` | Lock de singleton e handshake de versão, com todo primitivo de SO injetável. |
+| `lib/update-check.cjs` | O aviso de versão nova — a única saída de rede do projeto ([detalhes](SECURITY.md)). |
 
 ### Adapters — só tradução de envelope, zero regra de negócio
 
 | Adapter | Harness | Bloqueia? |
 |---|---|---|
-| `adapters/copilot-cli.mjs` | Copilot CLI / Copilot App (in-process, ~0,15 ms) | ✅ |
+| `adapters/copilot-cli.mjs` | Copilot CLI / Copilot App (in-process, sub-milissegundo) | ✅ |
 | `adapters/hook-cmd.cjs` | Copilot CLI (`hooks.json`) e Claude Code (`settings.json`) | ✅ |
+| `adapters/prompt-hook.cjs` | `UserPromptSubmit` — injeta o contrato de saída 1×/sessão | ❌ só injeta |
+| `adapters/post-hook.cjs` | `PostToolUse` — `bigResult` e registro de evidência | ❌ substitui o resultado |
+| `adapters/daemon-server.cjs` | Nenhum: é o daemon residente que serve a decisão aos três hooks por IPC | ✅ via cliente |
 | `adapters/cursor-hook.cjs` | Cursor — `preToolUse` genérico (recente) + os 3 eventos nomeados | ✅ todas as 4 |
 | `adapters/mcp-server.cjs` | Qualquer IDE com MCP — VS Code, Windsurf, Zed, JetBrains | ❌ só orienta |
 
@@ -210,7 +218,10 @@ abaixo disso o custo é irrelevante e a disciplina só atrapalha.
 - `mode`: `block` (nega e corrige) · `warn` (pede confirmação mostrando a correção) · `off`
 - `noiseDirsExtra` / `sourceExtExtra` **somam** aos defaults.
   Use `noiseDirs` / `sourceExt` (sem `Extra`) só para substituir a lista inteira.
-- `allowlist`: substrings de caminho sempre liberadas.
+- `allowlist`: substrings de caminho liberadas nas regras que julgam CAMINHO
+  (`noisePath` e `blindRead`). Ela não afeta `broadScan` nem `shellDump`, que julgam
+  escopo/teto da busca e não um arquivo alvo — um `grep -r` sem filtro continua barrado
+  mesmo que o diretório esteja na allowlist. Para desligar essas duas use `rules`.
 
 ### Escape hatches
 
@@ -219,7 +230,7 @@ abaixo disso o custo é irrelevante e a disciplina só atrapalha.
 | Emergência pontual | `TOKEN_GUARD=off` no ambiente |
 | Testar sem atrito | `TOKEN_GUARD=warn` |
 | Uma regra não serve a este repo | `"rules": { "shellDump": false }` |
-| Um caminho específico é legítimo | `"allowlist": ["..."]` |
+| Um caminho específico é legítimo (`noisePath`/`blindRead`) | `"allowlist": ["..."]` |
 | Não quero aviso de nova versão | `TOKEN_GUARD_UPDATE_CHECK=off` no ambiente |
 
 Um guard sem saída de emergência vira dívida. Estas cinco existem de propósito.
@@ -306,8 +317,8 @@ números que sustentam as premissas são medidos por este mesmo kit:
 
 ## Escopo, ciclo de vida e custo
 
-**Não existe escopo "por sessão".** Não há daemon do guard, versão residente nem
-estado entre sessões. Há dois modos de execução, e a diferença é de política:
+**Não existe escopo "por sessão".** O alcance é por máquina ou por repositório — nunca
+por conversa. Há dois modos de execução, e a diferença entre eles é de política:
 
 | | **Máquina** (`--target copilot\|claude\|cursor\|mcp`) | **Repositório** (`--target repo`) |
 |---|---|---|
@@ -315,9 +326,18 @@ estado entre sessões. Há dois modos de execução, e a diferença é de polít
 | Alcance | Todos os repos **desta máquina** | Só este repo, **mas viaja no git** |
 | Quem herda | só você | **quem clonar** |
 | Execução | in-process (Copilot) ou comando (Claude/Cursor) | comando por chamada |
-| Custo por chamada | **0,15 ms** in-process · **330 ms** por comando | **330 ms** |
+| Custo por chamada | **sub-milissegundo** in-process · **~1–4 ms** de decisão servida pelo daemon, mais o spawn do hook | idem |
 | Extras | expõe `token_audit` e `token_guard_status` ao agente | — |
 | Repositório do cliente | ✅ nada é commitado | ❌ exige commit |
+
+O que **é** residente é o daemon de decisão (`adapters/daemon-server.cjs`): um processo
+por usuário, em named pipe/socket local, servindo o mesmo `decide()` já quente para os
+três hooks — sem ele, cada evento de ferramenta paga o cold start do Node inteiro. Ele
+não guarda estado de conversa: só um cache de veredito chaveado por raiz mais o hash das
+regras e de todas as configs em efeito, invalidado quando qualquer uma delas muda no
+disco. Nasce no logon (ou sob demanda, no primeiro hook), autoencerra após 10 min
+ociosos, e se estiver inacessível o hook decide localmente — fail-open, como o resto.
+Endpoint, ACL e ciclo de vida: [SECURITY.md](SECURITY.md).
 
 Os modos podem coexistir: todos importam a mesma decisão de `lib/decide.cjs`, então
 o veredito é idêntico — apenas avaliado duas vezes. Para o dia a dia, escolha um.
@@ -328,20 +348,54 @@ Um kit de eficiência precisa declarar o próprio custo. O README não publica
 constantes: publique a SUA medição.
 
 ```bash
-node bench/latency.cjs        # plugin vs hook de comando vs piso do Node
+node bench/latency.cjs        # plugin · hook · piso do Node · hook a frio
+node bench/daemon-bench.cjs   # decisão servida pelo daemon: isolada, em rajada, RSS
 ```
 
-Na máquina do autor (Windows corporativo, Node 25, antivírus ativo) a mediana
-foi **0,153 ms** in-process contra **330 ms** por spawn — quase todo o custo do
-modo comando é o runtime (`node -e "0"` custava 216 ms ali), não o guard. Em
-máquina sem antivírus corporativo os dois números caem juntos; a razão entre
-eles permanece. Duas defesas, nesta ordem:
+Na máquina do autor (Windows corporativo, Node v25.8.1, antivírus ativo), medianas
+de 25 chamadas — **faixa observada em duas janelas de medição do mesmo dia**, não
+constante:
+
+| caminho | mediana |
+|---|---|
+| plugin (in-process) | **0,22–0,60 ms** |
+| hook de comando, com o daemon de pé | **479–589 ms** |
+| piso do Node (`node -e "0"`, sem guard nenhum) | **370–452 ms** |
+| hook de comando a frio — a 1ª chamada da sessão sobe o daemon | **1 173–1 444 ms** |
+| decisão servida pelo daemon, medida por IPC | **0,9–3,9 ms** · rajada de 60 clientes: mediana 25–117 ms, p95 41–259 ms (18 execuções) |
+
+Quatro leituras honestas desses números:
+
+- **Uma medição só não descreve esta máquina.** Os mesmos dois comandos, 40 minutos
+  depois e sem uma linha de código mudada: hook 589 → 479 ms, piso do Node 370 → 452 ms,
+  rajada de 60 clientes 27 → 117 ms de mediana. O estado da máquina entre execuções mexe
+  nos números mais do que qualquer mudança de código já mexeu. É por isso que o
+  `daemon-bench` mede três rodadas contra daemons recém-nascidos e reporta a dispersão
+  rodada por rodada, e que esta tabela publica faixa em vez de constante.
+- **O custo do modo comando é o cold start do Node, não o guard.** O que o guard
+  acrescenta sobre o piso — carregar os módulos e ir e voltar ao daemon — ficou entre
+  **27 e 219 ms** nas duas janelas, ou seja, dentro da própria variação da máquina: no
+  modo comando o custo atribuível ao guard não é separável do custo de nascer um Node.
+  O piso é runtime mais inspeção do antivírus a cada `CreateProcessW`.
+- **O daemon não remove esse custo, e não é isso que ele faz.** Ele tira a *decisão* do
+  caminho quente (~1–4 ms servidos, em vez de reler config e rehashar regras a cada
+  evento) e troca N processos por um residente de ~63 MB. O `spawn` do cliente continua
+  sendo pago pelo harness a cada evento — e não existe modo "hook sem daemon" para
+  comparar, porque o próprio hook sobe o daemon se o endpoint não responder. Ganho
+  end-to-end exige um cliente que não seja um processo Node novo: hoje isso é o modo
+  plugin; um cliente nativo está no [BACKLOG](docs/BACKLOG.md).
+- **A primeira chamada da sessão é a cara** (1,2–1,4 s aqui): ela espera o daemon subir.
+  É por isso que `init --target claude` registra o autostart no logon — com o daemon
+  já de pé, nenhuma chamada paga esse bring-up.
+
+Duas defesas, nesta ordem:
 
 1. **Use o modo plugin** quando o alcance de máquina servir. O custo desaparece.
 2. **No modo repositório**, o `matcher` do `hooks.json` impede o processo de nascer
-   para ferramentas que nunca seriam barradas (`edit`, `create`, PR, issue). Com ele,
-   supondo ~40% das chamadas nas famílias vigiadas, o custo fica em torno de
-   **5 segundos por sessão**. Sem ele, ~12 s.
+   para ferramentas que nunca seriam barradas (`edit`, `create`, PR, issue). Supondo
+   ~36 chamadas de ferramenta por sessão e ~40% delas nas famílias vigiadas, são ~14
+   spawns: **~7–8 s por sessão** nesta máquina. Sem o matcher, os 36 spawns custariam
+   ~17–21 s.
 
 ---
 

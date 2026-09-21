@@ -15,18 +15,29 @@ qualquer PR é lido à luz deles.
 ## Arquitetura
 
 ```
-lib/            núcleo puro, agnóstico de IDE — NÃO conhece nenhum harness
-  payload.cjs     normaliza o envelope de entrada de qualquer runtime
-  rules.cjs       as quatro regras (broadScan, blindRead, noisePath, shellDump)
-  decide.cjs      decide(payload) -> null | { decision, reason, rule }
-  config.cjs      carrega token-guard.config.json subindo a árvore
-  audit.cjs       medição de custo de contexto
+lib/               núcleo puro, agnóstico de IDE — NÃO conhece nenhum harness
+  payload.cjs        normaliza o envelope de entrada de qualquer runtime
+  rules.cjs          as quatro regras (broadScan, blindRead, noisePath, shellDump)
+  decide.cjs         decide(payload) -> null | { decision, reason, rule }
+  config.cjs         carrega token-guard.config.json subindo a árvore
+  audit.cjs          medição de custo de contexto
+  mcp-cost.cjs       medição do preâmbulo dos servidores MCP declarados
+  contract.cjs       contrato de saída: regras por gatilho de evidência
+  postresult.cjs     regra bigResult: resultado gigante -> stub + arquivo em disco
+  dupread.cjs        dedupe de leitura repetida na mesma sessão
+  ipc-frame.cjs      framing por prefixo de tamanho do transporte do daemon
+  daemon-client.cjs  cliente fino dos hooks: start-on-demand, self-heal, disarm-K
+  daemon-lifecycle.cjs  lock de singleton e handshake de versão (primitivos de SO injetáveis)
+  update-check.cjs   aviso de versão nova (única saída de rede do projeto)
 
-adapters/       tradução de envelope. Uma camada fina por harness.
-  copilot-cli.mjs   extensão in-process do Copilot CLI/App (SDK)
-  hook-cmd.cjs      hook PreToolUse por linha de comando (Copilot CLI + Claude Code)
-  cursor-hook.cjs   eventos beforeReadFile/beforeShellExecution/beforeMCPExecution
-  mcp-server.cjs    MCP server stdio — fallback universal (advisory)
+adapters/          tradução de envelope. Uma camada fina por harness.
+  copilot-cli.mjs    extensão in-process do Copilot CLI/App (SDK)
+  hook-cmd.cjs       hook PreToolUse por linha de comando (Copilot CLI + Claude Code)
+  prompt-hook.cjs    hook UserPromptSubmit — injeta o contrato de saída 1x/sessão
+  post-hook.cjs      hook PostToolUse — bigResult e registro de evidência
+  cursor-hook.cjs    eventos beforeReadFile/beforeShellExecution/beforeMCPExecution
+  mcp-server.cjs     MCP server stdio — fallback universal (advisory)
+  daemon-server.cjs  daemon residente: serve decide()/contract/postprocess por IPC
 ```
 
 **Regra de ouro:** adapter nunca contém regra de negócio. Se você precisou colocar

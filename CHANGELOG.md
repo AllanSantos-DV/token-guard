@@ -3,6 +3,82 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+
+Auditoria documentação-vs-código do repositório inteiro: nada de comportamento
+mudou, o que mudou é o que o projeto afirma sobre si mesmo — mais o isolamento
+das suítes de teste e dois benches que passaram a medir com dispersão em vez de
+publicar uma constante.
+
+### Corrigido
+- **Documentação que divergia do código:**
+  - `README.md` — o alcance da `allowlist` (vale nas regras que julgam caminho,
+    `noisePath` e `blindRead`; não alcança `broadScan`/`shellDump`), a afirmação
+    de que existia escopo "por sessão" (não existe: é por máquina ou por repo),
+    as tabelas de `lib/` e `adapters/` que ignoravam metade dos módulos, e a
+    seção de latência inteira (ver abaixo). `docs/CONFIG.md` recebeu o mesmo
+    recorte da `allowlist`.
+  - `SECURITY.md` — o daemon residente não estava documentado (endpoint por
+    named pipe/socket, `chmod 700` no POSIX, sem porta TCP, autoencerramento por
+    ociosidade, script de verificação da ACL); "O que grava" não listava
+    `~/.token-guard/update-check.json` nem os locks de singleton; a checagem de
+    versão no registry npm ganhou seção própria — o que sai, o que não sai, como
+    desligar — e o bullet de "não existe telemetria" deixou de ser absoluto.
+  - `CONTRIBUTING.md` — a árvore de arquitetura omitia 8 módulos de `lib/` e 3
+    adapters.
+  - `docs/PLAN-daemon-unico.md` — `status` seguia `PLANNED` com F1-F7 entregues
+    (backlog A7); o baseline do §1 era de Node v24.14.1 e virou nota explícita de
+    re-medição em v25.8.1; a decisão D8 ("sem idle-timeout") contradizia o código,
+    que tem 10 min de ociosidade — a reversão e o motivo agora estão na própria
+    linha D8.
+- **A entrada da 2.3.0 afirmou que o custo medido do cold-start "some" com o
+  daemon.** Vale para a decisão, não para o evento: no modo comando o harness
+  continua fazendo `spawn(node)` a cada chamada, e é o spawn — não a lógica — que
+  domina (479-589 ms medidos contra 370-452 ms de piso do próprio Node nesta
+  máquina — em duas janelas de medição, o que o guard acrescenta sobre o piso
+  ficou entre 27 e 219 ms, dentro da variação da própria máquina). O daemon tira
+  a decisão do caminho quente (0,9-3,9 ms servidos por IPC) e troca N processos
+  por um residente; ganho ponta a ponta exige um cliente que não nasça um
+  processo Node novo (backlog A16). O README publica os quatro caminhos medidos,
+  em faixa, e diz o que cada um significa.
+- **`bench/daemon-bench.cjs` media uma rodada e tratava o resultado como
+  veredito.** Cada execução agora mede três rodadas, cada uma contra um daemon
+  recém-nascido, julga a mediana entre rodadas e reporta a dispersão crua em
+  `rounds`. Reaproveitar o mesmo daemon entre rodadas inflava o pico de RSS
+  (68,8 MB acumulados contra 63,3 MB por burst), o que mediria outra coisa que
+  não o critério AC3. Consequência medida e registrada em A19: o limite da
+  mediana de AC2 (<50 ms) não é reproduzível nesta máquina — 18 execuções sem
+  mudança de código deram 25-117 ms de mediana (passa em 5, reprova em 13) e
+  41-259 ms de p95 (passa em 17); AC1 e AC3 passaram em todas. Enquanto o limite
+  não for recalibrado, o repositório não passa a versionar baseline para o Node em
+  uso (v25): `--smoke` roda sem guarda de regressão em vez de comparar contra a
+  execução mais sortuda.
+
+### Adicionado
+- **Quarto caminho em `bench/latency.cjs`: "hook a frio"** — derruba o daemon
+  antes de cada iteração e mede o bring-up que só a primeira chamada da sessão
+  paga (1 173-1 444 ms nesta máquina, contra 479-589 ms com o daemon de pé;
+  backlog A17).
+  O bench também passou a usar um `TOKEN_GUARD_SID` próprio: antes conversava com
+  o daemon de trabalho do usuário e podia subir um por conta.
+- **Isolamento de teste obrigatório** — `test/bootstrap.cjs` (HOME/USERPROFILE
+  redirecionados para um tmpdir vazio, `TOKEN_GUARD_SID` próprio, `TOKEN_GUARD`
+  removido do env) passou a ser carregado pelas 20 suítes que tocam
+  `decide()`/hooks; sem o SID próprio, redirecionar só o HOME deixava os testes
+  falando com o daemon vivo do desenvolvedor. `test/postresult`, `test/dupread` e
+  `test/adapters.post` estavam órfãs — existiam no disco e nunca rodavam em
+  `npm test` — e entraram na cadeia; `selftest.cjs` passou a usar `FX.cleanup()`.
+- **6 checks em `test/daemon-server.test.cjs`** (19 → 25): o RPC `stats`
+  (pid, RSS, uptime, contadores de cache) e a invalidação do cache do daemon
+  quando a config global é criada ou editada. Provados não-vacuosos: remover
+  `configFilesInEffect(root)` de `ruleSetHash` derruba exatamente esses dois
+  últimos.
+- **Backlog A16, A17, A18 e A19** — cliente que não seja um processo Node novo;
+  bring-up bloqueante na primeira chamada; lock-record que acredita em
+  `isAlive(pid)` e nunca é limpo quando o daemon morre por `kill`/reboot; limite
+  da mediana de AC2 a recalibrar contra distribuição medida, hoje reprovando sem
+  regressão e fixando a baseline versionada na execução mais sortuda.
+
 ## [2.4.0] — 2026-09-20
 
 ### Adicionado
