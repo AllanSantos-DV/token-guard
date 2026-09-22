@@ -3,7 +3,7 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não publicado]
+## [2.5.0] — 2026-09-22
 
 Auditoria documentação-vs-código do repositório inteiro: nada de comportamento
 mudou, o que mudou é o que o projeto afirma sobre si mesmo — mais o isolamento
