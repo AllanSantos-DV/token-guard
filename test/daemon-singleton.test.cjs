@@ -184,7 +184,16 @@ function mockDeps(initialFiles) {
       const DS = require(${JSON.stringify(daemonServerPath)});
       const server = DS.start(${JSON.stringify(endpoint)});
       if (!server) { process.exit(1); }
-      server.once('listening', () => { console.log('OK:listening'); server.close(() => process.exit(0)); });
+      server.once('listening', () => {
+        console.log('OK:listening');
+        // Linger antes de fechar: fechar na hora recria o mesmo socket órfão
+        // que este teste está tentando reclamar, dando ao irmão mais lento uma
+        // janela pra reclamar de novo "legitimamente" (ele já morreu de
+        // verdade) e imprimir OK:listening também — 2 vencedores sem que a
+        // lógica de produção tenha corrido errado. O daemon real nunca fecha
+        // sozinho assim; este atraso só reproduz esse fato no teste.
+        setTimeout(() => server.close(() => process.exit(0)), 800);
+      });
       setTimeout(() => process.exit(1), 3000);
     `;
     // Sem listener de 'error' extra — mesma razão do teste acima: deixa o
@@ -226,7 +235,14 @@ function mockDeps(initialFiles) {
       const DS = require(${JSON.stringify(daemonServerPath)});
       const server = DS.start(${JSON.stringify(endpoint)});
       if (!server) { process.exit(1); }
-      server.once('listening', () => { console.log('OK:listening'); server.close(() => process.exit(0)); });
+      server.once('listening', () => {
+        console.log('OK:listening');
+        // Mesmo linger do teste de corrida acima e pelo mesmo motivo: sem
+        // isto, o vencedor fecha rápido demais e o irmão mais lento reclama
+        // de novo um socket que só ficou órfão porque o teste, não a
+        // produção, derrubou o vencedor cedo demais.
+        setTimeout(() => server.close(() => process.exit(0)), 800);
+      });
       setTimeout(() => process.exit(1), 3000);
     `;
     // Sem listener de 'error' extra — mesma razão dos dois testes acima.
