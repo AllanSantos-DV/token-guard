@@ -40,10 +40,10 @@ jobs:
         run: node test/savings.test.cjs
 
       - name: Saída — bigResult, injeção de contrato e robustez EPIPE
-        run: node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs && node test/epipe.test.cjs
+        run: node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs && node test/epipe.test.cjs && node test/dupread.test.cjs
 
       - name: Daemon — IPC, paridade, singleton e tolerância a falhas (F1-F5)
-        run: node test/ipc-frame.test.cjs && node test/daemon-parity.test.cjs && node test/daemon-server.test.cjs && node test/daemon-contract-parity.test.cjs && node test/daemon-postprocess-parity.test.cjs && node test/daemon-adapters-parity.test.cjs && node test/daemon-singleton.test.cjs && node test/daemon-faulttolerance.test.cjs
+        run: node test/ipc-frame.test.cjs && node test/daemon-parity.test.cjs && node test/daemon-server.test.cjs && node test/daemon-contract-parity.test.cjs && node test/daemon-postprocess-parity.test.cjs && node test/daemon-adapters-parity.test.cjs && node test/daemon-singleton.test.cjs && node test/daemon-faulttolerance.test.cjs && node test/daemon-endpoint-and-idle.test.cjs && node test/daemon-handshake-staleness.test.cjs
 
       - name: Instalador — simulação em todos os alvos
         run: node install.cjs --target all --dry-run
