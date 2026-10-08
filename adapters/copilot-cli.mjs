@@ -101,25 +101,8 @@ const session = await joinSession({
         },
       },
       handler: async (args) => {
-        const root = args?.path || process.cwd();
-        const cfg = CFG.load(root);
-        const stats = CFG.repoStats(root);
-        const on = Object.entries(cfg.rules || {})
-          .filter(([, v]) => v !== false)
-          .map(([k]) => k);
-
-        const lines = [
-          `modo: ${cfg.mode}`,
-          `config: ${cfg._source}`,
-          `regras ativas: ${on.join(", ") || "(nenhuma)"}`,
-          `limite de leitura sem faixa: ${cfg.limits.readBytesWithoutRange} bytes`,
-          `guarda de varredura a partir de: ${cfg.limits.minRepoFilesForScanGuard} arquivos`,
-          stats
-            ? `cache do repositório: ${Number(stats.totalFiles).toLocaleString("pt-BR")} arquivos medidos`
-            : "cache do repositório: ausente — rode token_audit para calibrar os limites",
-          "",
-          `barrado nesta sessão: ${blocked}`,
-        ];
+        const { cfg, lines } = CFG.statusSummary(args?.path || process.cwd());
+        lines.push("", `barrado nesta sessão: ${blocked}`);
         for (const [rule, n] of Object.entries(byRule)) lines.push(`  ${rule}: ${n}`);
         lines.push(`resultados truncados (bigResult): ${trimmed}`);
         if (cfg.mode === "off") {

@@ -81,24 +81,9 @@ const TOOLS = [
       },
     },
     handler: (args) => {
-      const root = args?.path || process.cwd();
-      const cfg = CFG.load(root);
-      const stats = CFG.repoStats(root);
-      const on = Object.entries(cfg.rules || {}).filter(([, v]) => v !== false).map(([k]) => k);
-
-      const lines = [
-        `modo: ${cfg.mode}`,
-        `transporte: MCP (advisory — este harness não permite bloquear a chamada)`,
-        `config: ${cfg._source}`,
-        `regras ativas: ${on.join(', ') || '(nenhuma)'}`,
-        `limite de leitura sem faixa: ${cfg.limits.readBytesWithoutRange} bytes`,
-        `guarda de varredura a partir de: ${cfg.limits.minRepoFilesForScanGuard} arquivos`,
-        stats
-          ? `cache do repositório: ${Number(stats.totalFiles).toLocaleString('pt-BR')} arquivos medidos`
-          : 'cache do repositório: ausente — rode token_audit para calibrar os limites',
-        '',
-        `chamadas avaliadas nesta sessão: ${checked}`,
-      ];
+      const { cfg, lines } = CFG.statusSummary(args?.path || process.cwd());
+      lines.splice(1, 0, 'transporte: MCP (advisory — este harness não permite bloquear a chamada)');
+      lines.push('', `chamadas avaliadas nesta sessão: ${checked}`);
       for (const [rule, n] of Object.entries(byRule)) lines.push(`  ${rule}: ${n}`);
       if (cfg.mode === 'off') lines.push('', 'ATENÇÃO: o guard está DESLIGADO (mode "off" ou TOKEN_GUARD=off).');
       return { text: lines.join('\n') };
