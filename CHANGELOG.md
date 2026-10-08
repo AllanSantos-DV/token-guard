@@ -6,6 +6,13 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [2.5.1] — 2026-10-08
 
 ### Corrigido
+- **blindRead barrava leitura de imagem e de PDF com `pages`** — o Read do
+  Claude Code entrega imagem ao modelo como imagem (sem linhas; custo segue a
+  resolução, não os bytes), então uma PNG acima de 50 KB era negada com uma
+  correção impossível ("releia uma faixa de linhas"). `.png/.jpg/.jpeg/.gif/.webp`
+  agora ficam fora da regra (SVG é texto e continua nela). `hasReadRange`
+  passou a reconhecer `pages` ("1-5") como faixa, então PDF grande lido por
+  páginas não é mais negado.
 - **Windows: named pipe órfão podia derrubar o daemon novo pra sempre** — o
   retry de reclaim de socket órfão em `adapters/daemon-server.cjs` só rodava
   em POSIX; no Windows, `EADDRINUSE` sem lock-record correspondente caía
