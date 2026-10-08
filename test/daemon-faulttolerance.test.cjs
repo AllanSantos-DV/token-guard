@@ -14,6 +14,7 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { createClient, realSpawn, DEFAULT_DAEMON_SERVER_PATH } = require('../lib/daemon-client.cjs');
+const { MAX_FRAME_BYTES } = require('../lib/ipc-frame.cjs');
 const { defaultLockPath } = require('../adapters/daemon-server.cjs');
 
 let pass = 0;
@@ -244,12 +245,37 @@ async function testDisarm() {
   check('após desarmar, chamada seguinte devolve ok:false direto', res2.ok === false, JSON.stringify(res2));
 }
 
+async function testOversizeSkipsDaemon() {
+  console.log('\n  [payload acima do frame IPC não tenta o daemon]');
+
+  const spawnCalls = [];
+  const connectCalls = [];
+  const client = createClient({
+    spawnFn: (p) => { spawnCalls.push(p); },
+    nowFn: Date.now,
+    sleepFn: () => Promise.resolve(),
+    connectFn: async (method) => { connectCalls.push(method); return { ok: false }; },
+    bootTimeoutMs: 10,
+    pollIntervalMs: 5,
+    maxSpawnAttempts: 3,
+  });
+
+  const res = await client.tryDaemon('postprocess', { result: 'x'.repeat(MAX_FRAME_BYTES + 1) });
+  check('devolve ok:false para cair no caminho local', res.ok === false, JSON.stringify(res));
+  check('nenhuma conexão nem spawn (sem o loop de bring-up)',
+    connectCalls.length === 0 && spawnCalls.length === 0,
+    `connect ${connectCalls.length}x, spawn ${spawnCalls.length}x`);
+  const res2 = await client.tryDaemon('check', {});
+  check('payload grande não desarma o cliente', connectCalls.length > 0, JSON.stringify(res2));
+}
+
 async function main() {
   await testStartOnDemand();
   await testSelfHeal();
   await testCustomEndpointPropagatesToSpawn();
   await testRealSubprocessHonorsArgvEndpoint();
   await testDisarm();
+  await testOversizeSkipsDaemon();
 
   console.log('');
   console.log(`  ${pass} passaram · ${fail} falharam`);

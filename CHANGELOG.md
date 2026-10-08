@@ -6,6 +6,22 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [2.5.1] — 2026-10-08
 
 ### Corrigido
+- **bigResult (pós-execução) media payload binário e quebrava o formato do
+  Copilot** — (1) Read de imagem no Claude Code: o base64 contava como texto,
+  disparava um "Truncated" falso e gravava ~400 KB por leitura; agora `base64`
+  fica fora da medida. (2) Copilot: `toolResult` é sempre `ToolResultObject`,
+  e o stub devolvido não tinha `textResultForLlm`/`resultType` — todo resultado
+  grande era substituído por um objeto inválido (e a imagem em
+  `binaryResultsForLlm` se perdia); agora só o texto é medido e truncado, o
+  resto do objeto é preservado. (3) Objeto que o harness não substitui (Bash do
+  Claude Code) recebia "Truncated" sem ter sido truncado; a mensagem agora diz
+  que a saída entrou inteira. (4) `.token-guard/results` crescia sem limite;
+  agora guarda os 50 mais recentes.
+- **Payload acima de 4 MB derrubava o cliente do daemon** — o frame IPC
+  estourava, o cliente tentava subir o daemon 3x e desarmava (stderr de erro e
+  3 spawns inúteis). Agora vai direto pro caminho local.
+- Tabela de famílias de ferramenta duplicada em `postresult.cjs`/`dupread.cjs`
+  (já divergente no regex de shell) passa a vir de `rules.cjs`.
 - **blindRead barrava leitura de imagem e de PDF com `pages`** — o Read do
   Claude Code entrega imagem ao modelo como imagem (sem linhas; custo segue a
   resolução, não os bytes), então uma PNG acima de 50 KB era negada com uma
