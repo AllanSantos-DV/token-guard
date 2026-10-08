@@ -14,6 +14,16 @@
 | A18 | **O lock-record confia em `isAlive(pid)` puro e nunca é removido quando o daemon morre por `kill`/reboot** (`lib/daemon-lifecycle.cjs:acquireLock`, `adapters/daemon-server.cjs:defaultLockPath`). Duas consequências: (a) reuso de PID — comum no Windows — faz um lock órfão parecer vivo e o daemon novo do MESMO SID recusar a subir em silêncio, degradando pra efêmero pra sempre naquela conta; (b) `%TEMP%/token-guard-locks/` acumula um arquivo por SID de teste/bench que não passou pelo caminho de shutdown (116 encontrados nesta máquina, de vários dias), sem ninguém pra coletar. Fix sugerido: gravar também o start-time do processo (ou sondar o endpoint) antes de acreditar no pid, e limpar o lock no `exit` | medição da auditoria doc-vs-código (2026-09-21) | M |
 | A19 | **O gate de AC2 do `bench/daemon-bench.cjs` não é reproduzível nesta máquina.** Em 18 execuções sem nenhuma mudança de código, a mediana da rajada de 60 clientes variou 25-117 ms contra um limite de `<50 ms`: passou em 5 delas e reprovou nas outras 13, acompanhando o estado da máquina. O p95 (≤150 ms) passou em 17 de 18; AC1 e AC3 passaram em todas. Consequências: (a) `npm run bench:daemon` não serve como portão de CI/release no estado atual — falha sem regressão; (b) a baseline versionada só é gravada quando o gate passa, ou seja, registra a execução mais sortuda, e o guarda `--smoke` (`>2× baseline`) passa a acusar regressão fantasma (baseline isolada de 1,18 ms contra execuções normais de 3,0-3,9 ms). Decisão do dono: recalibrar o limite da mediana contra uma distribuição medida (p.ex. mediana das rodadas ≤ X com N execuções), ou separar "gate de release" de "medição de caracterização" — enquanto isso não for decidido não vai baseline versionada para o Node em uso (v25; a de v24 segue no repositório como histórico), e `--smoke` roda sem guarda de regressão em vez de acusar regressão fantasma | medição da auditoria doc-vs-código (2026-09-21) | M |
 
+## Fechado na avaliação a fundo de 2026-10-08 (release 2.5.1)
+
+| # | Item | Resultado |
+|---|---|---|
+| B1 | Testes conversando com o daemon real do usuário | Já coberto pelo `test/bootstrap.cjs` da 2.5.0 (SID próprio por suíte + idle curto); revalidado nesta integração |
+| B2 | Daemons órfãos depois de `npm test` / por chamada sem `TOKEN_GUARD_SID` | Fallback estável por conta (`defaultWindowsSid`, 2.5.0) e autoencerramento por ociosidade; revalidado contando processos antes/depois da suíte |
+| B3 | Mensagem do blindRead para PDF sem `pages` falava em "faixa de linhas" | Mensagem própria para PDF (`pages`) e para notebook; o Read ignora `offset/limit` em `.ipynb`, então a faixa deixou de driblar a regra |
+| B4 | bigResult medindo base64 de imagem como texto | Escondia: `modifiedResult` inválido no Copilot em TODO resultado grande, "Truncated" falso em objeto não substituível, `results/` sem teto, payload > 4 MB disparando 3 spawns do daemon. Tudo corrigido com teste |
+| B5 | bigResult disparando em Edit/Write e em Bash que edita arquivo | `tool_response` traz arquivo original / `bashEditDiff`, que o modelo não recebe; ficam fora da medida |
+
 ## Fechado na rodada "resolva todos" (sessão 2026-09-20)
 
 | # | Item | Resultado |
