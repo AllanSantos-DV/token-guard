@@ -18,7 +18,7 @@ const os = require('os');
 const GUARD = path.join(__dirname, 'token-guard.cjs');
 
 const FX = require('./test/fixtures/cases.cjs');
-const { CASES, TMP } = FX;
+const { CASES, TMP, BIG_PDF, BIG_NB } = FX;
 
 function run(payload, env, spawnCwd) {
   const res = spawnSync(process.execPath, [GUARD], {
@@ -88,6 +88,17 @@ if (cwdMiss.decision === 'deny' && /blindRead/.test(cwdMiss.reason)) {
   fail++;
   failures.push({ label: 'blindRead cwd relativo', expected: 'deny/blindRead', got: cwdMiss.decision });
   console.log(`  FALHA blindRead cwd relativo (obteve ${cwdMiss.decision})`);
+}
+
+/* A correção injetada tem de ser POSSÍVEL para o tipo de arquivo: PDF não tem
+   linhas (tem pages) e o Read ignora offset/limit em notebook. */
+for (const [label, payload, must, mustNot] of [
+  ['PDF sem pages ensina pages, não faixa de linhas', { tool_name: 'Read', tool_input: { file_path: BIG_PDF }, cwd: TMP }, /pages/, /line range/],
+  ['notebook ensina busca/extração de células, não faixa', { tool_name: 'Read', tool_input: { file_path: BIG_NB }, cwd: TMP }, /cells?/, /line range/],
+]) {
+  const r = run(payload);
+  if (r.decision === 'deny' && must.test(r.reason) && !mustNot.test(r.reason)) { pass++; console.log(`  ok    ${label}`); }
+  else { fail++; failures.push({ label, reason: (r.reason || '').slice(0, 200) }); console.log(`  FALHA ${label}`); }
 }
 
 console.log('  ' + '─'.repeat(72));

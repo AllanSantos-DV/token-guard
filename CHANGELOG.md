@@ -6,6 +6,16 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [2.5.1] — 2026-10-08
 
 ### Corrigido
+- **blindRead: correção impossível para PDF e notebook, e faixa que driblava a
+  regra** — PDF sem `pages` agora ensina `pages` (e não estima tokens por
+  byte, já que PDF custa por página); o Read do Claude Code ignora
+  `offset/limit` em `.ipynb`, então a faixa não libera mais notebook grande e
+  a orientação passa a ser extrair as células.
+- **bigResult media o que o modelo não recebe** — em Edit/Write o
+  `tool_response` traz o arquivo original inteiro, e no Bash do Claude Code o
+  `bashEditDiff` (diff de arquivos editados pelo comando, só interface) inflava
+  a medida: cada edição de arquivo grande injetava um aviso falso e gravava uma
+  cópia em disco. Ferramentas de escrita e `bashEditDiff` ficam fora.
 - **bigResult (pós-execução) media payload binário e quebrava o formato do
   Copilot** — (1) Read de imagem no Claude Code: o base64 contava como texto,
   disparava um "Truncated" falso e gravava ~400 KB por leitura; agora `base64`

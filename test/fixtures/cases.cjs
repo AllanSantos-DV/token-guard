@@ -15,7 +15,8 @@ fs.writeFileSync(SMALL, 'x'.repeat(800), 'utf8');
 const BIG_PNG = path.join(TMP, 'dashboard.png');
 const BIG_SVG = path.join(TMP, 'diagram.svg');
 const BIG_PDF = path.join(TMP, 'manual.pdf');
-for (const f of [BIG_PNG, BIG_SVG, BIG_PDF]) fs.writeFileSync(f, 'x'.repeat(120000), 'utf8');
+const BIG_NB = path.join(TMP, 'analise.ipynb');
+for (const f of [BIG_PNG, BIG_SVG, BIG_PDF, BIG_NB]) fs.writeFileSync(f, 'x'.repeat(120000), 'utf8');
 
 fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
 fs.writeFileSync(
@@ -91,6 +92,8 @@ const CASES = [
   ['deny', 'SVG grande sem faixa (é texto)',          claude('Read', { file_path: BIG_SVG }), 'blindRead'],
   ['allow', 'PDF grande com pages',                   claude('Read', { file_path: BIG_PDF, pages: '1-5' }), null],
   ['deny', 'PDF grande sem pages',                    claude('Read', { file_path: BIG_PDF }), 'blindRead'],
+  ['deny', 'notebook grande com offset/limit (Read ignora a faixa)', claude('Read', { file_path: BIG_NB, offset: 1, limit: 40 }), 'blindRead'],
+  ['allow', 'notebook com view_range (faixa real)',    vscode('view', { path: BIG_NB, view_range: [1, 40] }), null],
   ['allow', 'arquivo pequeno inteiro',                vscode('view', { path: SMALL }), null],
   ['allow', 'grep files_with_matches (barato)',       vscode('grep', { pattern: 'Service' }), null],
   ['allow', 'grep content com head_limit',            vscode('grep', { pattern: 'Service', output_mode: 'content', head_limit: 40 }), null],
@@ -107,4 +110,4 @@ function cleanup() {
   BOOT.restore();
 }
 
-module.exports = { CASES, TMP, BIG, SMALL, OUTSIDE, FOLD_CASE, cleanup };
+module.exports = { CASES, TMP, BIG, SMALL, OUTSIDE, FOLD_CASE, BIG_PDF, BIG_NB, cleanup };

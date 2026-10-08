@@ -179,6 +179,35 @@ console.log('\n  [bigResult]');
 }
 
 {
+  // Edit/Write: o tool_response traz o arquivo original inteiro, mas o modelo
+  // só recebe a confirmação curta — não é saída que entra na janela.
+  const r = PR.postProcess({
+    name: 'Edit', input: { file_path: 'a.cjs' },
+    result: { filePath: 'a.cjs', oldString: 'a', newString: 'b', originalFile: 'o'.repeat(40000), structuredPatch: [] },
+    root: TMP, cfg: cfg(),
+  });
+  const w = PR.postProcess({
+    name: 'Write', input: { file_path: 'b.cjs' },
+    result: { type: 'create', filePath: 'b.cjs', content: 'c'.repeat(40000) },
+    root: TMP, cfg: cfg(),
+  });
+  check('Edit/Write com arquivo grande não disparam bigResult', r === null && w === null,
+    (r || w || {}).additionalContext);
+}
+
+{
+  // Bash do Claude Code: bashEditDiff (diff dos arquivos que o comando editou)
+  // só aparece na interface; o modelo recebe stdout/stderr.
+  const r = PR.postProcess({
+    name: 'Bash', input: { command: 'python edit.py' },
+    result: { stdout: 'ok', stderr: '', interrupted: false, isImage: false,
+      bashEditDiff: { files: [{ path: 'a.md', diff: 'd'.repeat(40000) }] } },
+    root: TMP, cfg: cfg(),
+  });
+  check('bashEditDiff (só interface) não dispara bigResult', r === null, r && r.additionalContext);
+}
+
+{
   // .token-guard/results não cresce sem limite.
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-post-cap-'));
   for (let i = 0; i < PR.MAX_SAVED_RESULTS + 15; i++) {
