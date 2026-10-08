@@ -25,7 +25,7 @@ Escape hatch por ambiente (vence tudo): `TOKEN_GUARD=off` (ou `0`, `false`) desl
 | `rules.blindRead` | boolean, `true` | Barra leitura de arquivo grande sem faixa de linhas. |
 | `rules.broadScan` | boolean, `true` | Barra glob sem escopo e grep conteúdo sem teto nem filtro. |
 | `rules.shellDump` | boolean, `true` | Barra comando de shell que despeja árvore. |
-| `limits.readBytesWithoutRange` | número, `51200` | Acima disso (50 KB), ler sem faixa é barrado. |
+| `limits.readBytesWithoutRange` | número, `51200` | Acima disso (50 KB), ler sem faixa é barrado. Imagem raster (`.png/.jpg/.jpeg/.gif/.webp`) fica de fora: o Read a entrega como imagem, sem linhas. PDF conta `pages` como faixa. |
 | `limits.minRepoFilesForScanGuard` | número, `400` | Repos menores ficam livres dos guards de varredura. |
 | `noiseDirsExtra` | string[], `[]` | **Soma** aos defaults de diretórios de ruído. |
 | `noiseDirs` | string[] | Substitui a lista inteira (use só para isso). |

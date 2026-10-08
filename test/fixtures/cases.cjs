@@ -11,6 +11,11 @@ const BIG = path.join(TMP, 'BigService.java');
 const SMALL = path.join(TMP, 'Small.java');
 fs.writeFileSync(BIG, 'x'.repeat(120000), 'utf8');
 fs.writeFileSync(SMALL, 'x'.repeat(800), 'utf8');
+// Mesmo tamanho do BIG: o que muda a decisão é o TIPO, não os bytes.
+const BIG_PNG = path.join(TMP, 'dashboard.png');
+const BIG_SVG = path.join(TMP, 'diagram.svg');
+const BIG_PDF = path.join(TMP, 'manual.pdf');
+for (const f of [BIG_PNG, BIG_SVG, BIG_PDF]) fs.writeFileSync(f, 'x'.repeat(120000), 'utf8');
 
 fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
 fs.writeFileSync(
@@ -82,6 +87,10 @@ const CASES = [
   ['allow', 'glob amplo mas com paths',               vscode('glob', { pattern: '**/*', paths: ['src'] }), null],
   ['allow', 'leitura com faixa de linhas',            vscode('view', { path: BIG, view_range: [40, 90] }), null],
   ['allow', 'leitura com offset/limit',               claude('Read', { file_path: BIG, offset: 10, limit: 60 }), null],
+  ['allow', 'imagem grande sem faixa (Read entrega como imagem)', claude('Read', { file_path: BIG_PNG }), null],
+  ['deny', 'SVG grande sem faixa (é texto)',          claude('Read', { file_path: BIG_SVG }), 'blindRead'],
+  ['allow', 'PDF grande com pages',                   claude('Read', { file_path: BIG_PDF, pages: '1-5' }), null],
+  ['deny', 'PDF grande sem pages',                    claude('Read', { file_path: BIG_PDF }), 'blindRead'],
   ['allow', 'arquivo pequeno inteiro',                vscode('view', { path: SMALL }), null],
   ['allow', 'grep files_with_matches (barato)',       vscode('grep', { pattern: 'Service' }), null],
   ['allow', 'grep content com head_limit',            vscode('grep', { pattern: 'Service', output_mode: 'content', head_limit: 40 }), null],
