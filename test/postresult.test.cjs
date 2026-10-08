@@ -127,6 +127,69 @@ console.log('\n  [bigResult]');
     fs.existsSync(r.modifiedResult.full_output_file));
 }
 
+{
+  // Read de imagem no Claude Code: o base64 não é texto que entra na janela
+  // (o modelo recebe a imagem). Medir os bytes dele era o B4.
+  const b64 = 'A'.repeat(400000);
+  const r = PR.postProcess({
+    name: 'Read', input: { file_path: 'x.png' },
+    result: { type: 'image', file: { base64: b64, type: 'image/png', originalSize: 300000 } },
+    root: TMP, cfg: cfg(),
+  });
+  check('imagem (base64) não dispara bigResult', r === null, r && r.additionalContext);
+}
+
+{
+  // Copilot: toolResult é SEMPRE ToolResultObject. A substituição tem de
+  // continuar válida (textResultForLlm + resultType) e preservar o binário.
+  const bin = [{ type: 'image', mimeType: 'image/png', data: 'B'.repeat(400000) }];
+  const small = PR.postProcess({
+    name: 'view', input: {},
+    result: { textResultForLlm: 'ok', binaryResultsForLlm: bin, resultType: 'success' },
+    root: TMP, cfg: cfg(),
+  });
+  check('Copilot: binário grande com texto curto não dispara', small === null,
+    small && small.additionalContext);
+
+  const big = PR.postProcess({
+    name: 'grep', input: {},
+    result: { textResultForLlm: 'z'.repeat(5000), binaryResultsForLlm: bin, resultType: 'success' },
+    root: TMP, cfg: cfg(),
+  });
+  const m = big && big.modifiedResult;
+  check('Copilot: texto grande vira ToolResultObject válido (texto truncado, binário e resultType preservados)',
+    Boolean(m) && typeof m.textResultForLlm === 'string' && m.textResultForLlm.length < 2000 &&
+    m.resultType === 'success' && m.binaryResultsForLlm === bin,
+    JSON.stringify(m && Object.keys(m)));
+  check('Copilot: integral salvo é o texto, não o JSON com base64',
+    Boolean(big) && fs.readFileSync(big.savedTo, 'utf8') === 'z'.repeat(5000));
+}
+
+{
+  // Objeto que o harness não substitui (Bash no Claude Code devolve
+  // {stdout,...}): a mensagem não pode afirmar que truncou.
+  const r = PR.postProcess({
+    name: 'Bash', input: {},
+    result: { stdout: 'w'.repeat(5000), stderr: '', interrupted: false },
+    root: TMP, cfg: cfg(),
+  });
+  check('objeto não substituível: mensagem não diz "Truncated"',
+    Boolean(r) && !/Truncated|truncada/.test(r.additionalContext) && fs.existsSync(r.savedTo),
+    r && r.additionalContext.slice(0, 160));
+}
+
+{
+  // .token-guard/results não cresce sem limite.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-post-cap-'));
+  for (let i = 0; i < PR.MAX_SAVED_RESULTS + 15; i++) {
+    PR.postProcess({ name: 'Grep', input: {}, result: `${i}-` + 'q'.repeat(5000), root, cfg: cfg() });
+  }
+  const files = fs.readdirSync(path.join(root, '.token-guard', 'results'));
+  check(`results/ guarda no máximo ${PR.MAX_SAVED_RESULTS} arquivos`,
+    files.length === PR.MAX_SAVED_RESULTS, `${files.length} arquivos`);
+  try { fs.rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }
+}
+
 console.log('');
 console.log(`  ${pass} passaram · ${fail} falharam`);
 
