@@ -239,6 +239,23 @@ function mcp(messages) {
 }
 
 {
+  // Codex: hook `mcp_tool` chama token_guard_hook com o evento e lê a resposta
+  // no contrato de hook de comando — veredito de máquina, não orientação.
+  const call = (id, args) => mcp([{ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'token_guard_hook', arguments: args } }])[0];
+  const deny = call(10, { tool_name: 'Bash', tool_input: { command: 'ls -R /' }, cwd: TMP });
+  const denyText = deny && deny.result ? deny.result.content[0].text : '';
+  let denyJson = null; try { denyJson = JSON.parse(denyText); } catch { /* falha abaixo */ }
+  check('token_guard_hook nega com o JSON de PreToolUse (texto)',
+    Boolean(denyJson && denyJson.hookSpecificOutput && denyJson.hookSpecificOutput.permissionDecision === 'deny' &&
+      /shellDump/.test(denyJson.hookSpecificOutput.permissionDecisionReason)), denyText.slice(0, 200));
+  check('token_guard_hook entrega o mesmo JSON em structuredContent',
+    Boolean(deny && deny.result && JSON.stringify(deny.result.structuredContent) === denyText), JSON.stringify(deny && deny.result).slice(0, 200));
+  check('token_guard_hook não marca a negação como erro de ferramenta', deny && deny.result && deny.result.isError === false);
+  const allow = call(11, { tool_name: 'Bash', tool_input: { command: 'git status' }, cwd: TMP });
+  check('token_guard_hook libera com {}', Boolean(allow && allow.result && allow.result.content[0].text === '{}'), JSON.stringify(allow));
+}
+
+{
   const out = mcp([{
     jsonrpc: '2.0', id: 3, method: 'tools/call',
     params: { name: 'token_guard_check', arguments: { tool: 'view', input: { path: BIG }, path: TMP } },

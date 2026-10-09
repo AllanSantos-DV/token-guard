@@ -31,6 +31,7 @@ const readline = require('readline');
 const CFG = require('../lib/config.cjs');
 const AUDIT = require('../lib/audit.cjs');
 const { decide } = require('../lib/decide.cjs');
+const H = require('../lib/claude-hooks.cjs');
 
 const PROTOCOL_VERSION = '2024-11-05';
 const SERVER = { name: 'token-guard', version: require('../package.json').version };
@@ -121,6 +122,32 @@ const TOOLS = [
   },
 ];
 
+// Codex: o hook `mcp_tool` chama esta ferramenta no servidor que já está de
+// pé na sessão (sem processo por chamada) e lê a resposta no MESMO contrato
+// do hook de comando. Mesma decide() de todos os harnesses — só a ponte muda.
+TOOLS.push({
+  name: 'token_guard_hook',
+  description:
+    'Uso interno do hook PreToolUse do Codex (type "mcp_tool"): recebe o evento e devolve o veredito ' +
+    'no formato de hook. Para avaliar uma chamada planejada, use token_guard_check.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      tool_name: { type: 'string' },
+      tool_input: { type: 'object' },
+      cwd: { type: 'string' },
+    },
+    required: ['tool_name'],
+  },
+  handler: (args) => {
+    const verdict = decide({ tool_name: args?.tool_name, tool_input: args?.tool_input || {}, cwd: args?.cwd || process.cwd() });
+    checked += 1;
+    if (verdict) byRule[verdict.rule] = (byRule[verdict.rule] || 0) + 1;
+    const out = H.preEnvelope(verdict) || {};
+    return { text: JSON.stringify(out), structured: out };
+  },
+});
+
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
 /* ------------------------------------------------------------------ */
@@ -169,10 +196,9 @@ function handle(msg) {
       if (!tool) return replyError(id, -32602, `Ferramenta desconhecida: ${params?.name}`);
       try {
         const out = tool.handler(params?.arguments || {});
-        return reply(id, {
-          content: [{ type: 'text', text: String(out.text) }],
-          isError: Boolean(out.isError),
-        });
+        const result = { content: [{ type: 'text', text: String(out.text) }], isError: Boolean(out.isError) };
+        if (out.structured !== undefined) result.structuredContent = out.structured;
+        return reply(id, result);
       } catch (err) {
         // Fail-open também aqui: o erro vira conteúdo, não derruba a sessão.
         return reply(id, {

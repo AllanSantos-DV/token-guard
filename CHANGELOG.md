@@ -3,9 +3,32 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [2.5.1] — 2026-10-08
+## [2.6.0] — 2026-10-08
+
+### Adicionado
+- **Claude Code sem processo por chamada (backlog A16).** O hook de comando abria um
+  Node a cada evento — numa máquina com antivírus que inspeciona cada processo novo,
+  ~500 ms por chamada, quase nada disso sendo o guard. O Claude Code aceita hook
+  `type: "http"`: `init --target claude` agora registra PreToolUse, PostToolUse e
+  UserPromptSubmit como POST para o daemon em `127.0.0.1` (porta estável por usuário,
+  token em `~/.token-guard/daemon-http.token`, header `X-Token-Guard`). Mesma decisão,
+  mesmo envelope — os dois caminhos montam a resposta em `lib/claude-hooks.cjs`.
+  `--command-hooks` mantém o modo antigo (política que bloqueie hook http).
+- **SessionStart sobe o daemon antes da primeira ferramenta (backlog A17).** Um processo
+  por sessão deixa o daemon de pé, na versão certa e com HTTP ligado; a 1ª chamada não
+  espera mais o bring-up (1,2-1,4 s medidos) e o hook http não cai em conexão recusada.
+- **Codex CLI** (`init --target codex`): hook `PreToolUse` `type: "mcp_tool"` chamando a
+  ferramenta nova `token_guard_hook` do servidor MCP do token-guard, que fica de pé na
+  sessão — sem processo por chamada, mesma `decide()`. Registra
+  `[mcp_servers.token-guard]` no `config.toml` (só essa tabela; o resto do arquivo fica
+  byte a byte) e o hook no fim de `hooks.json` (sem deslocar a aprovação por índice dos
+  hooks existentes). O hook precisa ser aprovado em `/hooks` no Codex.
 
 ### Corrigido
+- **Lock de singleton podia travar o daemon fora para sempre (backlog A18).** Pid vivo no
+  lock não prova daemon vivo — depois de kill/reboot o SO reusa pids. O lock virou pista:
+  quem decide é o `listen()`. Locks de pid morto são varridos quando o daemon sobe
+  (42 acumulados em `%TEMP%/token-guard-locks` nesta máquina caíram para 2).
 - **blindRead: correção impossível para PDF e notebook, e faixa que driblava a
   regra** — PDF sem `pages` agora ensina `pages` (e não estima tokens por
   byte, já que PDF custa por página); o Read do Claude Code ignora

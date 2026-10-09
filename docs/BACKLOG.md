@@ -9,12 +9,17 @@
 
 | # | Item | Origem | Esforço |
 |---|---|---|---|
-| A16 | **O ganho end-to-end do daemon é marginal enquanto o cliente for um processo Node novo.** Medido nesta máquina (`bench/latency.cjs`, mediana de 25, faixa de duas janelas): hook com daemon de pé = 479-589 ms, piso de `node -e "0"` = 370-452 ms, decisão servida pelo daemon = 0,9-3,9 ms — o que o guard acrescenta sobre o piso (27-219 ms) cabe dentro da variação da própria máquina. O daemon tirou a decisão do caminho quente, mas o `spawn` que o harness faz por evento — e a inspeção do controle de aplicação corporativo sobre ele — continua sendo quase todo o custo. Sair dessa faixa exige um cliente que não nasça um Node: plugin in-process (já existe, só Copilot) ou cliente nativo/binário fino falando o mesmo framing de `lib/ipc-frame.cjs` | medição da auditoria doc-vs-código (2026-09-21) | L |
-| A17 | **A primeira chamada da sessão paga o bring-up do daemon (1 173-1 444 ms medidos)** — `tryDaemon` sobe o daemon e faz *polling* de `hello` até `bootTimeoutMs` (1,5 s) ANTES de responder, enquanto `decide()` local custa menos de 1 ms. O hook poderia decidir localmente de imediato e deixar o daemon esquentando em background (o veredito é o mesmo código em ambos os caminhos), reduzindo a cauda da 1ª chamada ao custo de um hook normal. Hoje o autostart no logon (F7) esconde isso quando funciona — e não esconde nada quando a política da máquina bloqueia a Task Scheduler | medição da auditoria doc-vs-código (2026-09-21) | M |
-| A18 | **O lock-record confia em `isAlive(pid)` puro e nunca é removido quando o daemon morre por `kill`/reboot** (`lib/daemon-lifecycle.cjs:acquireLock`, `adapters/daemon-server.cjs:defaultLockPath`). Duas consequências: (a) reuso de PID — comum no Windows — faz um lock órfão parecer vivo e o daemon novo do MESMO SID recusar a subir em silêncio, degradando pra efêmero pra sempre naquela conta; (b) `%TEMP%/token-guard-locks/` acumula um arquivo por SID de teste/bench que não passou pelo caminho de shutdown (116 encontrados nesta máquina, de vários dias), sem ninguém pra coletar. Fix sugerido: gravar também o start-time do processo (ou sondar o endpoint) antes de acreditar no pid, e limpar o lock no `exit` | medição da auditoria doc-vs-código (2026-09-21) | M |
 | A19 | **O gate de AC2 do `bench/daemon-bench.cjs` não é reproduzível nesta máquina.** Em 18 execuções sem nenhuma mudança de código, a mediana da rajada de 60 clientes variou 25-117 ms contra um limite de `<50 ms`: passou em 5 delas e reprovou nas outras 13, acompanhando o estado da máquina. O p95 (≤150 ms) passou em 17 de 18; AC1 e AC3 passaram em todas. Consequências: (a) `npm run bench:daemon` não serve como portão de CI/release no estado atual — falha sem regressão; (b) a baseline versionada só é gravada quando o gate passa, ou seja, registra a execução mais sortuda, e o guarda `--smoke` (`>2× baseline`) passa a acusar regressão fantasma (baseline isolada de 1,18 ms contra execuções normais de 3,0-3,9 ms). Decisão do dono: recalibrar o limite da mediana contra uma distribuição medida (p.ex. mediana das rodadas ≤ X com N execuções), ou separar "gate de release" de "medição de caracterização" — enquanto isso não for decidido não vai baseline versionada para o Node em uso (v25; a de v24 segue no repositório como histórico), e `--smoke` roda sem guarda de regressão em vez de acusar regressão fantasma | medição da auditoria doc-vs-código (2026-09-21) | M |
 
-## Fechado na avaliação a fundo de 2026-10-08 (release 2.5.1)
+## Fechado na release 2.6.0 (2026-10-08)
+
+| # | Item | Resultado |
+|---|---|---|
+| A16 | Ganho end-to-end do daemon marginal com cliente Node | Hook `type: "http"` do Claude Code servido pelo daemon (sem processo por chamada); Codex via `mcp_tool` no servidor MCP. Cursor e modo repo seguem em comando (o harness não oferece outro tipo) |
+| A17 | 1ª chamada da sessão pagava o bring-up | Hook `SessionStart` sobe/atualiza o daemon antes da primeira ferramenta |
+| A18 | Lock confiava em `isAlive(pid)` puro | Lock é pista, `listen()` decide; varredura de locks de pid morto ao subir |
+
+## Fechado na avaliação a fundo de 2026-10-08 (integração 2.6.0)
 
 | # | Item | Resultado |
 |---|---|---|

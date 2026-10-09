@@ -243,6 +243,58 @@ console.log('\n  [claude] hook http no daemon (A16) + SessionStart (A17)');
     all.includes('hook-cmd.cjs') && all.includes('post-hook.cjs') && all.includes('prompt-hook.cjs'), all);
 }
 
+console.log('\n  [codex] ponte mcp_tool -> servidor MCP do token-guard');
+{
+  const repo = mkrepo('host-codex');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-codex-'));
+  const codexHome = path.join(home, '.codex');
+  const ENV = { HOME: home, USERPROFILE: home, CODEX_HOME: codexHome };
+  fs.mkdirSync(codexHome, { recursive: true });
+  const cfgPath = path.join(codexHome, 'config.toml');
+  const hooksPath = path.join(codexHome, 'hooks.json');
+  const cfgBefore = 'model = "gpt-x"\r\n\r\n[mcp_servers.smart-tool]\r\nurl = "http://127.0.0.1:8765/mcp"\r\n\r\n[hooks.state."C:\\\\h.json:pre_tool_use:0:0"]\r\ntrusted_hash = "sha256:abc"\r\n';
+  fs.writeFileSync(cfgPath, cfgBefore, 'utf8');
+  fs.writeFileSync(hooksPath, JSON.stringify({ description: 'meus hooks', hooks: {
+    PreToolUse: [{ matcher: 'Bash|apply_patch', hooks: [{ type: 'command', command: 'python router.py', timeout: 15 }] }],
+    Stop: [{ hooks: [{ type: 'command', command: 'node stop.mjs' }] }],
+  } }, null, 2), 'utf8');
+
+  const r = runInstall(['--target', 'codex', repo], ENV);
+  check('instalação codex sai 0', r.status === 0, r.stderr || r.stdout);
+  const server = path.join(codexHome, 'token-guard', 'adapters', 'mcp-server.cjs');
+  check('runtime copiado para ~/.codex/token-guard', fs.existsSync(server), server);
+  const cfg = fs.readFileSync(cfgPath, 'utf8');
+  check('config.toml: o que já existia fica intacto (byte a byte, CRLF incluso)', cfg.startsWith(cfgBefore), JSON.stringify(cfg.slice(0, 160)));
+  check('config.toml: tabela [mcp_servers.token-guard] apontando para o servidor MCP instalado',
+    /\[mcp_servers\.token-guard\]\r\ncommand = ".+"\r\nargs = \[".+mcp-server\.cjs"\]/.test(cfg) && cfg.includes(server.replace(/\\/g, '/')), cfg);
+  const hk = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
+  const pre = hk.hooks.PreToolUse;
+  check('hooks.json: hook do Codex existente continua na posição 0 (aprovação por índice preservada)',
+    pre[0] && pre[0].hooks[0].command === 'python router.py', pre[0]);
+  const tg = pre.flatMap((e) => e.hooks).filter((h) => h.type === 'mcp_tool' && h.server === 'token-guard');
+  check('hooks.json: 1 hook mcp_tool -> token-guard/token_guard_hook com o evento nos templates',
+    tg.length === 1 && tg[0].tool === 'token_guard_hook' && tg[0].input.tool_name === '${tool_name}' &&
+    tg[0].input.tool_input === '${tool_input}' && tg[0].input.cwd === '${cwd}', tg);
+  check('hooks.json: matcher Bash e o resto preservado (description, Stop)',
+    pre[pre.length - 1].matcher === 'Bash' && hk.description === 'meus hooks' && hk.hooks.Stop.length === 1, hk);
+  check('aviso: aprovar o hook em /hooks', /\/hooks/.test(r.stdout), r.stdout.slice(-400));
+
+  const cfg1 = fs.readFileSync(cfgPath, 'utf8');
+  const hk1 = fs.readFileSync(hooksPath, 'utf8');
+  runInstall(['--target', 'codex', repo], ENV);
+  check('reinstalação codex é idempotente (config.toml e hooks.json idênticos)',
+    fs.readFileSync(cfgPath, 'utf8') === cfg1 && fs.readFileSync(hooksPath, 'utf8') === hk1);
+
+  // Tabela antiga (outro caminho, com subtabela) no MEIO do arquivo: é
+  // substituída inteira, sem duplicar e sem engolir a tabela seguinte.
+  fs.writeFileSync(cfgPath, cfgBefore + '\r\n[mcp_servers.token-guard]\r\ncommand = "node"\r\nargs = ["C:/velho/mcp-server.cjs"]\r\n\r\n[mcp_servers.token-guard.env]\r\nX = "1"\r\n\r\n[profiles.fim]\r\nmodel = "y"\r\n', 'utf8');
+  runInstall(['--target', 'codex', repo], ENV);
+  const cfg2 = fs.readFileSync(cfgPath, 'utf8');
+  check('tabela antiga substituída: 1 só, caminho novo, subtabela velha removida, tabela seguinte intacta',
+    (cfg2.match(/\[mcp_servers\.token-guard\]/g) || []).length === 1 && !cfg2.includes('C:/velho') &&
+    !cfg2.includes('token-guard.env') && cfg2.includes('[profiles.fim]\r\nmodel = "y"') && cfg2.startsWith(cfgBefore), cfg2);
+}
+
 console.log('\n  [claude] autostart do daemon (F7)');
 {
   // Windows: SÓ dry-run — schtasks/setx real mutaria a máquina do dev/CI de
