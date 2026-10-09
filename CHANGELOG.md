@@ -3,6 +3,14 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.6.1] — 2026-10-09
+
+### Corrigido
+- `package.json`: `bin` normalizado (`cli.cjs`), o que encerra o aviso
+  "script name cli.cjs was invalid and removed" do `npm publish` (o executável já
+  funcionava; o aviso aparecia desde a 2.5.0). A descrição do pacote passa a citar o
+  Codex e o hook http do Claude Code.
+
 ## [2.6.0] — 2026-10-08
 
 ### Adicionado
