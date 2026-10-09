@@ -57,6 +57,8 @@ const HOME = os.homedir();
 const argv = process.argv.slice(2);
 const DRY = argv.includes('--dry-run');
 const FORCE = argv.includes('--force');
+/** Claude Code: hooks de comando (um Node por chamada) em vez de http no daemon. */
+const COMMAND_HOOKS = argv.includes('--command-hooks');
 
 function optValue(flag) {
   const i = argv.indexOf(flag);
@@ -248,6 +250,72 @@ const MATCHER_COPILOT =
 
 /** O Claude Code usa nomes proprios e capitalizados; o matcher e regex sobre eles. */
 const MATCHER_CLAUDE = 'Read|Grep|Glob|Bash|LS|NotebookRead|Search';
+
+/* ------------------------------------------------------------------ */
+/* Claude Code — hook http servido pelo daemon (A16) + SessionStart (A17) */
+/* ------------------------------------------------------------------ */
+
+const DH = require('./adapters/daemon-http.cjs');
+
+function isTokenGuardHook(h) {
+  return (typeof h?.command === 'string' && h.command.includes('token-guard')) ||
+    (typeof h?.url === 'string' && h.url.includes('/token-guard/'));
+}
+
+/** Tira os hooks que casam `pred` de cada entrada; entrada que fica vazia sai. */
+function withoutHooks(entries, pred) {
+  return (Array.isArray(entries) ? entries : [])
+    .map((e) => (Array.isArray(e?.hooks) ? { ...e, hooks: e.hooks.filter((h) => !pred(h)) } : e))
+    .filter((e) => (Array.isArray(e?.hooks) ? e.hooks.length > 0 : !pred(e)));
+}
+
+/** Token do hook http: gerado uma vez, no perfil, legível só pelo dono. */
+function ensureHttpToken() {
+  const file = DH.httpTokenPath();
+  const existing = DH.readToken();
+  if (existing) return existing;
+  const token = require('crypto').randomBytes(32).toString('hex');
+  if (DRY) { log('create', `[dry-run] ${rel(HOME, file)}  (token do hook http)`); return token; }
+  ensureDir(path.dirname(file));
+  fs.writeFileSync(file, token + '\n', { encoding: 'utf8', mode: 0o600 });
+  log('create', `${rel(HOME, file)}  (token do hook http, só o dono lê)`);
+  return token;
+}
+
+/**
+ * Registra Pre/Post/UserPromptSubmit como hook http do daemon e o SessionStart
+ * que o deixa de pé. Substitui QUALQUER registro anterior do token-guard
+ * (comando ou http) e preserva os forasteiros — inclusive irmãos na mesma entrada.
+ */
+function registerClaudeHttp(settings, dir) {
+  const token = ensureHttpToken();
+  const base = `http://127.0.0.1:${DH.httpPort()}/token-guard`;
+  const http = (route) => ({ type: 'http', url: `${base}/${route}`, headers: { 'X-Token-Guard': token }, timeout: 10 });
+  const wanted = {
+    PreToolUse: { matcher: MATCHER_CLAUDE, hooks: [http('pre')] },
+    PostToolUse: { hooks: [http('post')] },
+    UserPromptSubmit: { hooks: [http('prompt')] },
+    SessionStart: { hooks: [{ type: 'command', command: nodeCmd(path.join(dir, 'adapters', 'session-start.cjs')), timeout: 15 }] },
+  };
+  for (const [event, entry] of Object.entries(wanted)) {
+    settings.hooks[event] = [...withoutHooks(settings.hooks[event], isTokenGuardHook), entry];
+  }
+  if (Array.isArray(settings.allowedHttpHookUrls) && !settings.allowedHttpHookUrls.some((u) => String(u).includes('127.0.0.1'))) {
+    notes.push(`claude   · allowedHttpHookUrls está definido e não inclui ${base}/* — adicione, ou reinstale com --command-hooks.`);
+  }
+}
+
+/** Modo comando: some com o http e o SessionStart do token-guard (volta do modo http). */
+function unregisterClaudeHttp(settings) {
+  const isTgHttp = (h) => h?.type === 'http' && isTokenGuardHook(h);
+  for (const event of ['PreToolUse', 'PostToolUse', 'UserPromptSubmit']) {
+    if (Array.isArray(settings.hooks[event])) settings.hooks[event] = withoutHooks(settings.hooks[event], isTgHttp);
+  }
+  if (Array.isArray(settings.hooks.SessionStart)) {
+    settings.hooks.SessionStart = withoutHooks(settings.hooks.SessionStart, isTokenGuardHook);
+    if (!settings.hooks.SessionStart.length) delete settings.hooks.SessionStart;
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Autostart do daemon (F7) — so junto do alvo claude: hoje e o unico  */
@@ -471,6 +539,21 @@ function installClaude() {
   const settingsPath = path.join(base, 'settings.json');
   const settings = readJson(settingsPath) || {};
   if (!settings.hooks || typeof settings.hooks !== 'object') settings.hooks = {};
+
+  if (!COMMAND_HOOKS) {
+    const before = JSON.stringify(settings);
+    registerClaudeHttp(settings, dir);
+    if (JSON.stringify(settings) === before) skipped.push('~/.claude/settings.json (hooks http do token-guard ja registrados)');
+    else writeJson(settingsPath, settings, base, 'settings.json  (PreToolUse/PostToolUse/UserPromptSubmit via http no daemon + SessionStart)');
+    writeGlobalConfig(base, base);
+    installDaemonAutostart(dir);
+    notes.push('claude   · reinicie a sessao do Claude Code: o SessionStart sobe o daemon e os hooks passam a ser http (sem processo por chamada).');
+    return;
+  }
+
+  const beforeStrip = JSON.stringify(settings.hooks);
+  unregisterClaudeHttp(settings);
+  const strippedHttp = JSON.stringify(settings.hooks) !== beforeStrip;
   if (!Array.isArray(settings.hooks.PreToolUse)) settings.hooks.PreToolUse = [];
 
   const command = nodeCmd(path.join(dir, 'adapters', 'hook-cmd.cjs'));
@@ -606,6 +689,7 @@ function installClaude() {
     }
   }
 
+  if (strippedHttp) writeJson(settingsPath, settings, base, 'settings.json  (hooks http do token-guard removidos: modo comando)');
   writeGlobalConfig(base, base);
   installDaemonAutostart(dir);
   notes.push('claude   · reinicie a sessao do Claude Code para carregar o hook.');

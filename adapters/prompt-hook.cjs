@@ -18,11 +18,11 @@
  * pode bloquear ou poluir a sessão.
  */
 
-const crypto = require('crypto');
 const path = require('path');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
 const { tryDaemon } = require('../lib/daemon-client.cjs');
+const H = require('../lib/claude-hooks.cjs');
 
 /** Caminho local (sem daemon) — leitura+decisão idêntica ao RPC `contract`. */
 function decideLocal(root, sessionId, state) {
@@ -45,14 +45,11 @@ async function main() {
   process.stdout.on('error', () => {});
   const payload = await P.readPayload();
 
-  const root = payload?.cwd || payload?.workingDirectory;
   // Sem cwd do harness não há contexto válido: operar sobre process.cwd()
   // gravaria estado no diretório errado (ex.: o próprio kit). Silêncio.
-  if (!root) return;
-  // Sem id do harness: deriva da RAIZ (não um 'sem-sessao' global que
-  // misturaria sessões de repositórios diferentes na mesma máquina).
-  const sessionId = payload?.session_id || payload?.sessionId
-    || `sess-${crypto.createHash('sha1').update(root).digest('hex').slice(0, 8)}`;
+  const args = H.promptArgs(payload);
+  if (!args) return;
+  const { root, sessionId } = args;
 
   // Estado da sessão (injected) fica sempre local — o daemon nunca persiste.
   const state = CT.readState(root, sessionId);
@@ -65,12 +62,7 @@ async function main() {
 
   // EMITE antes de persistir: se a entrega falhar (pipe fechado), o estado
   // continua limpo e a próxima submissão reinjeta — nunca perder o contrato.
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'UserPromptSubmit',
-      additionalContext: decision.text,
-    },
-  }));
+  process.stdout.write(JSON.stringify(H.promptEnvelope(decision.text)));
 
   CT.writeState(root, sessionId, {
     injected: [...state.injected, ...decision.triggers],

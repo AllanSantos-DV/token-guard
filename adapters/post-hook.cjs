@@ -19,31 +19,20 @@ const CT = require('../lib/contract.cjs');
 const { noteResult, isRead } = require('../lib/dupread.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
 const { tryDaemon } = require('../lib/daemon-client.cjs');
+const H = require('../lib/claude-hooks.cjs');
 
 async function main() {
   process.stdout.on('error', () => {});
   const payload = await P.readPayload();
 
-  const name = payload?.tool_name || payload?.toolName || '';
-  const root = payload?.cwd || process.cwd();
-  const inp = payload?.tool_input || payload?.toolInput || {};
-  const result = payload?.tool_response ?? payload?.toolResponse ?? payload?.tool_result
-    ?? payload?.tool_output;
-  const sid = payload?.session_id || payload?.sessionId;
+  const { name, input: inp, result, root, sessionId: sid } = H.postArgs(payload);
 
   const viaDaemon = await tryDaemon('postprocess', { name, input: inp, result, root, sessionId: sid });
   const trimmed = viaDaemon.ok
     ? viaDaemon.result.trimmed
     : postProcess({ name, input: inp, result, root, cfg: CFG.load(root) });
   if (trimmed) {
-    process.stdout.write(JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'PostToolUse',
-        updatedToolOutput:
-          typeof trimmed.modifiedResult === 'string' ? trimmed.modifiedResult : undefined,
-        additionalContext: trimmed.additionalContext,
-      },
-    }));
+    process.stdout.write(JSON.stringify(H.postEnvelope(trimmed)));
     return;
   }
 

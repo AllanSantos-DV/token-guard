@@ -113,7 +113,7 @@ console.log('\n  [máquina] preservação de assets do usuário');
     },
   }), 'utf8');
 
-  const r = runInstall(['--target', 'claude', '--mode', 'warn', repo], FAKE_ENV);
+  const r = runInstall(['--target', 'claude', '--mode', 'warn', '--command-hooks', repo], FAKE_ENV);
   check('instalação claude em home falso sai 0', r.status === 0, r.stderr);
   check('agente personalizado é PRESERVADO na reinstalação',
     fs.readFileSync(agentPath, 'utf8').includes('personalizada'),
@@ -152,7 +152,7 @@ console.log('\n  [máquina] preservação de assets do usuário');
   ] }];
   fs.writeFileSync(settingsPath, JSON.stringify(s2));
 
-  runInstall(['--target', 'claude', '--mode', 'warn', repo], FAKE_ENV);
+  runInstall(['--target', 'claude', '--mode', 'warn', '--command-hooks', repo], FAKE_ENV);
   const s3 = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   const tgPre3 = s3.hooks.PreToolUse.filter((e) => JSON.stringify(e).includes('token-guard'));
   check('liveOther: layout antigo vivo é SUBSTITUÍDO, não duplicado',
@@ -188,6 +188,59 @@ console.log('\n  [máquina] preservação de assets do usuário');
   fs.rmSync(home, { recursive: true, force: true });
   fs.rmSync(repo, { recursive: true, force: true });
   fs.rmSync(emptyRepo, { recursive: true, force: true });
+}
+
+console.log('\n  [claude] hook http no daemon (A16) + SessionStart (A17)');
+{
+  const repo = mkrepo('host-http');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-http-'));
+  const ENV = { HOME: home, USERPROFILE: home };
+  const settingsPath = path.join(home, '.claude', 'settings.json');
+  const tokenPath = path.join(home, '.token-guard', 'daemon-http.token');
+  const live = (n) => `node "${path.join(home, '.claude', 'token-guard', 'adapters', n).replace(/\\/g, '/')}"`;
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  // Instalação anterior em modo comando + forasteiros nos mesmos eventos.
+  fs.writeFileSync(settingsPath, JSON.stringify({ hooks: {
+    PreToolUse: [
+      { matcher: 'Read', hooks: [{ type: 'command', command: live('hook-cmd.cjs'), timeout: 10 }] },
+      { matcher: 'Grep', hooks: [{ type: 'http', url: 'http://127.0.0.1:8765/hooks/pretool' }] },
+    ],
+    PostToolUse: [{ hooks: [{ type: 'command', command: 'node "C:/outro/pos.cjs"' }, { type: 'command', command: live('post-hook.cjs') }] }],
+    UserPromptSubmit: [{ hooks: [{ type: 'command', command: live('prompt-hook.cjs') }] }],
+  } }), 'utf8');
+
+  const r = runInstall(['--target', 'claude', repo], ENV);
+  check('instalação http sai 0', r.status === 0, r.stderr);
+  const st = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+  const token = fs.existsSync(tokenPath) ? fs.readFileSync(tokenPath, 'utf8').trim() : '';
+  check('token do hook http gerado no perfil', token.length >= 32, token);
+  const tg = (ev) => (st.hooks[ev] || []).flatMap((e) => e.hooks || []).filter((h) => JSON.stringify(h).includes('token-guard'));
+  for (const [ev, route] of [['PreToolUse', 'pre'], ['PostToolUse', 'post'], ['UserPromptSubmit', 'prompt']]) {
+    const hs = tg(ev);
+    check(`${ev}: exatamente 1 hook do token-guard, tipo http na rota /token-guard/${route}`,
+      hs.length === 1 && hs[0].type === 'http' && /^http:\/\/127\.0\.0\.1:\d+\/token-guard\//.test(hs[0].url) &&
+      hs[0].url.endsWith(`/token-guard/${route}`), hs);
+    check(`${ev}: header X-Token-Guard igual ao token do perfil`, Boolean(hs[0] && hs[0].headers && hs[0].headers['X-Token-Guard'] === token), hs[0]);
+  }
+  const preEntry = st.hooks.PreToolUse.find((e) => JSON.stringify(e).includes('/token-guard/pre'));
+  check('PreToolUse http mantém o matcher de cobertura', Boolean(preEntry && preEntry.matcher === 'Read|Grep|Glob|Bash|LS|NotebookRead|Search'), preEntry);
+  const ss = tg('SessionStart');
+  check('SessionStart: 1 hook de comando para o session-start.cjs', ss.length === 1 && ss[0].type === 'command' && /session-start\.cjs/.test(ss[0].command), ss);
+  check('forasteiros preservados (http de outro projeto, comando irmão na mesma entrada)',
+    JSON.stringify(st.hooks.PreToolUse).includes('8765/hooks/pretool') && JSON.stringify(st.hooks.PostToolUse).includes('outro/pos.cjs'),
+    JSON.stringify(st.hooks));
+
+  const before = fs.readFileSync(settingsPath, 'utf8');
+  runInstall(['--target', 'claude', repo], ENV);
+  check('reinstalação http é idempotente (settings.json idêntico, token mantido)',
+    fs.readFileSync(settingsPath, 'utf8') === before && fs.readFileSync(tokenPath, 'utf8').trim() === token);
+
+  runInstall(['--target', 'claude', '--command-hooks', repo], ENV);
+  const back = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+  const all = JSON.stringify(back.hooks);
+  check('--command-hooks volta ao modo comando: sem http do token-guard, sem SessionStart dele',
+    !/\/token-guard\/(pre|post|prompt)"/.test(all) &&!JSON.stringify(back.hooks.SessionStart || []).includes('token-guard') &&
+    all.includes('hook-cmd.cjs') && all.includes('post-hook.cjs') && all.includes('prompt-hook.cjs'), all);
 }
 
 console.log('\n  [claude] autostart do daemon (F7)');
