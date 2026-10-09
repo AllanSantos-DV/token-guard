@@ -3,7 +3,7 @@
 /**
  * install.cjs — instala o token-guard no(s) harness(es) que você usa.
  *
- *   node install.cjs --target copilot|claude|cursor|mcp|repo|all [caminho] [opções]
+ *   node install.cjs --target copilot|claude|codex|cursor|mcp|repo|all [caminho] [opções]
  *
  * ALVOS
  *
@@ -21,6 +21,10 @@
  *             Bloqueio real, mas COBERTURA PARCIAL: o Cursor não expõe evento
  *             para grep/glob, então a regra broadScan não dispara. Veja docs/IDES.md.
  *
+ *   codex     ~/.codex/token-guard/ + [mcp_servers.token-guard] no config.toml +
+ *             hook PreToolUse type "mcp_tool" em ~/.codex/hooks.json. Bloqueio real
+ *             sem processo por chamada: o hook chama o servidor MCP da sessão.
+ *
  *   mcp       ~/.token-guard/ + snippet de configuração MCP
  *             Fallback universal (VS Code, Windsurf, Zed, JetBrains). NÃO bloqueia:
  *             entrega as ferramentas ao agente. Economia por orientação.
@@ -28,7 +32,7 @@
  *   repo      .github/token-guard/ + merge em .github/hooks/hooks.json
  *             Modo repositório: viaja no git, o time inteiro herda ao clonar.
  *
- *   all       copilot + claude + cursor + mcp (tudo que é de máquina)
+ *   all       copilot + claude + codex + cursor + mcp (tudo que é de máquina)
  *
  * OPÇÕES
  *   --mode block|warn|off   grava a config global com esse modo
@@ -80,9 +84,9 @@ let targets = (optValue('--target') || (LEGACY_PLUGIN ? 'copilot' : 'repo'))
   .map((t) => t.trim())
   .filter(Boolean);
 
-if (targets.includes('all')) targets = ['copilot', 'claude', 'cursor', 'mcp'];
+if (targets.includes('all')) targets = ['copilot', 'claude', 'codex', 'cursor', 'mcp'];
 
-const VALID = ['copilot', 'claude', 'cursor', 'mcp', 'repo'];
+const VALID = ['copilot', 'claude', 'codex', 'cursor', 'mcp', 'repo'];
 const invalid = targets.filter((t) => !VALID.includes(t));
 if (invalid.length) {
   console.error(`install: alvo inválido: ${invalid.join(', ')}. Use ${VALID.join('|')}|all.`);
@@ -701,6 +705,84 @@ function installClaude() {
 /* Alvo: cursor                                                        */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Codex — hook mcp_tool chamando o servidor MCP do token-guard           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Grava (ou substitui) UMA tabela TOML, inteira, sem tocar no resto do
+ * arquivo — inclusive as quebras de linha que ele já usa. Só o token-guard
+ * é dono de [mcp_servers.token-guard] (e de subtabelas dela).
+ */
+function upsertTomlTable(file, table, bodyLines, base, label) {
+  const prev = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  const eol = prev.includes('\r\n') ? '\r\n' : '\n';
+  const wanted = [`[${table}]`, ...bodyLines];
+  const lines = prev.length ? prev.split(/\r?\n/) : [];
+  const isHeader = (l) => /^\s*\[/.test(l);
+  const ours = (l) => l.trim() === `[${table}]` || l.trim().startsWith(`[${table}.`);
+  const start = lines.findIndex((l) => l.trim() === `[${table}]`);
+  let next;
+  if (start === -1) {
+    const head = prev.length ? prev.replace(/(\r?\n)*$/, '') + eol + eol : '';
+    next = head + wanted.join(eol) + eol;
+  } else {
+    let end = start + 1;
+    for (;;) {
+      while (end < lines.length && !isHeader(lines[end])) end++;
+      if (end < lines.length && ours(lines[end])) { end++; continue; }
+      break;
+    }
+    let blockEnd = end;
+    while (blockEnd > start + 1 && lines[blockEnd - 1].trim() === '') blockEnd--; // brancos ficam fora do bloco
+    next = [...lines.slice(0, start), ...wanted, ...lines.slice(blockEnd)].join(eol);
+  }
+  if (next === prev) { skipped.push(`${rel(base, file)} ([${table}] ja registrado)`); return; }
+  ensureDir(path.dirname(file));
+  if (!DRY) {
+    const tmp = file + '.tg-tmp-' + process.pid;
+    fs.writeFileSync(tmp, next, 'utf8');
+    fs.renameSync(tmp, file);
+  }
+  log(prev ? 'merge' : 'create', label);
+}
+
+function installCodex() {
+  const base = process.env.CODEX_HOME || path.join(HOME, '.codex');
+  const dir = path.join(base, 'token-guard');
+  installRuntime(dir, { base });
+
+  // O servidor MCP sobe uma vez por sessão do Codex e fica de pé: é ele que
+  // o hook chama — sem processo por chamada. Strings TOML básicas (JSON
+  // escapa igual) com barras normais.
+  const fwd = (p) => p.replace(/\\/g, '/');
+  upsertTomlTable(path.join(base, 'config.toml'), 'mcp_servers.token-guard', [
+    `command = ${JSON.stringify(fwd(process.execPath))}`,
+    `args = [${JSON.stringify(fwd(path.join(dir, 'adapters', 'mcp-server.cjs')))}]`,
+  ], base, 'config.toml  ([mcp_servers.token-guard])');
+
+  const hooksPath = path.join(base, 'hooks.json');
+  const hooks = readJson(hooksPath) || {};
+  if (!hooks.hooks || typeof hooks.hooks !== 'object') hooks.hooks = {};
+  const before = JSON.stringify(hooks);
+  const isOurs = (h) => h?.type === 'mcp_tool' && h?.server === 'token-guard';
+  // Entrada nossa vai SEMPRE no fim: a aprovação do Codex é por índice
+  // (hooks.json:pre_tool_use:<i>:<j>) — não deslocar os hooks já aprovados.
+  hooks.hooks.PreToolUse = [...withoutHooks(hooks.hooks.PreToolUse, isOurs), {
+    matcher: 'Bash',
+    hooks: [{
+      type: 'mcp_tool', server: 'token-guard', tool: 'token_guard_hook',
+      input: { tool_name: '${tool_name}', tool_input: '${tool_input}', cwd: '${cwd}' },
+      timeout: 10, statusMessage: 'token-guard',
+    }],
+  }];
+  if (JSON.stringify(hooks) === before) skipped.push(`${rel(base, hooksPath)} (hook do token-guard ja registrado)`);
+  else writeJson(hooksPath, hooks, base, 'hooks.json  (PreToolUse: mcp_tool -> token-guard/token_guard_hook)');
+
+  notes.push('codex    · abra o Codex e aprove o hook do token-guard em /hooks — hook novo fica desativado ate ser aprovado.');
+  notes.push('codex    · cobertura: o agente le arquivos pelo shell, entao a regra que atua e shellDump (Bash).');
+}
+
 function installCursor() {
   let staleCursor = false;
   const base = path.join(HOME, '.cursor');
@@ -905,6 +987,7 @@ const RUNNERS = {
   copilot: installCopilot,
   claude: installClaude,
   cursor: installCursor,
+  codex: installCodex,
   mcp: installMcp,
   repo: installRepo,
 };

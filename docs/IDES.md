@@ -19,8 +19,9 @@ O núcleo (`lib/`) é o mesmo em todos. O que muda é o quanto dele consegue rod
 | GitHub Copilot CLI | `copilot` | Extensão in-process (SDK) | ✅ sim | todas as 4 + bigResult real |
 | GitHub Copilot App | `copilot` | Extensão in-process (SDK) | ✅ sim | todas as 4 + bigResult real |
 | Copilot CLI (repo) | `repo` | `PreToolUse` via `.github/hooks/hooks.json` | ✅ sim | todas as 4 |
-| Claude Code | `claude` | `PreToolUse` via `~/.claude/settings.json` | ✅ sim | todas as 4 |
-| Claude Code (saída) | `claude` | `PostToolUse` `updatedToolOutput` (v2.1.121+) | ✅ substitui | bigResult real |
+| Claude Code | `claude` | `PreToolUse` **http** servido pelo daemon (sem processo por chamada); `--command-hooks` volta ao hook de comando | ✅ sim | todas as 4 |
+| Claude Code (saída) | `claude` | `PostToolUse` http · `updatedToolOutput` (v2.1.121+) | ✅ substitui | bigResult real |
+| Codex CLI | `codex` | `PreToolUse` **`mcp_tool`** → servidor MCP do token-guard (sem processo por chamada) | ✅ sim, depois de aprovado em `/hooks` | shellDump (o agente lê arquivos pelo shell) |
 | Cursor (IDE) | `cursor` | `preToolUse` genérico (recente) + os 3 nomeados | ✅ sim | **todas as 4** |
 | Cursor CLI (`cursor-agent`) | `cursor` | subset dos eventos | ⚠️ mínimo | shellDump (+ o que o CLI entregar) |
 | VS Code Copilot Chat | `mcp` | MCP server | ❌ não | orientação via `token_guard_check` |
@@ -64,6 +65,34 @@ eventos nomeados (blindRead, noisePath, shellDump).
 
 No `cursor-agent` (CLI), a entrega continua reduzida (só shell) — limitação do
 harness, não deste adapter.
+
+### Claude Code: hook http, sem processo por chamada
+
+No hook de comando o Claude Code abre um processo Node a cada chamada — numa
+máquina com antivírus que inspeciona cada processo novo, é isso, não a decisão,
+que custa. Desde a 2.6.0 o `init --target claude` registra os três eventos como
+hook `type: "http"`: o Claude Code faz POST do mesmo JSON para o daemon em
+`127.0.0.1` (porta estável por usuário, token no header `X-Token-Guard`) e lê a
+resposta no mesmo formato. Um hook `SessionStart` de comando — um processo por
+**sessão** — deixa o daemon de pé antes da primeira ferramenta.
+
+Limites honestos: hook http com o daemon fora do ar falha **aberto** (a ferramenta
+passa sem guard); por isso, com HTTP ligado, o daemon não se encerra por ociosidade.
+Se a política da máquina restringir `allowedHttpHookUrls`, inclua a URL do
+token-guard ou instale com `--command-hooks`.
+
+### Codex: hook `mcp_tool`
+
+O Codex não tem hook http, mas tem `type: "mcp_tool"`: o hook chama uma ferramenta
+num servidor MCP **já conectado** à sessão e lê a resposta no contrato do hook de
+comando. O `init --target codex` registra o servidor MCP do token-guard em
+`~/.codex/config.toml` e o hook `PreToolUse` (matcher `Bash`) em `~/.codex/hooks.json`,
+chamando `token_guard_hook` — a mesma `decide()` de todos os alvos.
+
+- **Hook novo do Codex fica desativado até ser aprovado** em `/hooks` (revisão de
+  segurança do próprio Codex). O instalador não aprova por você.
+- O agente do Codex lê arquivos pelo shell (`cat`, `rg`, `sed`), então a regra que
+  atua é `shellDump`; `blindRead` não enxerga um `cat` de arquivo grande.
 
 ### Por que o MCP não bloqueia
 

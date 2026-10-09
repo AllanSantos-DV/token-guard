@@ -16,10 +16,17 @@ faz com a sua máquina e os seus dados:
 - **Daemon residente** (`node adapters/daemon-server.cjs`): processo único por usuário
   que serve a mesma decisão por IPC, para os hooks não pagarem um `spawn` por evento.
   Escuta em named pipe local (`\\.\pipe\token-guard-<sid>`) no Windows ou socket UNIX
-  (`$XDG_RUNTIME_DIR|/tmp/token-guard-<uid>.sock`, `chmod 700`) no POSIX — sem porta TCP,
-  sem alcance de rede. Autoencerra após 10 min sem requisição
-  (`TOKEN_GUARD_DAEMON_IDLE_MS`, 0 desativa). Verificação da ACL do pipe:
+  (`$XDG_RUNTIME_DIR|/tmp/token-guard-<uid>.sock`, `chmod 700`) no POSIX. Autoencerra após
+  10 min sem requisição (`TOKEN_GUARD_DAEMON_IDLE_MS`, 0 desativa) — exceto com o hook http
+  ligado (abaixo), quando ele é o único caminho dos hooks. Verificação da ACL do pipe:
   `scripts/verify-daemon-security.ps1`.
+- **Hook http do Claude Code** (desde a 2.6.0, `init --target claude`): o daemon também
+  escuta em **TCP `127.0.0.1`** (nunca em outra interface), numa porta estável por usuário.
+  Toda requisição precisa do header `X-Token-Guard` com o token de
+  `~/.token-guard/daemon-http.token` (32 bytes aleatórios, gravado pelo instalador com
+  permissão só do dono, copiado para o `~/.claude/settings.json`); sem ele, 401 e nada é
+  decidido. Sem o arquivo de token, a porta nem abre. Qualquer processo local pode tentar
+  conectar — o token é o que separa. `--command-hooks` dispensa a porta.
 - `npx @allansantos-dev/token-guard audit` só varre o disco em leitura.
 
 ## O que lê
@@ -35,6 +42,7 @@ faz com a sua máquina e os seus dados:
   com o id de sessão sanitizado (≤80 chars, sem separador de caminho). Poda após 7 dias.
 - `~/.token-guard/update-check.json` — `{ latestVersion, checkedAt }` da checagem de
   versão descrita abaixo.
+- `~/.token-guard/daemon-http.token` — token do hook http (só com `--target claude`).
 - Lock de singleton do daemon: `<socket>.lock` no POSIX,
   `%TEMP%/token-guard-locks/<pipe>.lock` no Windows — pid e versão de protocolo.
 - Nos alvos de máquina: runtime e config sob o seu perfil (`~/.copilot`, `~/.claude`,
