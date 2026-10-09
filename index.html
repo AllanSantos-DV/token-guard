@@ -6,7 +6,7 @@
 <title>token-guard · economia de contexto para agentes de IA</title>
 <meta name="description" content="Kit IDE-agnóstico que mede o custo real do seu repositório em tokens e barra as chamadas que estouram a janela — devolvendo sempre a alternativa barata. Zero dependências.">
 <meta property="og:title" content="token-guard — a janela de contexto do seu agente não é lixeira">
-<meta property="og:description" content="Mede o custo real do repositório em tokens e barra as chamadas caras, devolvendo a alternativa barata. Copilot, Claude Code, Cursor e MCP. Zero dependências.">
+<meta property="og:description" content="Mede o custo real do repositório em tokens e barra as chamadas caras, devolvendo a alternativa barata. Copilot, Claude Code, Codex, Cursor e MCP. Zero dependências.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://allansantos-dv.github.io/token-guard/">
 <meta name="twitter:card" content="summary_large_image">
@@ -202,7 +202,7 @@ footer a{color:var(--ink)}
       <a class="btn primary" href="#install">Instalar em 3 comandos</a>
       <a class="btn" href="https://github.com/AllanSantos-DV/token-guard">C&oacute;digo-fonte</a>
     </div>
-    <p class="meta-line">zero depend&ecirc;ncias &middot; node 16+ &middot; copilot &middot; claude code &middot; cursor &middot; mcp</p>
+    <p class="meta-line">zero depend&ecirc;ncias &middot; node 16+ &middot; copilot &middot; claude code &middot; codex &middot; cursor &middot; mcp</p>
   </div>
 
   <div class="meter-card" aria-label="Demonstra&ccedil;&atilde;o interativa do guard">
@@ -327,7 +327,8 @@ GANHO IMEDIATO &mdash; descartando build/deps:
     <thead><tr><th>Harness</th><th>Mecanismo</th><th>Bloqueia?</th><th>Cobre</th></tr></thead>
     <tbody>
       <tr><td>Copilot CLI / App</td><td>extens&atilde;o in-process</td><td class="yes">sim</td><td>4 regras + bigResult real</td></tr>
-      <tr><td>Claude Code</td><td>PreToolUse + PostToolUse + UserPromptSubmit</td><td class="yes">sim</td><td>4 regras + contrato injetado + bigResult*<br><small style="color:var(--ink-soft)">*substitui&ccedil;&atilde;o real no Claude Code &ge; 2.1.121</small></td></tr>
+      <tr><td>Claude Code</td><td>hook http no daemon &mdash; sem processo por chamada (PreToolUse + PostToolUse + UserPromptSubmit) + SessionStart</td><td class="yes">sim</td><td>4 regras + contrato injetado + bigResult*<br><small style="color:var(--ink-soft)">*substitui&ccedil;&atilde;o real no Claude Code &ge; 2.1.121</small></td></tr>
+      <tr><td>Codex CLI</td><td>hook <code>mcp_tool</code> &rarr; servidor MCP do token-guard, sem processo por chamada</td><td class="yes">sim<br><small style="color:var(--ink-soft)">ap&oacute;s aprovar em /hooks</small></td><td>shellDump (o agente l&ecirc; arquivos pelo shell)</td></tr>
       <tr><td>Cursor (IDE recente)</td><td>preToolUse gen&eacute;rico + eventos nomeados</td><td class="yes">sim</td><td>todas as 4 regras</td></tr>
       <tr><td>VS Code / Windsurf / Zed / JetBrains</td><td>MCP server</td><td class="no">orienta</td><td>token_audit · token_guard_check · mcp-cost</td></tr>
     </tbody>
@@ -344,7 +345,7 @@ GANHO IMEDIATO &mdash; descartando build/deps:
     <div class="cmd"><span class="n">02</span><code id="c2">npx @allansantos-dev/token-guard init --target all --mode warn</code><button class="copy" data-c="npx @allansantos-dev/token-guard init --target all --mode warn">copiar</button></div>
     <div class="cmd"><span class="n">03</span><code id="c3">npx @allansantos-dev/token-guard test</code><button class="copy" data-c="npx @allansantos-dev/token-guard test">copiar</button></div>
   </div>
-  <p class="src">Alvos: copilot · claude · cursor · mcp · repo (viaja no git). Emerg&ecirc;ncia: TOKEN_GUARD=off.</p>
+  <p class="src">Alvos: copilot · claude · codex · cursor · mcp · repo (viaja no git). Emerg&ecirc;ncia: TOKEN_GUARD=off.</p>
 </section>
 
 <!-- ============ PRINCÍPIOS ============ -->
