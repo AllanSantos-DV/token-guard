@@ -25,6 +25,19 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   hooks existentes). O hook precisa ser aprovado em `/hooks` no Codex.
 
 ### Corrigido
+- **Falsos positivos achados no replay de 2026-10 (176 sessões, 59 mil chamadas reais)**,
+  auditados um a um — 205 → 190 bloqueios, todos os restantes conferidos como legítimos:
+  - **o guard negava o próprio conselho:** o bigResult manda ler o integral salvo em
+    `.token-guard/results/`, e o noisePath barrava essa leitura (8 casos); o broadScan
+    recomenda limitar glob "por nome (`**/*Service*`)" e negava esse padrão;
+  - noisePath barrava a saída de tarefa que o Claude Code manda ler em `%TEMP%` quando a
+    sessão roda na pasta do usuário (o próprio `Temp` casava com `temp`);
+  - shellDump: `Get-ChildItem -Recurse -Filter`/`-Depth`, `| Where-Object`, `Select-String`
+    dentro de `ForEach-Object { }`, predicados do `find` (`-newer`, `-mtime`, `-size`…),
+    `git ls-files --others/-mo` (conjuntos de status) e `find arquivo.ext` contam como
+    limitados; corpo de heredoc (mensagem de commit) e texto entre aspas deixaram de ser
+    lidos como comando. E o teto passou a valer **por comando**: um redirect na linha
+    anterior não libera mais um `ls -R` na seguinte.
 - **Lock de singleton podia travar o daemon fora para sempre (backlog A18).** Pid vivo no
   lock não prova daemon vivo — depois de kill/reboot o SO reusa pids. O lock virou pista:
   quem decide é o `listen()`. Locks de pid morto são varridos quando o daemon sobe
