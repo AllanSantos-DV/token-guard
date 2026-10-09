@@ -109,6 +109,7 @@ Alvos disponíveis:
 ```bash
 npx @allansantos-dev/token-guard init --target copilot   # Copilot CLI / App    (bloqueia)
 npx @allansantos-dev/token-guard init --target claude    # Claude Code          (bloqueia)
+npx @allansantos-dev/token-guard init --target codex     # Codex CLI            (bloqueia, após /hooks)
 npx @allansantos-dev/token-guard init --target cursor    # Cursor (recente)      (bloqueia)
 npx @allansantos-dev/token-guard init --target mcp       # VS Code, Windsurf…   (só orienta)
 npx @allansantos-dev/token-guard init --target repo      # .github/ do repo     (viaja no git)
@@ -320,13 +321,13 @@ números que sustentam as premissas são medidos por este mesmo kit:
 **Não existe escopo "por sessão".** O alcance é por máquina ou por repositório — nunca
 por conversa. Há dois modos de execução, e a diferença entre eles é de política:
 
-| | **Máquina** (`--target copilot\|claude\|cursor\|mcp`) | **Repositório** (`--target repo`) |
+| | **Máquina** (`--target copilot\|claude\|codex\|cursor\|mcp`) | **Repositório** (`--target repo`) |
 |---|---|---|
-| Onde | `~/.copilot/`, `~/.claude/`, `~/.cursor/`, `~/.token-guard/` | `.github/` do repo |
+| Onde | `~/.copilot/`, `~/.claude/`, `~/.codex/`, `~/.cursor/`, `~/.token-guard/` | `.github/` do repo |
 | Alcance | Todos os repos **desta máquina** | Só este repo, **mas viaja no git** |
 | Quem herda | só você | **quem clonar** |
-| Execução | in-process (Copilot) ou comando (Claude/Cursor) | comando por chamada |
-| Custo por chamada | **sub-milissegundo** in-process · **~1–4 ms** de decisão servida pelo daemon, mais o spawn do hook | idem |
+| Execução | in-process (Copilot) · hook http no daemon (Claude Code) · `mcp_tool` no servidor MCP (Codex) · comando (Cursor) | comando por chamada |
+| Custo por chamada | **sub-milissegundo** in-process · **~1–2 ms** no hook http do Claude Code · no modo comando, ~1–4 ms de decisão mais o spawn do hook | spawn do hook por chamada |
 | Extras | expõe `token_audit` e `token_guard_status` ao agente | — |
 | Repositório do cliente | ✅ nada é commitado | ❌ exige commit |
 
@@ -382,15 +383,22 @@ Quatro leituras honestas desses números:
   evento) e troca N processos por um residente de ~63 MB. O `spawn` do cliente continua
   sendo pago pelo harness a cada evento — e não existe modo "hook sem daemon" para
   comparar, porque o próprio hook sobe o daemon se o endpoint não responder. Ganho
-  end-to-end exige um cliente que não seja um processo Node novo: hoje isso é o modo
-  plugin; um cliente nativo está no [BACKLOG](docs/BACKLOG.md).
-- **A primeira chamada da sessão é a cara** (1,2–1,4 s aqui): ela espera o daemon subir.
-  É por isso que `init --target claude` registra o autostart no logon — com o daemon
-  já de pé, nenhuma chamada paga esse bring-up.
+  end-to-end exige um cliente que não seja um processo Node novo — e desde a 2.6.0 o
+  Claude Code tem um: o **hook http** (abaixo).
+- **A primeira chamada da sessão era a cara** (1,2–1,4 s aqui): ela esperava o daemon
+  subir. Desde a 2.6.0 o hook `SessionStart` sobe o daemon antes da primeira ferramenta.
+
+**Hook http do Claude Code (2.6.0).** Com `init --target claude`, o Claude Code faz POST
+do evento para o daemon já de pé — nenhum processo nasce por chamada. Medido em outra
+máquina (Windows, Node v24.14.1, sem o antivírus corporativo), mediana de 25, o mesmo
+`deny`: **hook http 1,4 ms** (p95 2,2) contra **hook de comando 108,8 ms** (p95 110,6).
+Na máquina corporativa da tabela acima, onde o piso de nascer um Node é 370–452 ms, a
+diferença tende a ser maior — meça na sua. `--command-hooks` volta ao modo antigo.
 
 Duas defesas, nesta ordem:
 
-1. **Use o modo plugin** quando o alcance de máquina servir. O custo desaparece.
+1. **Use um caminho sem processo por chamada** quando o alcance de máquina servir:
+   plugin no Copilot, hook http no Claude Code (padrão da 2.6.0), `mcp_tool` no Codex.
 2. **No modo repositório**, o `matcher` do `hooks.json` impede o processo de nascer
    para ferramentas que nunca seriam barradas (`edit`, `create`, PR, issue). Supondo
    ~36 chamadas de ferramenta por sessão e ~40% delas nas famílias vigiadas, são ~14

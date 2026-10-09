@@ -90,14 +90,16 @@ function help() {
 
                             copilot   Copilot CLI / Copilot App   (bloqueia)
                             claude    Claude Code                 (bloqueia)
+                            codex     Codex CLI                   (bloqueia, após /hooks)
                             cursor    Cursor (recente)            (bloqueia)
                             mcp       qualquer IDE com MCP        (só orienta)
                             repo      .github/ do repositório      (viaja no git)
-                            all       copilot + claude + cursor + mcp
+                            all       copilot + claude + codex + cursor + mcp
 
                           --mode warn   começa avisando em vez de bloquear
                           --dry-run     simula, não escreve nada
                           --force       sobrescreve config já existente
+                          --command-hooks  Claude Code com hook de comando em vez de http
 
     audit [caminho]       Mede o custo de contexto do repositório.
                           --md          relatório em markdown
