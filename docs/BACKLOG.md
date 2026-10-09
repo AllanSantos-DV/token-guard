@@ -7,9 +7,7 @@
 
 ## Aberto
 
-| # | Item | Origem | Esforço |
-|---|---|---|---|
-| A19 | **O gate de AC2 do `bench/daemon-bench.cjs` não é reproduzível nesta máquina.** Em 18 execuções sem nenhuma mudança de código, a mediana da rajada de 60 clientes variou 25-117 ms contra um limite de `<50 ms`: passou em 5 delas e reprovou nas outras 13, acompanhando o estado da máquina. O p95 (≤150 ms) passou em 17 de 18; AC1 e AC3 passaram em todas. Consequências: (a) `npm run bench:daemon` não serve como portão de CI/release no estado atual — falha sem regressão; (b) a baseline versionada só é gravada quando o gate passa, ou seja, registra a execução mais sortuda, e o guarda `--smoke` (`>2× baseline`) passa a acusar regressão fantasma (baseline isolada de 1,18 ms contra execuções normais de 3,0-3,9 ms). Decisão do dono: recalibrar o limite da mediana contra uma distribuição medida (p.ex. mediana das rodadas ≤ X com N execuções), ou separar "gate de release" de "medição de caracterização" — enquanto isso não for decidido não vai baseline versionada para o Node em uso (v25; a de v24 segue no repositório como histórico), e `--smoke` roda sem guarda de regressão em vez de acusar regressão fantasma | medição da auditoria doc-vs-código (2026-09-21) | M |
+_(nenhum item aberto — A16-A19 fechados na release 2.6.0)_
 
 ## Fechado na release 2.6.0 (2026-10-08)
 
@@ -18,6 +16,7 @@
 | A16 | Ganho end-to-end do daemon marginal com cliente Node | Hook `type: "http"` do Claude Code servido pelo daemon (sem processo por chamada); Codex via `mcp_tool` no servidor MCP. Cursor e modo repo seguem em comando (o harness não oferece outro tipo) |
 | A17 | 1ª chamada da sessão pagava o bring-up | Hook `SessionStart` sobe/atualiza o daemon antes da primeira ferramenta |
 | A18 | Lock confiava em `isAlive(pid)` puro | Lock é pista, `listen()` decide; varredura de locks de pid morto ao subir |
+| A19 | Gate de AC2 do `daemon-bench` não reproduzível (passava em 5 de 18 execuções sem mudança de código) | Decisão do dono (opção b): o bench deixou de ser portão — é medição de caracterização. AC1-AC3 aparecem como referência ao lado da medida, a saída é sempre 0 e nenhuma baseline é gravada; o `--smoke` só mede. Sem baseline versionada para o Node em uso até alguém medir uma distribuição confiável (as antigas ficam como histórico) |
 
 ## Fechado na avaliação a fundo de 2026-10-08 (integração 2.6.0)
 

@@ -38,6 +38,9 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
     limitados; corpo de heredoc (mensagem de commit) e texto entre aspas deixaram de ser
     lidos como comando. E o teto passou a valer **por comando**: um redirect na linha
     anterior não libera mais um `ls -R` na seguinte.
+- **`bench/daemon-bench.cjs` deixou de ser portão (backlog A19).** O AC2 passava em 5 de 18
+  execuções sem mudança de código. Agora é medição de caracterização: os critérios
+  aparecem como referência, a saída é sempre 0 e não grava baseline.
 - **Lock de singleton podia travar o daemon fora para sempre (backlog A18).** Pid vivo no
   lock não prova daemon vivo — depois de kill/reboot o SO reusa pids. O lock virou pista:
   quem decide é o `listen()`. Locks de pid morto são varridos quando o daemon sobe

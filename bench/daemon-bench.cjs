@@ -13,9 +13,15 @@
  * Cada execução mede ROUNDS rodadas de (isolada + burst) contra o mesmo daemon e
  * reporta a mediana entre rodadas, mais a lista `rounds` com a dispersão crua.
  *
- *   node bench/daemon-bench.cjs           — gate completo, asserts duros, exit(1) na 1ª AC furada
- *   node bench/daemon-bench.cjs --smoke   — variante leve (N=5, sem burst) p/ CI genérico: só
- *                                            detecta regressão grosseira (>2× baseline versionada)
+ *   node bench/daemon-bench.cjs           — caracterização completa (isolada + burst + RSS)
+ *   node bench/daemon-bench.cjs --smoke   — variante leve (N=5, sem burst)
+ *
+ * NÃO é portão de CI/release (backlog A19, decisão do dono 2026-10-08): em 18
+ * execuções sem mudança de código a mediana do burst variou 25-117 ms e o
+ * AC2 (<50 ms) passou em só 5 — reprovava sem regressão. Os limites AC1-AC3
+ * viram REFERÊNCIA impressa ao lado da medida; a saída é sempre 0 (exceto se
+ * o próprio bench quebrar) e nenhuma baseline é gravada até alguém medir uma
+ * distribuição confiável. As baselines antigas ficam no repositório como histórico.
  */
 
 const net = require('net');
@@ -29,8 +35,6 @@ const { CASES, cleanup } = require('../test/fixtures/cases.cjs');
 
 const SMOKE = process.argv.includes('--smoke');
 const ROOT = path.join(__dirname, '..');
-const NODE_MAJOR = process.version.match(/^v(\d+)/)[1];
-const BASELINE_PATH = path.join(__dirname, `baseline-${process.platform}-node${NODE_MAJOR}.json`);
 
 function percentile(arr, p) {
   const s = [...arr].sort((a, b) => a - b);
@@ -238,42 +242,16 @@ async function main() {
   };
   console.log(JSON.stringify(result, null, 2));
 
-  if (SMOKE) {
-    if (!fs.existsSync(BASELINE_PATH)) {
-      console.log('sem baseline versionada pra esta plataforma/node — smoke roda sem guarda de regressão.');
-      process.exit(0);
-    }
-    const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
-    if (result.medianIsolatedMs > baseline.medianIsolatedMs * 2) {
-      console.error(
-        `REGRESSÃO: mediana isolada ${result.medianIsolatedMs}ms > 2× baseline (${baseline.medianIsolatedMs}ms)`
-      );
-      process.exit(1);
-    }
-    process.exit(0);
-  }
+  if (SMOKE) process.exit(0);
 
-  const failures = [];
-  if (!(result.medianIsolatedMs <= 5)) {
-    failures.push(`AC1: mediana isolada ${result.medianIsolatedMs}ms > 5ms`);
-  }
-  if (!(p95Burst <= 150 && medianBurst < 50)) {
-    failures.push(
-      `AC2: burst mediana=${result.medianBurstMs}ms p95=${result.p95BurstMs}ms (limites: mediana<50ms, p95<=150ms)`
-    );
-  }
-  if (peakRSS !== null && !(result.peakRSSMB <= 70)) {
-    failures.push(`AC3: pico RSS ${result.peakRSSMB}MB > 70MB`);
-  }
-
-  if (failures.length) {
-    console.error('\nFALHOU:');
-    failures.forEach((f) => console.error(`  - ${f}`));
-    process.exit(1);
-  }
-
-  fs.writeFileSync(BASELINE_PATH, JSON.stringify(result, null, 2));
-  console.log(`\nTodos os thresholds atendidos (AC1-AC3). Baseline salva em ${path.relative(ROOT, BASELINE_PATH)}.`);
+  // Referência, não veredito: cada AC aparece ao lado da medida.
+  const ref = [
+    ['AC1 mediana isolada <=5ms', result.medianIsolatedMs <= 5, `${result.medianIsolatedMs}ms`],
+    ['AC2 burst mediana<50ms e p95<=150ms', p95Burst <= 150 && medianBurst < 50, `mediana=${result.medianBurstMs}ms p95=${result.p95BurstMs}ms`],
+  ];
+  if (peakRSS !== null) ref.push(['AC3 pico RSS <=70MB', result.peakRSSMB <= 70, `${result.peakRSSMB}MB`]);
+  console.log('\nReferência dos critérios de aceite (caracterização — não trava nada):');
+  for (const [label, ok, got] of ref) console.log(`  ${ok ? 'dentro' : 'fora  '}  ${label}: ${got}`);
   process.exit(0);
 }
 
