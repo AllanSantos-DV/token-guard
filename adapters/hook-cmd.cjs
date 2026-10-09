@@ -30,6 +30,7 @@
 const P = require('../lib/payload.cjs');
 const { decide } = require('../lib/decide.cjs');
 const { tryDaemon } = require('../lib/daemon-client.cjs');
+const H = require('../lib/claude-hooks.cjs');
 
 async function main() {
   const payload = await P.readPayload();
@@ -37,15 +38,8 @@ async function main() {
 
   const viaDaemon = await tryDaemon('check', { root, payload });
   const verdict = viaDaemon.ok ? viaDaemon.result.verdict : decide(payload);
-  if (!verdict) return;
-
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'PreToolUse',
-      permissionDecision: verdict.decision,
-      permissionDecisionReason: verdict.reason,
-    },
-  }));
+  const out = H.preEnvelope(verdict);
+  if (out) process.stdout.write(JSON.stringify(out));
 }
 
 main().catch(() => { /* falha do guard nunca bloqueia o agente */ });

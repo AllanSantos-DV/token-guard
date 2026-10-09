@@ -13,6 +13,7 @@ const CT = require('../lib/contract.cjs');
 const { noteResult, isRead } = require('../lib/dupread.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
 const DL = require('../lib/daemon-lifecycle.cjs');
+const DH = require('./daemon-http.cjs');
 
 const PROTOCOL_VERSION = 1;
 const PACKAGE_VERSION = (() => {
@@ -322,6 +323,26 @@ function claimOrphanMutex(mutexPath) {
   }
 }
 
+/**
+ * A18: daemon morto por kill/reboot não passa pelo shutdown e deixa o lock
+ * para trás — um por SID de teste/bench, sem ninguém para coletar. Ao subir,
+ * apaga os locks de token-guard cujo pid está morto (os de pid vivo ficam:
+ * podem ser de outro daemon de pé).
+ */
+function sweepStaleLocks(dir, ownLock) {
+  let names;
+  try { names = fs.readdirSync(dir); } catch { return; }
+  for (const name of names) {
+    if (!/^token-guard-.*\.lock$/.test(name)) continue;
+    const file = path.join(dir, name);
+    if (file === ownLock) continue;
+    const rec = DL.readLockRecord(file);
+    if (rec && !DL.REAL_DEPS.isAlive(rec.pid)) {
+      try { fs.unlinkSync(file); } catch { /* em uso: fica para a próxima */ }
+    }
+  }
+}
+
 function start(endpointOverride) {
   const endpoint = endpointOverride || defaultEndpoint();
   const lockFile = defaultLockPath(endpoint);
@@ -333,15 +354,17 @@ function start(endpointOverride) {
   const lockResult = DL.acquireLock({
     lockFile, pid: process.pid, protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION,
   });
+  // A18: pid vivo no lock NÃO prova daemon vivo — depois de kill/reboot o SO
+  // reusa pids (comum no Windows) e o lock órfão travava o daemon fora para
+  // sempre, em silêncio. O lock é só pista; quem decide é o listen() abaixo
+  // (EADDRINUSE/probe), que já cobre o daemon de verdade.
   if (!lockResult.acquired) {
-    process.stderr.write(`token-guard daemon já em execução (pid ${lockResult.existing.pid}) — encerrando (singleton)\n`);
-    process.exit(0);
-    return null;
+    process.stderr.write(`token-guard daemon: lock aponta pid ${lockResult.existing.pid} vivo — conferindo pelo endpoint\n`);
   }
   // Lock reclamado de um daemon anterior que morreu sem limpar: no POSIX o
   // arquivo de socket pode ter sobrevivido ao processo morto e bloquear o
   // listen() com EADDRINUSE mesmo sem ninguém escutando — remove antes.
-  if (lockResult.reclaimedStale && process.platform !== 'win32') {
+  if (lockResult.acquired && lockResult.reclaimedStale && process.platform !== 'win32') {
     try { fs.unlinkSync(endpoint); } catch { /* pode já não existir */ }
   }
 
@@ -374,7 +397,30 @@ function start(endpointOverride) {
       try { fs.chmodSync(endpoint, 0o700); } catch { /* best-effort */ }
     }
     process.stderr.write(`token-guard daemon pronto em ${endpoint} (${PACKAGE_VERSION})\n`);
-    scheduleIdleShutdown(server, lockFile, IDLE_TIMEOUT_MS);
+    // Escutando = somos o dono: o lock passa a apontar para nós (cobre o caso
+    // em que acquireLock recusou por um pid reusado).
+    DL.writeLockRecord(lockFile, { pid: process.pid, protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION });
+    sweepStaleLocks(path.dirname(lockFile), lockFile);
+    // A16: com o token do usuário no perfil, serve também o hook http do
+    // Claude Code. Nesse modo o daemon é o ÚNICO caminho dos hooks — se ele
+    // saísse por ociosidade, a sessão seguiria sem guard (hook http com
+    // conexão recusada é fail-open). Então a ociosidade só vale sem HTTP.
+    const token = DH.readToken();
+    if (token) {
+      const httpServer = DH.createHttpServer({
+        token,
+        handle: (msg) => handleMessage(msg, server.ctx),
+        onActivity: () => { server.ctx.lastActivity = Date.now(); },
+      });
+      httpServer.on('error', (err) => {
+        process.stderr.write(`token-guard daemon: hook http indisponível (${err.code || err.message}) — segue só no pipe\n`);
+      });
+      httpServer.listen(DH.httpPort(), '127.0.0.1', () => {
+        process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${DH.httpPort()}\n`);
+      });
+      server.once('close', () => httpServer.close());
+    }
+    scheduleIdleShutdown(server, lockFile, token ? 0 : IDLE_TIMEOUT_MS);
   };
   // Já retried o listen uma vez após remover um socket órfão? Cobre o caso em
   // que o lock-record está ausente/corrompido (então `acquireLock` não marcou

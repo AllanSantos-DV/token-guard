@@ -380,6 +380,45 @@ function mockDeps(initialFiles) {
     );
   }
 
+  // --- A18 (live): lock-record com pid VIVO que não é daemon (pid reusado pelo
+  // SO depois de kill/reboot) não pode travar o daemon fora para sempre — a
+  // autoridade é o listen(); e locks de pid morto são varridos ao subir. ---
+  {
+    const DSP = path.join(__dirname, '..', 'adapters', 'daemon-server.cjs');
+    const DS = require(DSP);
+    const endpoint = process.platform === 'win32'
+      ? `\\\\.\\pipe\\token-guard-a18-${process.pid}-${Date.now()}`
+      : path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tg-a18-')), 'a18.sock');
+    const lockFile = DS.defaultLockPath(endpoint);
+    fs.mkdirSync(path.dirname(lockFile), { recursive: true });
+    // pid deste processo de teste: vivo, mas não é daemon nenhum.
+    fs.writeFileSync(lockFile, JSON.stringify({ pid: process.pid, protocolVersion: DS.PROTOCOL_VERSION, packageVersion: DS.PACKAGE_VERSION }));
+    let deadPid = 4000000; while (DL.REAL_DEPS.isAlive(deadPid)) deadPid += 7;
+    const staleLock = path.join(path.dirname(lockFile), `token-guard-a18-dead-${process.pid}.lock`);
+    fs.writeFileSync(staleLock, JSON.stringify({ pid: deadPid, protocolVersion: 1, packageVersion: '0.0.0' }));
+
+    const script = `
+      const DS = require(${JSON.stringify(DSP)});
+      const server = DS.start(${JSON.stringify(endpoint)});
+      if (!server) { console.log('FAIL:no-server'); process.exit(1); }
+      server.once('listening', () => setTimeout(() => {
+        const fs = require('fs');
+        const rec = JSON.parse(fs.readFileSync(${JSON.stringify(lockFile)}, 'utf8'));
+        console.log('OK:listening lockpid=' + (rec.pid === process.pid) + ' swept=' + !fs.existsSync(${JSON.stringify(staleLock)}));
+        server.close(() => process.exit(0));
+      }, 100));
+      setTimeout(() => { console.log('FAIL:timeout'); process.exit(1); }, 4000);
+    `;
+    let out = '';
+    try {
+      out = execFileSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 6000, stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) { out = err.stdout || ''; }
+    check('A18: lock com pid vivo que não é daemon não impede o daemon de subir', out.includes('OK:listening'), out.trim());
+    check('A18: o daemon regrava o lock com o próprio pid', out.includes('lockpid=true'), out.trim());
+    check('A18: lock de pid morto é varrido ao subir', out.includes('swept=true'), out.trim());
+    try { fs.rmSync(lockFile, { force: true }); fs.rmSync(staleLock, { force: true }); } catch { /* noop */ }
+  }
+
   console.log(`\n  daemon-singleton: ${pass} passaram · ${fail} falharam`);
   process.exit(fail ? 1 : 0);
 })();
