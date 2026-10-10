@@ -178,7 +178,8 @@ footer a{color:var(--ink)}
     <a href="#numeros">n&uacute;meros</a>
     <a href="#ides">ides</a>
     <a href="#install">instalar</a>
-    <a href="/token-guard/v3.html" style="color:var(--pass)">entregável v3</a>
+    <a href="https://github.com/AllanSantos-DV/token-guard/blob/main/docs/COMO-FUNCIONA.md">como funciona</a>
+    <a href="/token-guard/v3.html" style="color:var(--pass)">roadmap</a>
   </nav>
   <a class="mono" style="font-size:13px" href="https://www.npmjs.com/package/@allansantos-dev/token-guard">npm</a>
   <a class="mono" style="font-size:13px" href="https://github.com/AllanSantos-DV/token-guard">GitHub &#8599;</a>
@@ -310,10 +311,10 @@ GANHO IMEDIATO &mdash; descartando build/deps:
   <div class="eyebrow">medido, n&atilde;o prometido</div>
   <h2>A economia tem n&uacute;mero pr&oacute;prio.</h2>
   <div class="stats">
-    <div class="stat"><b>437k tok</b><span>economia l&iacute;quida estimada no replay de 65 sess&otilde;es REAIS (8.197 chamadas hist&oacute;ricas)</span></div>
+    <div class="stat"><b>~2,7M tok</b><span>economia l&iacute;quida estimada no replay de 371 sess&otilde;es REAIS (75.445 chamadas hist&oacute;ricas, out/2026)</span></div>
     <div class="stat"><b>85–205k tok</b><span>por sess&atilde;o na simula&ccedil;&atilde;o param&eacute;trica (repo de 215 mil arquivos), conforme o agente aprende r&aacute;pido ou repete o erro</span></div>
-    <div class="stat"><b>28 / 103</b><span>denies leg&iacute;timos ap&oacute;s a auditoria de falsos positivos do replay — cada bloqueio paga o pr&oacute;prio custo at&eacute; ~94% de FP</span></div>
-    <div class="stat"><b>0,15 ms</b><span>por chamada no modo plugin in-process — quase todo o custo do modo comando &eacute; o runtime, n&atilde;o o guard</span></div>
+    <div class="stat"><b>190</b><span>bloqueios no replay, auditados um a um na 2.6.0 &mdash; os falsos positivos achados foram corrigidos. Cada bloqueio paga o pr&oacute;prio custo at&eacute; ~94% de FP</span></div>
+    <div class="stat"><b>1,4 ms</b><span>por chamada no hook http do Claude Code, contra 108,8 ms do hook de comando (medianas) &mdash; o custo era nascer um Node, n&atilde;o o guard. Plugin Copilot: 0,2&ndash;0,6 ms</span></div>
   </div>
   <p class="src">Fontes: bench/replay-transcripts.cjs (replay real) &middot; bench/savings.cjs (simula&ccedil;&atilde;o com premissas declaradas) &middot; bench/latency.cjs (me&ccedil;a na sua m&aacute;quina). Limita&ccedil;&otilde;es declaradas na documenta&ccedil;&atilde;o.</p>
 </section>

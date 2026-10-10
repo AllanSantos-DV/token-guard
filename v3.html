@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>token-guard v3 · o entregável completo</title>
-<meta name="description" content="Visualização do entregável após as 6 fases SDD: dedupe, memória, anti-boilerplate, response_format, replay real e contrato à prova de compaction.">
+<title>token-guard · roadmap R1–R6</title>
+<meta name="description" content="Roadmap do token-guard — as 6 fases com spec aprovada: dedupe, memória, anti-boilerplate, response_format, replay real e contrato à prova de compaction.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
@@ -102,10 +102,11 @@ footer a{color:var(--ink)}
 <main>
 
 <section class="hero">
-  <div class="eyebrow">entreg&aacute;vel v3 &middot; ap&oacute;s R1&ndash;R6 implementadas</div>
+  <div class="eyebrow">roadmap &middot; as seis fases R1&ndash;R6 &middot; specs aprovadas</div>
   <h1>Uma sess&atilde;o longa, <em>seis camadas</em> de economia &mdash; cada uma no momento exato em que o desperd&iacute;cio acontece.</h1>
   <p class="sub">
-    Hoje (v2.2) o kit bloqueia a entrada e trunca a sa&iacute;da. Com as seis fases
+    Hoje (v2.6) o kit bloqueia a entrada, trunca a sa&iacute;da e injeta o contrato por
+    evid&ecirc;ncia &mdash; sem processo por chamada no Copilot, no Claude Code e no Codex. Com as seis fases
     implementadas, ele passa a cobrir o ciclo inteiro da sess&atilde;o: releitura
     redundante, garimpo que merece &iacute;ndice, reescrita por falta de instru&ccedil;&atilde;o
     de reuso, resposta verbosa sob demanda, medi&ccedil;&atilde;o com dado real e o contrato
@@ -132,7 +133,7 @@ footer a{color:var(--ink)}
     <div class="timeline" id="timeline" aria-hidden="true"></div>
     <div class="stagebox" id="stage" aria-live="polite"><span class="tag" style="background:#565B54">COMEÇE</span>
 Clique num marcador acima para ver o evento e qual camada atua.</div>
-    <p class="note">Sequência baseada nos eventos mais comuns do replay real (65 sessões Claude Code + corpus Copilot). Vereditos = comportamento do decide()/postProcess conforme spec aprovada.</p>
+    <p class="note">Sequência baseada nos eventos mais comuns do replay real (sessões Claude Code + corpus Copilot). Vereditos = comportamento do decide()/postProcess conforme spec aprovada &mdash; esta página é o destino, não o estado atual: veja o status de cada fase na fila abaixo.</p>
   </div>
 </section>
 
@@ -142,7 +143,7 @@ Clique num marcador acima para ver o evento e qual camada atua.</div>
   <h2>O que cada uma trava no produto.</h2>
   <div class="grid6">
     <div class="ph">
-      <h3><span class="id">R1</span> dedupe de leitura <span class="ok">spec ✓</span></h3>
+      <h3><span class="id">R1</span> dedupe de leitura <span class="ok">parcial</span></h3>
       <p>Leitura idêntica repetida na mesma sessão vira stub: "conteúdo idêntico ao anterior — N chars não relidos". Zero falso positivo: só age quando o conteúdo é literalmente igual.</p>
       <div class="delta">camada A pós-execução ON · camada B advisory opt-in<br><b>economia:</b> bytes integrais da releitura</div>
     </div>
@@ -164,7 +165,7 @@ Clique num marcador acima para ver o evento e qual camada atua.</div>
     <div class="ph">
       <h3><span class="id">R5</span> replay com bytes reais</h3>
       <p>Fim da estimativa: pareamento tool_use↔tool_result por id mede os BYTES que entraram de verdade. P50/P90/P99/max, sidechain separado, TOKEN_GUARD e config warn/off falham loud.</p>
-      <div class="delta">corpus atual: 65 sessões · 8.197 chamadas<br><b>dado:</b> baseline honesto para toda release futura</div>
+      <div class="delta">corpus atual: 371 sessões · 75.445 chamadas (out/2026)<br><b>dado:</b> baseline honesto para toda release futura</div>
     </div>
     <div class="ph">
       <h3><span class="id">R6</span> contrato à prova de compaction</h3>
@@ -179,33 +180,33 @@ Clique num marcador acima para ver o evento e qual camada atua.</div>
   <div class="eyebrow">o quadro consolidado</div>
   <h2>Antes × depois, por frente.</h2>
   <div class="strip">
-    <div class="st"><b>~437k tok</b><span>já medidos no replay real (v2.2): economia líquida que os guards atuais fazem sozinhos</span></div>
+    <div class="st"><b>~2,7M tok</b><span>já medidos no replay real (out/2026, 371 sessões): economia líquida que os guards atuais fazem sozinhos</span></div>
     <div class="st"><b>+R1/R4</b><span>dedupe + concise atacam a maior fatia restante: releituras e respostas verbosas recorrentes</span></div>
     <div class="st"><b>120×</b><span>o mercado mede nisso a exploração via índice vs garimpo — R2 conecta o usuário a essa classe</span></div>
     <div class="st"><b>0 estimativas</b><span>R5 troca o teto de 25k pelos bytes reais do transcript — e vira termômetro permanente</span></div>
     <div class="st"><b>94% FP</b><span>ponto de equilíbrio: os guards só deixam de valer se quase tudo for falso positivo (auditoria do replay diz que não é)</span></div>
-    <div class="st"><b>236 testes</b><span>10 suítes verdes hoje; cada fase nova entra failing-first, como todas as anteriores</span></div>
+    <div class="st"><b>847 testes</b><span>23 suítes verdes na 2.6.2; cada fase nova entra failing-first, como todas as anteriores</span></div>
   </div>
 </section>
 
 <!-- ============ ORDEM DE ENTREGA ============ -->
 <section id="ordem">
   <div class="eyebrow">fila de implementa&ccedil;&atilde;o</div>
-  <h2>Ordem planejada, specs aprovadas.</h2>
+  <h2>Ordem planejada, specs aprovadas &mdash; e o que j&aacute; entrou.</h2>
   <div class="tablewrap" style="border:1.5px solid var(--ink);background:var(--card);overflow-x:auto">
   <table style="width:100%;border-collapse:collapse;font-size:14.5px">
     <thead><tr>
       <th style="text-align:left;padding:10px 14px;border:1px solid var(--edge);font-family:'IBM Plex Mono',monospace;background:var(--ink);color:var(--paper)">Fase</th>
       <th style="text-align:left;padding:10px 14px;border:1px solid var(--edge);font-family:'IBM Plex Mono',monospace;background:var(--ink);color:var(--paper)">Entregável</th>
-      <th style="text-align:left;padding:10px 14px;border:1px solid var(--edge);font-family:'IBM Plex Mono',monospace;background:var(--ink);color:var(--paper)">Spec</th>
+      <th style="text-align:left;padding:10px 14px;border:1px solid var(--edge);font-family:'IBM Plex Mono',monospace;background:var(--ink);color:var(--paper)">Status</th>
     </tr></thead>
     <tbody>
-      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R1</td><td style="padding:10px 14px;border:1px solid var(--edge)">Dedupe de leitura (2 camadas)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada · rev.4+fixes</td></tr>
-      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R2</td><td style="padding:10px 14px;border:1px solid var(--edge)">Sensor de garimpo + recomendação de memória</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
-      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R3</td><td style="padding:10px 14px;border:1px solid var(--edge)">Anti-boilerplate no contrato (+71 tok medidos)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
-      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R4</td><td style="padding:10px 14px;border:1px solid var(--edge)">response_format nas 3 tools MCP</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
-      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R6</td><td style="padding:10px 14px;border:1px solid var(--edge)">Contrato sobrevive à compaction</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
-      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R5</td><td style="padding:10px 14px;border:1px solid var(--edge)">Replay bytes reais (bench — fecha o ciclo de medição)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">aprovada LIMPA</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R1</td><td style="padding:10px 14px;border:1px solid var(--edge)">Dedupe de leitura (2 camadas)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">parcial &middot; registro por sess&atilde;o desde a 2.3.0; o stub ainda n&atilde;o chega ao modelo</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R2</td><td style="padding:10px 14px;border:1px solid var(--edge)">Sensor de garimpo + recomendação de memória</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">spec aprovada &middot; a implementar</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R3</td><td style="padding:10px 14px;border:1px solid var(--edge)">Anti-boilerplate no contrato (+71 tok medidos)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">spec aprovada &middot; a implementar</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R4</td><td style="padding:10px 14px;border:1px solid var(--edge)">response_format nas 3 tools MCP</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">spec aprovada &middot; a implementar</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R6</td><td style="padding:10px 14px;border:1px solid var(--edge)">Contrato sobrevive à compaction</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">spec aprovada &middot; a implementar</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid var(--edge)">R5</td><td style="padding:10px 14px;border:1px solid var(--edge)">Replay bytes reais (bench — fecha o ciclo de medição)</td><td style="padding:10px 14px;border:1px solid var(--edge)" class="mono">spec aprovada &middot; a implementar</td></tr>
     </tbody>
   </table>
   </div>
