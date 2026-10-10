@@ -1,12 +1,14 @@
 # Segurança e privacidade
 
-O token-guard é um kit local: sem servidor, sem telemetria, sem conta. O que ele
+O token-guard é um kit local: sem servidor remoto, sem telemetria, sem conta. O que ele
 faz com a sua máquina e os seus dados:
 
 ## O que executa
 
-- **Hooks**: o guard roda como processo (`node adapters/hook-cmd.cjs`) ou in-process
-  (extensão Copilot) dentro da sua sessão de agente. Ele **lê** o payload da
+- **Hooks**: o guard roda in-process (extensão Copilot), como hook http servido pelo
+  daemon local (Claude Code), como ferramenta do servidor MCP chamada pelo hook
+  `mcp_tool` (Codex) ou como processo (`node adapters/hook-cmd.cjs`, modo comando)
+  dentro da sua sessão de agente. Ele **lê** o payload da
   ferramenta e decide; nunca executa o comando que está avaliando.
 - **`mcp-cost` sem `--list` EXECUTA os servidores MCP declarados** nas suas configs
   (`command` de cada um), via handshake JSON-RPC por stdio, com timeout. São
@@ -17,7 +19,7 @@ faz com a sua máquina e os seus dados:
   que serve a mesma decisão por IPC, para os hooks não pagarem um `spawn` por evento.
   Escuta em named pipe local (`\\.\pipe\token-guard-<sid>`) no Windows ou socket UNIX
   (`$XDG_RUNTIME_DIR|/tmp/token-guard-<uid>.sock`, `chmod 700`) no POSIX. Autoencerra após
-  10 min sem requisição (`TOKEN_GUARD_DAEMON_IDLE_MS`, 0 desativa) — exceto com o hook http
+  10 min sem requisição (`TOKEN_GUARD_DAEMON_IDLE_MS`; `0` ou negativo desativa) — exceto com o hook http
   ligado (abaixo), quando ele é o único caminho dos hooks. Verificação da ACL do pipe:
   `scripts/verify-daemon-security.ps1`.
 - **Hook http do Claude Code** (desde a 2.6.0, `init --target claude`): o daemon também
@@ -40,12 +42,22 @@ faz com a sua máquina e os seus dados:
 - `<repo>/.token-guard/repo-stats.json` — estatísticas agregadas do scan.
 - `<repo>/.token-guard/sessions/<id>.json` — seções de contrato já injetadas,
   com o id de sessão sanitizado (≤80 chars, sem separador de caminho). Poda após 7 dias.
+- `<repo>/.token-guard/sessions/<id>-touched.json` — caminhos que a sessão tocou (até 50),
+  evidência dos gatilhos do contrato; `<id>-reads.json` — hash das leituras (dedupe).
+- `<repo>/.token-guard/results/*.txt` — **cópia integral da saída de ferramenta** que o
+  `bigResult` truncou, para o agente reler por faixa. Fica no repositório, local; as 50
+  mais recentes são mantidas. Trate como a própria saída: pode conter o que a ferramenta
+  mostrou (inclusive segredo que um comando tenha impresso).
 - `~/.token-guard/update-check.json` — `{ latestVersion, checkedAt }` da checagem de
   versão descrita abaixo.
 - `~/.token-guard/daemon-http.token` — token do hook http (só com `--target claude`).
 - Lock de singleton do daemon: `<socket>.lock` no POSIX,
   `%TEMP%/token-guard-locks/<pipe>.lock` no Windows — pid e versão de protocolo.
+- Autostart do daemon (só `--target claude`): tarefa agendada `TokenGuardDaemon` e a
+  variável de usuário `TOKEN_GUARD_SID` no Windows; unit `token-guard-daemon.service`
+  (systemd --user) no Linux; `com.token-guard.daemon.plist` (LaunchAgents) no macOS.
 - Nos alvos de máquina: runtime e config sob o seu perfil (`~/.copilot`, `~/.claude`,
+  `~/.codex` — `config.toml` e `hooks.json` recebem só a entrada do token-guard —,
   `~/.cursor`, `~/.token-guard`). Nada é escrito no repositório a menos que você
   escolha `--target repo`.
 
@@ -59,7 +71,8 @@ nova (`lib/update-check.cjs`). O que isso significa, explicitamente:
   sem identificador, sem contagem de uso. O registry vê o que vê de qualquer `npm view`:
   um IP e um user-agent.
 - **Só nesses dois comandos.** O caminho quente (hooks, plugin in-process, daemon, MCP)
-  nunca abre socket de rede — um veredito jamais depende de estar on-line.
+  nunca abre conexão de saída — o único listener TCP é o do hook http, em loopback.
+  Um veredito jamais depende de estar on-line.
 - **No máximo 1× por 24 h**, por causa do cache em `~/.token-guard/update-check.json`.
 - **Desligável:** `TOKEN_GUARD_UPDATE_CHECK=off`. Falha de rede é silenciosa
   (best-effort): o comando segue normalmente.

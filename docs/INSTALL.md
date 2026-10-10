@@ -31,6 +31,7 @@ npx @allansantos-dev/token-guard init --target all --mode block --force
 | Quero economia em todos os meus repositórios, nesta máquina | `--target all` |
 | Uso só o Copilot | `--target copilot` |
 | Uso só o Claude Code | `--target claude` |
+| Uso o Codex CLI | `--target codex` |
 | Uso Cursor | `--target cursor` |
 | Meu IDE não tem hook (VS Code, Windsurf, Zed, JetBrains) | `--target mcp` |
 | Quero que o time inteiro herde ao clonar o repositório | `--target repo` |
@@ -51,6 +52,7 @@ Nada é escrito dentro do repositório. Tudo vai para o seu perfil de usuário:
 ```
 ~/.copilot/extensions/token-guard/    Copilot
 ~/.claude/token-guard/                Claude Code
+~/.codex/token-guard/                 Codex (respeita $CODEX_HOME)
 ~/.cursor/token-guard/                Cursor
 ~/.token-guard/runtime/               MCP
 ```
@@ -78,7 +80,8 @@ node install.cjs --target all
 ## Verificando
 
 ```bash
-npm test                       # todas as suítes (núcleo, adapters, mcp-cost, contrato, instalação, economia, hooks)
+npm test                       # todas as suítes (no clone do repositório)
+npx @allansantos-dev/token-guard test           # o núcleo, contra o hook real
 npx @allansantos-dev/token-guard status         # config ativa
 node install.cjs --target all --dry-run   # simulação sem escrever nada
 ```
@@ -92,12 +95,17 @@ Tudo que o instalador cria, em um lugar só:
 | Alvo | Runtime | Registro | Config global |
 |---|---|---|---|
 | `copilot` | `~/.copilot/extensions/token-guard/` | — (extensão) | `~/.copilot/token-guard.config.json` |
-| `claude` | `~/.claude/token-guard/` | entrada em `~/.claude/settings.json` › `hooks.PreToolUse` | `~/.claude/token-guard.config.json` |
-| `cursor` | `~/.cursor/token-guard/` | entradas em `~/.cursor/hooks.json` (`beforeReadFile`, `beforeShellExecution`, `beforeMCPExecution`) | `~/.cursor/token-guard.config.json` |
-| `mcp` | `~/.token-guard/runtime/` | bloco `token-guard` na config MCP do IDE | `~/.token-guard/mcp.json` |
+| `claude` | `~/.claude/token-guard/` | entradas em `~/.claude/settings.json` › `hooks`: `PreToolUse`, `PostToolUse`, `UserPromptSubmit` (http) e `SessionStart` (comando); token em `~/.token-guard/daemon-http.token`; autostart do daemon (abaixo) | `~/.claude/token-guard.config.json` |
+| `codex` | `~/.codex/token-guard/` | tabela `[mcp_servers.token-guard]` em `~/.codex/config.toml` + entrada `mcp_tool` (server `token-guard`) em `~/.codex/hooks.json` › `PreToolUse` | `~/.token-guard/token-guard.config.json` |
+| `cursor` | `~/.cursor/token-guard/` | entradas em `~/.cursor/hooks.json` (`preToolUse`, `beforeReadFile`, `beforeShellExecution`, `beforeMCPExecution`) | `~/.cursor/token-guard.config.json` |
+| `mcp` | `~/.token-guard/runtime/` (+ o snippet `~/.token-guard/mcp.json`) | bloco `token-guard` na config MCP do IDE | `~/.token-guard/token-guard.config.json` |
 | `repo` | `.github/token-guard/`, `.github/agents/`, `.github/skills/` | entrada em `.github/hooks/hooks.json` | `token-guard.config.json` na raiz |
 
 1. Remova o registro e o runtime da tabela acima.
+   No alvo `claude`, remova também o autostart do daemon:
+   - Windows: `schtasks /delete /tn TokenGuardDaemon /f` e `reg delete HKCU\Environment /v TOKEN_GUARD_SID /f`
+   - Linux: `systemctl --user disable --now token-guard-daemon` e apague `~/.config/systemd/user/token-guard-daemon.service`
+   - macOS: `launchctl unload -w ~/Library/LaunchAgents/com.token-guard.daemon.plist` e apague o arquivo
 2. Apague as configs globais cujos homes você usou (só existem se você passou `--mode`).
 3. Estado regenerável, seguro de apagar: `<repo>/.token-guard/` (cache + estado de sessão).
 4. No alvo `repo`: reverta também a linha `.token-guard/` adicionada ao `.gitignore`.

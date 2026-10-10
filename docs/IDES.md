@@ -49,7 +49,12 @@ A força varia por harness:
 | Harness | bigResult | Mecanismo |
 |---|---|---|
 | Copilot CLI/App (plugin) | ✅ substitui de verdade | `onPostToolUse` › `modifiedResult` — o corpo inteiro nunca entra na janela |
-| Claude Code | ⚠️ orienta | hook de comando não altera o resultado já lido; entrega o caminho do integral + a dica (o agente aprende a limitar a próxima) |
+| Claude Code | ✅ substitui (v2.1.121+) | `PostToolUse` › `updatedToolOutput`, no hook http e no de comando; versões antigas ignoram o campo e sobra a orientação. O integral fica em `.token-guard/results/` |
+| Codex CLI | ❌ | o hook é só `PreToolUse` |
+
+O dedupe de leitura (`dupRead`, `lib/dupread.cjs`) registra o hash de cada leitura
+por sessão, mas a substituição da releitura idêntica por um ponteiro **ainda não
+chega ao modelo em nenhum harness** — está no [backlog](BACKLOG.md).
 
 Fonte externa que motivou a regra: outputs de ferramenta são apontados como o
 maior custo escondido de sessões agentivas; a Context Editing API da Anthropic
@@ -102,7 +107,10 @@ que quiser, quando quiser. O que o `token-guard` faz via MCP:
 1. expõe `token_guard_check` — o agente consulta antes de fazer uma chamada cara e recebe
    a alternativa barata pronta;
 2. expõe `token_audit` — o agente mede o repositório antes de explorá-lo;
-3. instala a skill `token-economy`, que ensina o procedimento.
+3. expõe `token_guard_status` — config ativa, regras e o que foi barrado;
+4. instala a skill `token-economy`, que ensina o procedimento.
+
+A quarta ferramenta, `token_guard_hook`, é de uso interno do hook do Codex.
 
 É economia por orientação. Funciona bem com modelos que seguem instrução, mas não é
 garantia. **Onde houver hook nativo, use o hook.**

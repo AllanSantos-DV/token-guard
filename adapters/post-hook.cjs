@@ -3,12 +3,11 @@
 /**
  * post-hook.cjs — adapter do evento POST-execução (Claude Code PostToolUse).
  *
- * Duas funções pós-execução:
- *   1. bigResult: resultado >25k chars → stub + integral em disco + alternativa
- *   2. dupRead: registra leituras para dedupe na próxima chamada idêntica
- *
- * Diferença honesta vs Copilot plugin: o hook de comando do CC não substitui
- * o resultado — orienta. A substituição real é no modo plugin (modifiedResult).
+ * Três funções pós-execução:
+ *   1. evidência do contrato: o arquivo tocado alimenta os gatilhos codigo/teste/docs
+ *   2. bigResult: resultado >25k chars → stub + integral em disco + alternativa
+ *      (substitui via updatedToolOutput no Claude Code ≥ 2.1.121; antes, só orienta)
+ *   3. dupRead: registra leituras para dedupe na próxima chamada idêntica
  *
  * Fail-open: qualquer erro → silêncio. stdout error → noop.
  */
@@ -28,6 +27,8 @@ async function main() {
   const { name, input: inp, result, root, sessionId: sid } = H.postArgs(payload);
 
   const viaDaemon = await tryDaemon('postprocess', { name, input: inp, result, root, sessionId: sid });
+  // Evidência do contrato (gatilhos codigo/teste/docs) — o daemon já gravou se serviu.
+  if (!viaDaemon.ok) CT.noteTouched(root, sid, inp);
   const trimmed = viaDaemon.ok
     ? viaDaemon.result.trimmed
     : postProcess({ name, input: inp, result, root, cfg: CFG.load(root) });

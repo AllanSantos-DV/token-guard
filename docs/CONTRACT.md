@@ -22,7 +22,7 @@ narrativa de sessão em comentário, cerimônia sem valor — porque saída-lixo
 | `quando: codigo` | A sessão leu/escreveu arquivo-fonte | sim, uma única vez |
 | `quando: teste` | Tocou arquivo de teste | sim, uma única vez |
 | `quando: docs` | Escreveu markdown/docs | sim, uma única vez |
-| `subagente` | — | NUNCA: vai no prompt de quem roda em contexto descritável |
+| `subagente` | — | NUNCA: vai no prompt de quem roda em contexto descartável |
 
 O gatilho é **evidência acumulada** (caminhos tocados), nunca classificação da
 frase do usuário. Uma sessão de prosa não recebe regra de código. Cada seção é
@@ -49,11 +49,14 @@ npx @allansantos-dev/token-guard contract --subagente            # bloco pronto 
 
 ## Status honesto
 
-A biblioteca e o CLI de inspeção estão estáveis e testados (42 casos). A injeção
-automática existe desde a 2.1.0 no Claude Code via `UserPromptSubmit`: a camada
-`sempre` entra UMA vez por sessão, direto no contexto, com estado em
-`.token-guard/sessions/`. Limitação declarada: os gatilhos por evidência
-(`codigo`/`teste`/`docs`) ainda não têm injeção automática — o payload do
-UserPromptSubmit não traz arquivos tocados; e no Copilot/Cursor/MCP a injeção
-segue manual (`--subagente` ou copiar o texto). Automatizar nesses harnesses é
-o próximo passo natural (ver CONTRIBUTING.md para as convenções).
+| Harness | Camada `sempre` | Gatilhos por evidência (`codigo`/`teste`/`docs`) |
+|---|---|---|
+| Copilot CLI/App (plugin) | automática (`onUserPromptSubmitted`) | automáticos |
+| Claude Code | automática (`UserPromptSubmit`) | automáticos desde a 2.6.2 |
+| Cursor, Codex, MCP | manual (`--subagente` ou copiar o texto) | manual |
+
+Como a evidência chega: o pós-execução (`PostToolUse` / `onPostToolUse`) grava o
+arquivo que cada ferramenta tocou em `.token-guard/sessions/<id>-touched.json`; no
+prompt seguinte, a seção que o gatilho liga entra uma vez. Antes da 2.6.2, no Claude
+Code esse registro só acontecia quando o resultado era truncado — na prática, só a
+camada `sempre` entrava.

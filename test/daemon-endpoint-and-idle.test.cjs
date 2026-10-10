@@ -11,7 +11,7 @@ require('./bootstrap.cjs');
 const { spawnSync } = require('child_process');
 const path = require('path');
 const {
-  defaultEndpoint, defaultWindowsSid, scheduleIdleShutdown,
+  defaultEndpoint, defaultWindowsSid, scheduleIdleShutdown, idleTimeoutFromEnv,
 } = require('../adapters/daemon-server.cjs');
 
 let pass = 0;
@@ -98,6 +98,13 @@ function main() {
     const timer = scheduleIdleShutdown({ ctx: { lastActivity: Date.now() } }, '/tmp/fake.lock', 0, {});
     check('idleTimeoutMs <= 0 desativa o mecanismo (retorna null)', timer === null);
   }
+
+  // TOKEN_GUARD_DAEMON_IDLE_MS: "0" desativa (SECURITY.md) — não pode cair no padrão.
+  check('env "0" desativa o autoencerramento', idleTimeoutFromEnv('0') === 0);
+  check('env ausente usa 10 min', idleTimeoutFromEnv(undefined) === 600000);
+  check('env vazio usa 10 min', idleTimeoutFromEnv('') === 600000);
+  check('env inválido usa 10 min', idleTimeoutFromEnv('abc') === 600000);
+  check('env numérico vale', idleTimeoutFromEnv('5000') === 5000);
 
   console.log(`\n  daemon-endpoint-and-idle: ${pass} passaram · ${fail} falharam`);
   process.exit(fail ? 1 : 0);

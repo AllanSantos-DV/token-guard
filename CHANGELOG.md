@@ -3,6 +3,37 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.6.2] — 2026-10-10
+
+### Corrigido
+- **Contrato: os gatilhos `codigo`/`teste`/`docs` voltam a disparar no Claude Code.** O
+  arquivo tocado só era registrado quando o resultado era truncado, e a 2.3.0 tirou até
+  esse registro. O daemon também não gravava. Na prática, só a camada `sempre` entrava.
+  Agora o pós-execução grava a evidência em toda chamada com caminho, no hook http, no
+  de comando e no plugin Copilot, com a mesma função (`noteTouched`, em `lib/contract.cjs`).
+- `TOKEN_GUARD_DAEMON_IDLE_MS=0` desativa o autoencerramento do daemon, como o
+  SECURITY.md promete. Antes, `0` caía no padrão de 10 min.
+- `init --target codex` e `init --target mcp` respeitam `--mode`, gravando
+  `~/.token-guard/token-guard.config.json`. Antes, a flag era ignorada nesses dois alvos.
+- O CI passa a rodar `test/update-check.test.cjs`, que já estava no `npm test`.
+- `plugin.json` estava parado na versão 2.2.0.
+
+### Documentação
+- Novo **[docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md)**: o caminho de uma chamada de
+  ferramenta, da decisão ao resultado e ao contrato, em cada harness.
+- README, INSTALL, IDES, CONFIG, CONTRACT, TROUBLESHOOTING, SECURITY e CONTRIBUTING
+  conferidos contra o código:
+  - Codex nos alvos, na desinstalação e no diagnóstico;
+  - remoção do autostart do daemon;
+  - chaves `rules.bigResult`, `rules.dupRead` e `limits.resultChars*`;
+  - arquivos de estado (`results/`, `-touched`, `-reads`) e o que cada um guarda;
+  - bigResult substituindo o resultado no Claude Code;
+  - as 4 ferramentas MCP;
+  - publicação pelo CI com provenance.
+- README publica o replay real (371 sessões, 75.445 chamadas, 190 bloqueios) ao lado da
+  simulação. Também declara o que o dedupe de leitura ainda **não** faz: o stub não
+  chega ao modelo (backlog A23).
+
 ## [2.6.1] — 2026-10-09
 
 ### Corrigido

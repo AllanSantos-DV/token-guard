@@ -12,14 +12,15 @@
  *             latência sub-milissegundo, e ainda expõe token_audit e token_guard_status.
  *
  *   claude    ~/.claude/token-guard/ + merge em ~/.claude/settings.json
- *             Hook PreToolUse do Claude Code. Bloqueio real. Paga cold start
- *             do Node (centenas de ms; meça com bench/latency.cjs) apenas nas
- *             ferramentas casadas pelo matcher.
+ *             PreToolUse/PostToolUse/UserPromptSubmit como hook http servido pelo
+ *             daemon (sem processo por chamada) + SessionStart de comando que sobe
+ *             o daemon. Bloqueio real. --command-hooks volta ao hook de comando,
+ *             que paga o cold start do Node (meça com bench/latency.cjs).
  *
  *   cursor    ~/.cursor/token-guard/ + merge em ~/.cursor/hooks.json
- *             Hooks beforeReadFile / beforeShellExecution / beforeMCPExecution.
- *             Bloqueio real, mas COBERTURA PARCIAL: o Cursor não expõe evento
- *             para grep/glob, então a regra broadScan não dispara. Veja docs/IDES.md.
+ *             preToolUse (Cursor recente: as 4 regras) + beforeReadFile /
+ *             beforeShellExecution / beforeMCPExecution para versões antigas e o
+ *             CLI. Bloqueio real. Veja docs/IDES.md.
  *
  *   codex     ~/.codex/token-guard/ + [mcp_servers.token-guard] no config.toml +
  *             hook PreToolUse type "mcp_tool" em ~/.codex/hooks.json. Bloqueio real
@@ -779,6 +780,10 @@ function installCodex() {
   if (JSON.stringify(hooks) === before) skipped.push(`${rel(base, hooksPath)} (hook do token-guard ja registrado)`);
   else writeJson(hooksPath, hooks, base, 'hooks.json  (PreToolUse: mcp_tool -> token-guard/token_guard_hook)');
 
+  // ~/.codex nao e home de config (lib/config.cjs GLOBAL_DIRS): --mode vai para ~/.token-guard.
+  const tgHome = path.join(HOME, '.token-guard');
+  writeGlobalConfig(tgHome, tgHome);
+
   notes.push('codex    · abra o Codex e aprove o hook do token-guard em /hooks — hook novo fica desativado ate ser aprovado.');
   notes.push('codex    · cobertura: o agente le arquivos pelo shell, entao a regra que atua e shellDump (Bash).');
 }
@@ -831,7 +836,7 @@ function installCursor() {
       `hooks.json  (${staleCursor ? 'registro obsoleto reparado · ' : ''}+${added} evento(s), demais preservados)`);
   }
   writeGlobalConfig(base, base);
-  notes.push('cursor   · cobertura PARCIAL: sem evento de grep/glob, broadScan nao dispara.');
+  notes.push('cursor   · preToolUse (Cursor recente) cobre as 4 regras; versoes antigas sem ele ficam sem broadScan.');
   notes.push('cursor   · no CLI (cursor-agent) so beforeShellExecution e entregue hoje.');
 }
 
@@ -855,6 +860,7 @@ function installMcp() {
     },
   };
   writeJson(path.join(base, 'mcp.json'), snippet, base, 'mcp.json  (snippet pronto para colar)');
+  writeGlobalConfig(base, base);
 
   notes.push('mcp      · ADVISORY: entrega as ferramentas ao agente, nao bloqueia a chamada.');
   notes.push('mcp      · cole o conteudo de ~/.token-guard/mcp.json na config MCP do seu IDE:');

@@ -9,10 +9,9 @@
  * Este adapter injeta as regras da camada "sempre" UMA VEZ por sessão,
  * direto no contexto, na primeira submissão de prompt.
  *
- * LIMITAÇÃO HONESTA (v1): o payload do UserPromptSubmit não traz arquivos
- * tocados, então os gatilhos por evidência (codigo/teste/docs) continuam sem
- * injeção automática aqui — a camada "sempre" é a que entra. O bloco
- * `subagente` segue manual (`token-guard contract --subagente`).
+ * Os gatilhos por evidência (codigo/teste/docs) entram no prompt seguinte ao
+ * toque: o PostToolUse registra o arquivo (CT.noteTouched) e este hook lê.
+ * O bloco `subagente` segue manual (`token-guard contract --subagente`).
  *
  * Fail-open absoluto: qualquer erro = silêncio. Um hook de prompt jamais
  * pode bloquear ou poluir a sessão.
