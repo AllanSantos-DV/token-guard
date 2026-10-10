@@ -130,6 +130,27 @@ try {
       name: 'Bash', input: {}, result: 'saída de shell', root, sessionId: 'sess-6',
     });
   }
+
+  // Caso 7: o hook http do Claude Code só passa por aqui — o arquivo tocado
+  // precisa virar evidência do contrato, truncando ou não.
+  {
+    const CT = require('../lib/contract.cjs');
+    const root = newRoot();
+    cleanupDirs.push(root);
+    dispatchPostprocess({
+      name: 'Edit', input: { file_path: path.join(root, 'src', 'a.ts') }, result: 'ok',
+      root, sessionId: 'sess-7',
+    });
+    dispatchPostprocess({
+      name: 'Read', input: { file_path: path.join(root, 'README.md') }, result: 'x'.repeat(30000),
+      root, sessionId: 'sess-7',
+    });
+    const touched = CT.readTouched(root, 'sess-7');
+    check('dispatchPostprocess registra o arquivo tocado (sem truncar)',
+      touched.some((p) => p.endsWith('a.ts')), JSON.stringify(touched));
+    check('dispatchPostprocess registra o arquivo tocado (truncando)',
+      touched.some((p) => p.endsWith('README.md')), JSON.stringify(touched));
+  }
 } finally {
   CFG.clearMemo();
   for (const d of cleanupDirs) {

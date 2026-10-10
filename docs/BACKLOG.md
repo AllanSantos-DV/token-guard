@@ -7,7 +7,21 @@
 
 ## Aberto
 
-_(nenhum item aberto — A16-A19 fechados na release 2.6.0)_
+Origem de A23–A25: auditoria docs × código para a apresentação no OpenAI DevDay (2026-10-10).
+
+| # | Item | Esforço |
+|---|---|---|
+| A23 | **dupRead não chega ao modelo.** `noteResult` calcula o stub de releitura idêntica, mas nenhum adapter entrega (`post-hook`, `dispatchPostprocess` e o plugin Copilot descartam o retorno; `checkRepeat` não tem chamador). No Claude Code o `tool_response` do Read é objeto, e `noteResult` exige string, então nem o registro acontece. Ligar exige extrair o texto (como o bigResult já faz) e decidir o que acontece quando a leitura anterior já saiu da janela por compactação (R6) | M |
+| A24 | `mcp-cost` não varre `~/.codex/config.toml` (`[mcp_servers.*]`): o preâmbulo MCP do Codex fica fora do inventário | S |
+| A25 | `token-guard status` não diz se o daemon/hook http responde: diagnosticar "hook http não bloqueia" exige olhar o processo à mão | S |
+
+## Fechado na release 2.6.2 (2026-10-10)
+
+| # | Item | Resultado |
+|---|---|---|
+| A20 | Gatilhos por evidência do contrato nunca disparavam no Claude Code (F5 tinha regredido: o registro só acontecia quando o resultado era truncado, e o R1 o tirou de vez; o daemon não gravava) | `CT.noteTouched` como fonte única, chamado no `dispatchPostprocess` (hook http e comando via daemon), no fallback local do `post-hook` e no plugin Copilot. Teste RED→GREEN nos dois caminhos |
+| A21 | `TOKEN_GUARD_DAEMON_IDLE_MS=0` caía no padrão de 10 min (`Number(x) \|\| padrão`), contra o que o SECURITY.md promete | `idleTimeoutFromEnv`: `0` desativa; ausente, vazio ou inválido = 10 min |
+| A22 | `init --target codex` / `--target mcp` com `--mode warn` ignorava o `--mode` | os dois alvos gravam `~/.token-guard/token-guard.config.json` (`~/.codex` não é home de config) |
 
 ## Fechado na release 2.6.0 (2026-10-08)
 

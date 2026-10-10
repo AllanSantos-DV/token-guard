@@ -63,4 +63,23 @@ Chave com tipo errado volta ao default individual (não derruba as demais).
 
 O piso do spawn de Node domina (antivírus). Meça:
 `node bench/latency.cjs` — compare hook vs `node -e "0"`. Se o custo for do
-runtime, prefira o modo plugin (in-process) ou confie no `matcher` do hooks.json.
+runtime, prefira um caminho sem processo por chamada: o plugin no Copilot, o hook
+http no Claude Code (padrão desde a 2.6.0 — confira em `~/.claude/settings.json` se
+os hooks do token-guard são `type: "http"`) e o `mcp_tool` no Codex. No modo
+repositório, confie no `matcher` do hooks.json.
+
+## Claude Code: hook http não bloqueia
+
+O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem guard.
+
+- O `SessionStart` do token-guard sobe o daemon no início da sessão — reinicie a
+  sessão depois de instalar.
+- Política que restringe `allowedHttpHookUrls`: inclua `http://127.0.0.1:<porta>/*`
+  (o instalador avisa) ou reinstale com `init --target claude --command-hooks`.
+
+## Codex: o hook não dispara
+
+- Hook novo do Codex fica desativado até ser aprovado em `/hooks`.
+- O servidor MCP `token-guard` precisa estar conectado à sessão (`[mcp_servers.token-guard]`
+  em `~/.codex/config.toml`).
+- Só `shellDump` atua: o agente do Codex lê arquivos pelo shell, e o hook é só `Bash`.

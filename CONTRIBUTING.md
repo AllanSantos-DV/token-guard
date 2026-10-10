@@ -25,6 +25,7 @@ lib/               núcleo puro, agnóstico de IDE — NÃO conhece nenhum harne
   contract.cjs       contrato de saída: regras por gatilho de evidência
   postresult.cjs     regra bigResult: resultado gigante -> stub + arquivo em disco
   dupread.cjs        dedupe de leitura repetida na mesma sessão
+  claude-hooks.cjs   envelope do Claude Code, comum ao hook http e ao de comando
   ipc-frame.cjs      framing por prefixo de tamanho do transporte do daemon
   daemon-client.cjs  cliente fino dos hooks: start-on-demand, self-heal, disarm-K
   daemon-lifecycle.cjs  lock de singleton e handshake de versão (primitivos de SO injetáveis)
@@ -32,12 +33,14 @@ lib/               núcleo puro, agnóstico de IDE — NÃO conhece nenhum harne
 
 adapters/          tradução de envelope. Uma camada fina por harness.
   copilot-cli.mjs    extensão in-process do Copilot CLI/App (SDK)
-  hook-cmd.cjs       hook PreToolUse por linha de comando (Copilot CLI + Claude Code)
+  hook-cmd.cjs       hook PreToolUse por linha de comando (Copilot CLI + Claude Code --command-hooks)
   prompt-hook.cjs    hook UserPromptSubmit — injeta o contrato de saída 1x/sessão
   post-hook.cjs      hook PostToolUse — bigResult e registro de evidência
-  cursor-hook.cjs    eventos beforeReadFile/beforeShellExecution/beforeMCPExecution
-  mcp-server.cjs     MCP server stdio — fallback universal (advisory)
+  session-start.cjs  hook SessionStart do Claude Code — sobe o daemon antes da 1ª ferramenta
+  cursor-hook.cjs    preToolUse genérico + beforeReadFile/beforeShellExecution/beforeMCPExecution
+  mcp-server.cjs     MCP server stdio — advisory; token_guard_hook é a ponte do hook do Codex
   daemon-server.cjs  daemon residente: serve decide()/contract/postprocess por IPC
+  daemon-http.cjs    o mesmo daemon em 127.0.0.1 para o hook http do Claude Code
 ```
 
 **Regra de ouro:** adapter nunca contém regra de negócio. Se você precisou colocar
@@ -79,11 +82,12 @@ O nome sem escopo (`token-guard`) pertence a outro autor no registry — o pacot
 nosso é o **`@allansantos-dev/token-guard`** (escopo já configurado no
 package.json com `"access": "public"`).
 
-```bash
-npm whoami                       # precisa estar logado como allansantos-dev
-npm publish                      # publishConfig já força --access public
-npx @allansantos-dev/token-guard@latest audit   # fumaça pós-publicação
-```
+Não publique à mão. O workflow `Publish to npm` (`.github/workflows/publish.yml`)
+roda no push de uma tag `v*`: `npm test` como gate e `npm publish --provenance`
+por trusted publishing (OIDC), sem token guardado.
 
-Só publique a partir de uma tag de release (`v2.2.0`, `v2.3.0`…) e com
-`npm test` verde.
+```bash
+# versão em package.json + seção no CHANGELOG.md, commit "chore(release): vX.Y.Z"
+git tag vX.Y.Z && git push origin main vX.Y.Z
+npx @allansantos-dev/token-guard@latest --version   # fumaça pós-publicação
+```

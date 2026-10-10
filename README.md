@@ -10,11 +10,12 @@
 **Economia de contexto para agentes de IA — agnóstico de IDE, como configuração versionada, não como produto.**
 
 Um kit portátil que qualquer pessoa instala em qualquer repositório, em qualquer IDE.
-Sem plugin proprietário, sem marketplace, sem servidor, sem licença, sem dependência npm.
+Sem plugin proprietário, sem marketplace, sem servidor remoto, sem licença, sem dependência npm.
 Só Node stdlib e arquivos de texto que entram no seu git.
 
-Funciona em **Copilot CLI/App, Claude Code, Cursor** e — via MCP — em qualquer IDE que
-fale o protocolo (VS Code, Windsurf, Zed, JetBrains).
+Funciona em **Copilot CLI/App, Claude Code, Codex CLI, Cursor** e — via MCP — em qualquer
+IDE que fale o protocolo (VS Code, Windsurf, Zed, JetBrains).
+Como uma chamada de ferramenta atravessa o kit, de ponta a ponta: [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
 A cobertura varia por harness e está documentada sem maquiagem em [docs/IDES.md](docs/IDES.md).
 
 ---
@@ -50,7 +51,8 @@ e é exatamente ela que este kit governa.
 | `lib/mcp-cost.cjs` | A medição do preâmbulo MCP: quanto os servidores declarados custam por sessão — com recomendações acionáveis por servidor e ferramenta. |
 | `lib/contract.cjs` | O contrato de saída: regras por gatilho de evidência, injetadas 1×/sessão via UserPromptSubmit ([docs](docs/CONTRACT.md)). |
 | `lib/postresult.cjs` | A regra `bigResult`: resultado de ferramenta gigante vira stub + versão integral em disco + alternativa barata. |
-| `lib/dupread.cjs` | Dedupe de leitura: o mesmo arquivo lido de novo na sessão volta como ponteiro, não como conteúdo. |
+| `lib/dupread.cjs` | Dedupe de leitura: registra o hash de cada leitura por sessão. A substituição da releitura idêntica por ponteiro ainda não chega ao modelo ([backlog](docs/BACKLOG.md)). |
+| `lib/claude-hooks.cjs` | O envelope do Claude Code, comum ao hook http e ao de comando — os dois caminhos montam a mesma resposta. |
 | `lib/ipc-frame.cjs` | Framing por prefixo de tamanho — o transporte que liga hook e daemon. |
 | `lib/daemon-client.cjs` | O cliente fino dos hooks: fala com o daemon, sobe um se não houver, desarma após 3 falhas e cai no caminho efêmero. |
 | `lib/daemon-lifecycle.cjs` | Lock de singleton e handshake de versão, com todo primitivo de SO injetável. |
@@ -61,12 +63,14 @@ e é exatamente ela que este kit governa.
 | Adapter | Harness | Bloqueia? |
 |---|---|---|
 | `adapters/copilot-cli.mjs` | Copilot CLI / Copilot App (in-process, sub-milissegundo) | ✅ |
-| `adapters/hook-cmd.cjs` | Copilot CLI (`hooks.json`) e Claude Code (`settings.json`) | ✅ |
-| `adapters/prompt-hook.cjs` | `UserPromptSubmit` — injeta o contrato de saída 1×/sessão | ❌ só injeta |
-| `adapters/post-hook.cjs` | `PostToolUse` — `bigResult` e registro de evidência | ❌ substitui o resultado |
-| `adapters/daemon-server.cjs` | Nenhum: é o daemon residente que serve a decisão aos três hooks por IPC | ✅ via cliente |
+| `adapters/hook-cmd.cjs` | Copilot CLI (`hooks.json`, alvo `repo`) e Claude Code com `--command-hooks` | ✅ |
+| `adapters/daemon-http.cjs` | Claude Code — `PreToolUse`/`PostToolUse`/`UserPromptSubmit` como hook http no daemon, sem processo por chamada | ✅ |
+| `adapters/session-start.cjs` | Claude Code — `SessionStart` sobe o daemon antes da primeira ferramenta | — |
+| `adapters/prompt-hook.cjs` | `UserPromptSubmit` (modo comando) — injeta o contrato de saída 1×/sessão | ❌ só injeta |
+| `adapters/post-hook.cjs` | `PostToolUse` (modo comando) — `bigResult` e registro de evidência | ❌ substitui o resultado |
+| `adapters/daemon-server.cjs` | Nenhum: é o daemon residente que serve a decisão aos hooks por IPC | ✅ via cliente |
 | `adapters/cursor-hook.cjs` | Cursor — `preToolUse` genérico (recente) + os 3 eventos nomeados | ✅ todas as 4 |
-| `adapters/mcp-server.cjs` | Qualquer IDE com MCP — VS Code, Windsurf, Zed, JetBrains | ❌ só orienta |
+| `adapters/mcp-server.cjs` | Qualquer IDE com MCP — VS Code, Windsurf, Zed, JetBrains; e o Codex, cujo hook `mcp_tool` chama `token_guard_hook` | ❌ só orienta · ✅ no Codex |
 
 ### Ferramentas e procedimento
 
@@ -77,17 +81,8 @@ e é exatamente ela que este kit governa.
 | `agents/scout.agent.md` | Sub-agente de investigação com contexto descartável. |
 | `skills/token-economy/SKILL.md` | O procedimento, em divulgação progressiva. |
 | `cli.cjs` | `init`, `audit`, `status`, `mcp`, `mcp-cost`, `contract`, `test` — a porta de entrada do `npx`. |
-| `install.cjs` | Instala em 5 alvos, com **merge** seguro de todo arquivo de config. |
-| `selftest.cjs` | o núcleo contra o hook real, nos formatos de payload dos runtimes. |
-| `test/adapters.test.cjs` | tradução dos adapters Cursor e MCP. |
-| `test/mcp-cost.test.cjs` | handshake, descoberta e diagnóstico do medidor de MCP. |
-| `test/contract.test.cjs` | parsing, evidência e estado do contrato. |
-| `test/install.test.cjs` | integração do instalador: idempotência, reparo de registro obsoleto e preservação de assets. |
-| `test/savings.test.cjs` | a promessa central travada: economia líquida > 0. |
-| `test/postresult.test.cjs` | a regra bigResult (truncar sem perder o destino). |
-| `test/adapters.post.test.cjs` / `test/adapters.prompt.test.cjs` | os hooks PostToolUse e UserPromptSubmit ponta a ponta. |
-
-Cada suíte imprime a própria contagem — não confie em números copiados daqui.
+| `install.cjs` | Instala em 6 alvos, com **merge** seguro de todo arquivo de config. |
+| `selftest.cjs` + `test/` | as suítes, em Node puro — descritas em [Testes](#testes). |
 
 ---
 
@@ -120,14 +115,14 @@ Depois:
 
 ```bash
 npx @allansantos-dev/token-guard audit     # veja o tamanho do problema neste repo
-npx @allansantos-dev/token-guard test      # todas as suítes
+npx @allansantos-dev/token-guard test      # o núcleo, contra o hook real
 npx @allansantos-dev/token-guard status    # confira a configuração ativa
 ```
 
 Reinicie a sessão do agente para carregar o hook.
 
 **Trabalha em repositório do cliente?** Use só alvos de máquina (`copilot`, `claude`,
-`cursor`, `mcp`): nada é escrito dentro do repositório, tudo vai para o seu perfil.
+`codex`, `cursor`, `mcp`): nada é escrito dentro do repositório, tudo vai para o seu perfil.
 
 O instalador **nunca sobrescreve** um `hooks.json`, um `settings.json`, um
 `token-guard.config.json`, um agente ou uma skill que já existam — ele preserva e faz
@@ -147,8 +142,8 @@ Detalhes em [docs/INSTALL.md](docs/INSTALL.md).
     token-audit.cjs                   ← o medidor
     selftest.cjs                      ← a bateria de testes
     cli.cjs                           ← init/audit/status/mcp-cost/contract/test
-    adapters/{copilot-cli.mjs, hook-cmd.cjs, cursor-hook.cjs, mcp-server.cjs}
-    lib/{payload,config,rules,decide,audit,mcp-cost,contract}.cjs
+    adapters/                         ← todos os adapters
+    lib/                              ← o núcleo inteiro
   agents/scout.agent.md
   skills/token-economy/SKILL.md
 token-guard.config.json               ← ajustes deste repositório
@@ -190,6 +185,12 @@ O agente lê isso, corrige e segue. Não há intervenção humana no meio.
 | **blindRead** | Ler arquivo > 50 KB sem faixa de linhas | Qualquer leitura com `view_range` / `offset+limit`; arquivos pequenos |
 | **noisePath** | Caminhos em `node_modules`, `target`, `dist`, `.git`, `venv`, `.mcp-memory`… | Qualquer caminho na `allowlist` |
 | **shellDump** | `Get-ChildItem -Recurse`, `ls -R`, `dir /s`, `find .`, `tree`, `grep -r` sem limite | Os mesmos comandos com filtro (`-name`) ou teto (`\| head -50`, `\| Select-Object -First 50`) |
+
+E uma quinta, **pós-execução**: **bigResult**. Resultado legítimo que se revela gigante
+(> 25 mil caracteres de texto) vira stub com cabeça e cauda; o integral vai para
+`.token-guard/results/` e a dica de como refazer a chamada mais barata vem junto. No
+Copilot e no Claude Code (≥ 2.1.121) o stub **substitui** o resultado — o corpo inteiro
+nunca entra na janela.
 
 ### Por que não barramos toda busca ampla
 
@@ -276,6 +277,9 @@ token-guard      3 ferram.     400 tok
 74 ferramentas em 4 servidores ≈ 9.695 tokens = 0,048 janela(s), em toda sessão
 ```
 
+O próprio token-guard declara hoje 4 ferramentas (`token_guard_hook` entrou na 2.6.0,
+para o Codex): **≈ 495 tokens**, medidos por handshake na 2.6.2.
+
 Servidores que não respondem aparecem numa seção própria, com o motivo — eles continuam
 custando janela, só não sabemos quanto. Transporte HTTP não é sondável por stdio e é
 declarado como tal, em vez de ser contado como zero.
@@ -309,10 +313,20 @@ O overhead das mensagens de deny é ruído (<2% do evitado). Em repos pequenos o
 kit não atrapalha por design. O ponto de equilíbrio é alto: os guards só deixam
 de valer se **~94% dos bloqueios forem falsos positivos**.
 
-Limitação honesta: é simulação paramétrica ancorada em tamanhos medidos com
-sequência sintética de chamadas — não replay de transcripts vivos. Os três
-números que sustentam as premissas são medidos por este mesmo kit:
-`token-audit` (tamanho do repo), `mcp-cost` (preâmbulo) e o bench acima.
+Limitação honesta: é simulação paramétrica ancorada em tamanhos medidos, com
+sequência sintética de chamadas. Os números que sustentam as premissas são medidos
+por este mesmo kit: `token-audit` (tamanho do repo), `mcp-cost` (preâmbulo) e o
+bench acima.
+
+O contraponto com dado real é o **replay**: `npm run replay` roda o `decide()` atual
+sobre cada chamada de ferramenta registrada nos transcripts do Claude Code da máquina.
+Na do autor, em 2026-10-10: **371 sessões, 75.445 chamadas, 190 seriam barradas hoje**
+(blindRead 161 · broadScan 15 · shellDump 9 · noisePath 5) e **~2,7 M tokens líquidos
+evitados** nessas sessões. A auditoria manual da 2.6.0 (176 sessões) conferiu os
+bloqueios um a um, corrigiu os falsos positivos achados e terminou com os mesmos 190,
+todos legítimos. A média por sessão (~7 k) fica bem abaixo da simulação: a
+maioria das sessões é em repositório pequeno, ou já rodou com o guard ligado. O
+transcript não guarda o resultado das ferramentas, então `bigResult` fica fora dessa conta.
 
 ---
 
@@ -407,6 +421,8 @@ Duas defesas, nesta ordem:
 
 ---
 
+## Decisões de design
+
 - **Extensão `.cjs` em todos os arquivos**, de propósito: `.js` viraria ESM num repo com
   `"type": "module"` e o hook quebraria. `.cjs` é CommonJS sempre.
 - **Payload lido por cascata**, cobrindo quatro runtimes:
@@ -454,11 +470,13 @@ node test/contract.test.cjs       # o contrato de saída
 node test/install.test.cjs        # o instalador contra o FS real
 node test/savings.test.cjs        # a economia líquida travada
 npm run test:hooks                # bigResult + UserPromptSubmit ponta a ponta
+node test/daemon-http.test.cjs    # o hook http do Claude Code contra o daemon real
 ```
 
-Cada suíte imprime a própria contagem e sai com código 1 se qualquer caso falhar.
-O CI roda todas em Linux e Windows sobre Node 16, 18, 20 e 22 — mais a simulação de
-instalação (`--dry-run`) e a auditoria do próprio repositório.
+São 23 suítes em Node puro, sem framework. Cada uma imprime a própria contagem e sai
+com código 1 se qualquer caso falhar. O CI roda todas em Linux e Windows sobre Node 16,
+18, 20 e 22 — mais a simulação de instalação (`--dry-run`) e a auditoria do próprio
+repositório.
 
 **Núcleo:** os quatro guards nos três formatos de payload (mais o envelope do SDK
 in-process), os caminhos que **devem** passar (o mais importante: falso positivo é
@@ -478,8 +496,13 @@ diagnóstico: o motivo relatado tem que ser a causa, não o rodapé de versão d
 **Contrato:** parsing por seção, evidência acumulada, estado por sessão no disco,
 poda por TTL e id de sessão que não escapa do diretório.
 
-**Instalação:** idempotência real, reparo de registro apontando para script morto
-e preservação de agente/skill personalizados.
+**Instalação:** idempotência real, reparo de registro apontando para script morto,
+preservação de agente/skill personalizados e o merge no `config.toml`/`hooks.json` do
+Codex sem deslocar hooks já aprovados.
+
+**Daemon:** framing IPC, paridade byte a byte entre o caminho servido e o local (decisão,
+contrato e pós-execução), hook http com token, singleton sob corrida, tolerância a
+falha (o cliente desarma e decide localmente) e handshake de versão contra daemon velho.
 
 ---
 
@@ -498,10 +521,11 @@ npx @allansantos-dev/token-guard contract --touched src/a.ts       # simula a ev
 npx @allansantos-dev/token-guard contract --subagente              # bloco pronto p/ colar no scout
 ```
 
-Estado honesto: a camada "sempre" entra automaticamente — Claude Code injeta via
-`UserPromptSubmit` e o Copilot via `onUserPromptSubmitted`, com os gatilhos por
-evidência (`codigo`/`teste`/`docs`) alimentados pelos arquivos que a sessão tocou.
-Nos harnesses sem hook de prompt (Cursor, MCP), o consumo é manual
+Estado honesto: no Claude Code (`UserPromptSubmit`) e no Copilot (`onUserPromptSubmitted`)
+a injeção é automática — a camada "sempre" no primeiro prompt e os gatilhos por
+evidência (`codigo`/`teste`/`docs`) no prompt seguinte ao toque, alimentados pelos
+arquivos que a sessão tocou (no Claude Code, desde a 2.6.2).
+Onde o kit não registra hook de prompt (Cursor, Codex, MCP), o consumo é manual
 (`--subagente` no prompt do scout). Detalhes em [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ---
@@ -510,12 +534,14 @@ Nos harnesses sem hook de prompt (Cursor, MCP), o consumo é manual
 
 | Documento | Conteúdo |
 |---|---|
+| [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md) | O caminho de uma chamada de ferramenta, de ponta a ponta, em cada harness |
 | [docs/INSTALL.md](docs/INSTALL.md) | Instalação, desinstalação completa, repositórios de cliente |
 | [docs/IDES.md](docs/IDES.md) | Cobertura real por IDE/harness, sem maquiagem |
 | [docs/CONFIG.md](docs/CONFIG.md) | Referência de toda chave de config + estado em disco |
 | [docs/CONTRACT.md](docs/CONTRACT.md) | O contrato de saída, mecanismo e status |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Guard silencioso, config ignorada, diagnósticos |
 | [SECURITY.md](SECURITY.md) | O que executa, o que lê, o que grava — dados e privacidade |
+| [CHANGELOG.md](CHANGELOG.md) | O que mudou em cada versão |
 
 ---
 

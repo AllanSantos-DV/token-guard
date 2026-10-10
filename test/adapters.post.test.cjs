@@ -91,6 +91,21 @@ console.log('\n  [post-hook · claude code]');
   check('exit code 0 mesmo truncando (nunca derruba a sessão)', res !== undefined);
 }
 
+// Evidência do contrato: o arquivo tocado alimenta os gatilhos codigo/teste/docs
+// na próxima injeção — mesmo quando o resultado é pequeno e nada é truncado.
+{
+  const CT = require('../lib/contract.cjs');
+  const sid = 'evidencia-post-hook';
+  const out = run({
+    cwd: TMP, session_id: sid, tool_name: 'Edit',
+    tool_input: { file_path: path.join(TMP, 'src', 'a.ts') }, tool_response: 'ok',
+  });
+  check('Edit pequeno sai em silêncio', out === null);
+  check('arquivo tocado vira evidência do contrato',
+    CT.readTouched(TMP, sid).some((p) => p.endsWith('a.ts')),
+    JSON.stringify(CT.readTouched(TMP, sid)));
+}
+
 console.log('');
 console.log(`  ${pass} passaram · ${fail} falharam`);
 

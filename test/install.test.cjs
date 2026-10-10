@@ -293,6 +293,23 @@ console.log('\n  [codex] ponte mcp_tool -> servidor MCP do token-guard');
   check('tabela antiga substituída: 1 só, caminho novo, subtabela velha removida, tabela seguinte intacta',
     (cfg2.match(/\[mcp_servers\.token-guard\]/g) || []).length === 1 && !cfg2.includes('C:/velho') &&
     !cfg2.includes('token-guard.env') && cfg2.includes('[profiles.fim]\r\nmodel = "y"') && cfg2.startsWith(cfgBefore), cfg2);
+
+  // --mode: ~/.codex não é home de config — vai para ~/.token-guard, que o loader lê.
+  runInstall(['--target', 'codex', '--mode', 'warn', repo], ENV);
+  const tgCfg = path.join(home, '.token-guard', 'token-guard.config.json');
+  check('codex --mode warn grava config num home que o loader lê',
+    fs.existsSync(tgCfg) && JSON.parse(fs.readFileSync(tgCfg, 'utf8')).mode === 'warn', tgCfg);
+}
+
+console.log('\n  [mcp] --mode');
+{
+  const repo = mkrepo('host-mcp-mode');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-mcp-'));
+  const r = runInstall(['--target', 'mcp', '--mode', 'warn', repo], { HOME: home, USERPROFILE: home });
+  const tgCfg = path.join(home, '.token-guard', 'token-guard.config.json');
+  check('mcp --mode warn grava ~/.token-guard/token-guard.config.json',
+    r.status === 0 && fs.existsSync(tgCfg) && JSON.parse(fs.readFileSync(tgCfg, 'utf8')).mode === 'warn',
+    r.stderr || tgCfg);
 }
 
 console.log('\n  [claude] autostart do daemon (F7)');

@@ -174,14 +174,7 @@ const session = await joinSession({
         const cfg = CFG.load(root);
 
         // Evidência para o contrato (gatilhos codigo/teste/docs).
-        try {
-          const a = input?.toolArgs || {};
-          const target = ["path", "filePath", "file_path", "absolute_path", "file"]
-            .map((k) => a[k]).find((v) => typeof v === "string" && v);
-          if (target) {
-            CT.recordTouched(root, invocation?.sessionId || "plugin", [target]);
-          }
-        } catch { /* evidência é otimização */ }
+        CT.noteTouched(root, invocation?.sessionId || "plugin", input?.toolArgs);
 
         const out = postProcess({
           name: input?.toolName,

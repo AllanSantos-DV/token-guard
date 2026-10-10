@@ -20,8 +20,12 @@ const PACKAGE_VERSION = (() => {
   try { return require('../package.json').version; } catch { return '0.0.0'; }
 })();
 
-/** Daemon sem requisição por este tempo se autoencerra (0 desativa). */
-const IDLE_TIMEOUT_MS = Number(process.env.TOKEN_GUARD_DAEMON_IDLE_MS) || 10 * 60 * 1000;
+/** Daemon sem requisição por este tempo se autoencerra (0 desativa; ausente ou inválido = 10 min). */
+function idleTimeoutFromEnv(raw) {
+  const n = Number(raw);
+  return raw != null && String(raw).trim() !== '' && Number.isFinite(n) ? n : 10 * 60 * 1000;
+}
+const IDLE_TIMEOUT_MS = idleTimeoutFromEnv(process.env.TOKEN_GUARD_DAEMON_IDLE_MS);
 
 /**
  * Fallback do SID no Windows: estável por usuário, equivalente ao
@@ -113,10 +117,11 @@ function dispatchContract(params) {
   }
 }
 
-/** Replica post-hook.cjs:26-53 — bigResult + dupRead, cfg carregado quente no daemon. */
+/** Replica post-hook.cjs — evidência do contrato + bigResult + dupRead, cfg carregado quente no daemon. */
 function dispatchPostprocess(params) {
   const { name, input, result, root, sessionId } = params || {};
   try {
+    CT.noteTouched(root, sessionId, input);
     const cfg = CFG.load(root);
     const trimmed = postProcess({ name, input, result, root, cfg });
     if (trimmed) return { ok: true, trimmed };
@@ -517,5 +522,5 @@ module.exports = {
   createServer, dispatch, dispatchContract, dispatchPostprocess, handleMessage, start,
   scheduleIdleShutdown,
   defaultEndpoint, defaultWindowsSid, defaultLockPath, ruleSetHash, PROTOCOL_VERSION, PACKAGE_VERSION,
-  IDLE_TIMEOUT_MS,
+  IDLE_TIMEOUT_MS, idleTimeoutFromEnv,
 };
