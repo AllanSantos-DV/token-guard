@@ -3,6 +3,16 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.7.0] — 2026-10-12
+
+### Adicionado
+- **Aviso de peso de contexto** (`lib/ctxwatch.cjs`, no `UserPromptSubmit`, hook http e de comando).
+  Medição nos transcripts do dia: sessões acima de 200k tokens de contexto foram ~68% do
+  gasto, porque cada chamada relê o contexto inteiro do cache. Ao cruzar 120k tokens (e a cada
+  +60k) o usuário recebe um `systemMessage` com o tamanho e o custo de reler, sugerindo
+  `/compact` ou `/clear`. Vai ao humano, não ao modelo: não custa token. Compactar rearma o
+  aviso. Lê só o fim do transcript; sem transcript ou com erro, silêncio (fail-open).
+
 ## [2.6.2] — 2026-10-10
 
 ### Corrigido

@@ -22,6 +22,7 @@ const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
 const { tryDaemon } = require('../lib/daemon-client.cjs');
 const H = require('../lib/claude-hooks.cjs');
+const CW = require('../lib/ctxwatch.cjs');
 
 /** Caminho local (sem daemon) — leitura+decisão idêntica ao RPC `contract`. */
 function decideLocal(root, sessionId, state) {
@@ -57,11 +58,13 @@ async function main() {
   const decision = viaDaemon.ok
     ? { triggers: viaDaemon.result.triggers, text: viaDaemon.result.text }
     : decideLocal(root, sessionId, state);
-  if (!decision.text) return;
+  const warning = CW.check(args);
+  if (!decision.text && !warning) return;
 
   // EMITE antes de persistir: se a entrega falhar (pipe fechado), o estado
   // continua limpo e a próxima submissão reinjeta — nunca perder o contrato.
-  process.stdout.write(JSON.stringify(H.promptEnvelope(decision.text)));
+  process.stdout.write(JSON.stringify(H.promptEnvelope(decision.text, warning)));
+  if (!decision.text) return;
 
   CT.writeState(root, sessionId, {
     injected: [...state.injected, ...decision.triggers],
