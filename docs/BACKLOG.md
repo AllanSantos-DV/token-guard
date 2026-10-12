@@ -15,6 +15,14 @@ Origem de A23–A25: auditoria docs × código para a apresentação no OpenAI D
 | A24 | `mcp-cost` não varre `~/.codex/config.toml` (`[mcp_servers.*]`): o preâmbulo MCP do Codex fica fora do inventário | S |
 | A25 | `token-guard status` não diz se o daemon/hook http responde: diagnosticar "hook http não bloqueia" exige olhar o processo à mão | S |
 
+Origem de A26–A27: diagnóstico de custo de 2026-10-12 (sessões acima de 200k tokens de contexto = ~68% de ~US$ 282/dia; Opus = 84%).
+
+| # | Item | Esforço |
+|---|---|---|
+| A26 | **`token-guard cost`**: custo por sessão a partir dos transcripts (`~/.claude/projects/**/*.jsonl`), hoje só um script descartável. Por sessão e por modelo: chamadas, tokens de entrada/saída, leitura e escrita de cache (5 min vs 1 h), contexto máximo, US$ estimado e fração acima de 200k. Tabela de preços em config (a de hoje é premissa), dedupe por `message.id`+`requestId`, `--since`, `--top N`. Fecha o ciclo de medição: sem ele não há como provar a economia do ctxwatch (comparar antes e depois) | M |
+| A27 | **Regra do scout**: rajada de leituras/buscas seguidas no contexto principal (ex.: 6+ Read/Grep/Glob/Bash de leitura sem Edit/Write no meio) sugere delegar ao `agents/scout.agent.md`, cujo contexto é descartável. Hoje nada aciona o scout; a investigação fica no contexto principal e é relida em toda chamada seguinte. Entrega como `additionalContext` único por rajada no PostToolUse, com limiar em config e desligável. Medir antes: quantas rajadas por sessão e quantos tokens elas acrescentam ao contexto (estimativa inicial US$ 15–25/dia, não medida) | M |
+| A28 | O código instalado em `~/.claude/token-guard` é uma cópia (2.6.1 em 2026-10-12) e só atualiza com `init --target claude` à mão (o daemon vivo roda dessa cópia, então reiniciá-lo não traz código novo). Avaliar aviso no `status` quando a cópia instalada fica atrás da versão do pacote | S |
+
 ## Fechado na release 2.6.2 (2026-10-10)
 
 | # | Item | Resultado |
