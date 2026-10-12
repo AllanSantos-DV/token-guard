@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const P = require('../lib/payload.cjs');
 const CT = require('../lib/contract.cjs');
 const H = require('../lib/claude-hooks.cjs');
+const CW = require('../lib/ctxwatch.cjs');
 
 const MAX_BODY_BYTES = 64 * 1024 * 1024; // PostToolUse traz o resultado inteiro
 const ROUTES = { '/token-guard/pre': 'pre', '/token-guard/post': 'post', '/token-guard/prompt': 'prompt' };
@@ -66,8 +67,8 @@ function answer(kind, payload, handle) {
   const state = CT.readState(args.root, args.sessionId);
   const r = handle({ id: 1, method: 'contract', params: args });
   const decision = (r && r.result) || {};
-  const out = H.promptEnvelope(decision.text);
-  if (out) CT.writeState(args.root, args.sessionId, { injected: [...state.injected, ...(decision.triggers || [])] });
+  const out = H.promptEnvelope(decision.text, CW.check(args));
+  if (decision.text) CT.writeState(args.root, args.sessionId, { injected: [...state.injected, ...(decision.triggers || [])] });
   return out;
 }
 
