@@ -1015,6 +1015,16 @@ for (const t of targets) {
   console.log('');
 }
 
+// Alvos de máquina instalados: é o que o auto-update (lib/auto-update.cjs)
+// reinstala quando sai versão nova, com hooks/MCP já na config nova.
+if (!DRY && targets.some((t) => t !== 'repo')) {
+  require('./lib/auto-update.cjs').recordInstall({
+    targets, commandHooks: COMMAND_HOOKS, version: require('./package.json').version,
+  });
+  notes.push('update   · auto-update ligado: a cada início de sessão do Claude Code, versão nova é instalada ' +
+    'nestes mesmos alvos (desliga com TOKEN_GUARD_AUTO_UPDATE=off).');
+}
+
 if (skipped.length) {
   console.log('  PRESERVADO');
   for (const s of skipped) console.log(`    ${s}`);

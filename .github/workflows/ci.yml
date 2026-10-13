@@ -48,6 +48,9 @@ jobs:
       - name: Aviso de versão nova — cache, rede e fail-silent
         run: node test/update-check.test.cjs
 
+      - name: Porta dinâmica do hook http e auto-update
+        run: node test/daemon-http-port.test.cjs && node test/auto-update.test.cjs
+
       - name: Instalador — simulação em todos os alvos
         run: node install.cjs --target all --dry-run
 
