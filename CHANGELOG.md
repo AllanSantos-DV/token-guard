@@ -3,6 +3,17 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.8.2] — 2026-10-13
+
+### Corrigido
+- **Dois daemons subindo juntos sobre um socket órfão (POSIX).** O roubo do mutex de
+  reclaim de dono morto lia, apagava e recriava o arquivo sem garantir que ainda era o
+  mesmo: um processo atrasado apagava o mutex que outro acabara de recriar como vivo, e os
+  dois seguiam para o `listen`. Medido em Linux (WSL): 4 em 400 corridas com dois
+  vencedores; depois da correção, 0 em 800. O roubo agora é `rename` + releitura, e
+  devolve o arquivo se não era o morto. Era também o teste instável
+  `corrida de roubo de mutex morto` do CI no Linux.
+
 ## [2.8.1] — 2026-10-13
 
 ### Adicionado
