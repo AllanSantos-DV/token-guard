@@ -293,6 +293,12 @@ function scheduleIdleShutdown(server, lockFile, idleTimeoutMs, depsOverride) {
  * não muda a invariante que realmente importa (nunca dois daemons vivos
  * escutando o mesmo endpoint).
  *
+ * Roubo do mutex de dono morto (desde a 2.8.2): rename para um nome único +
+ * releitura + devolução por `link` quando o arquivo tirado não é o morto. Fecha
+ * a corrida de dois ladrões que media 4 em 400 duplos vencedores em Linux real
+ * (0 em 800 depois); só falharia com um TERCEIRO processo entrando na janela
+ * entre o rename e a devolução.
+ *
  * Nuance validada na rodada 8 de revisão independente F4 (reprodução
  * empírica fresca, 16/16 trials em POSIX real): se o processo B "rouba" e
  * apaga o arquivo de socket bem na janela transitória em que o processo A
@@ -312,14 +318,26 @@ function claimOrphanMutex(mutexPath) {
   } catch (err) {
     if (err.code !== 'EEXIST') return false;
   }
-  let ownerPid;
-  try { ownerPid = parseInt(fs.readFileSync(mutexPath, 'utf8'), 10); } catch { return false; }
+  let observed;
+  try { observed = fs.readFileSync(mutexPath, 'utf8'); } catch { return false; }
+  const ownerPid = parseInt(observed, 10);
   if (!Number.isInteger(ownerPid) || ownerPid <= 0 || DL.REAL_DEPS.isAlive(ownerPid)) return false;
-  try {
-    fs.unlinkSync(mutexPath);
-  } catch {
+  // Roubo em duas etapas: o rename tira o arquivo do lugar (atômico — de dois
+  // ladrões do MESMO arquivo morto só um consegue; o outro toma ENOENT e
+  // desiste) e a releitura confirma que o que saiu é o arquivo morto que
+  // justificou o roubo. Se um concorrente já tinha recriado o mutex como vivo,
+  // o arquivo dele é devolvido por `link` (falha com EEXIST em vez de
+  // sobrescrever) e este processo desiste — nunca dois donos do mesmo reclaim.
+  const aside = `${mutexPath}.stale.${token.replace(':', '-')}`;
+  try { fs.renameSync(mutexPath, aside); } catch { return false; }
+  let moved = null;
+  try { moved = fs.readFileSync(aside, 'utf8'); } catch { /* sem leitura: trata como não confirmado */ }
+  if (moved !== observed) {
+    try { fs.linkSync(aside, mutexPath); } catch { /* já recriado por outro: ele segue dono */ }
+    try { fs.unlinkSync(aside); } catch { /* best-effort */ }
     return false;
   }
+  try { fs.unlinkSync(aside); } catch { /* best-effort */ }
   try {
     fs.writeFileSync(mutexPath, token, { flag: 'wx' });
     return true;
