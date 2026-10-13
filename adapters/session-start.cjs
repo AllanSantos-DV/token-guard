@@ -79,7 +79,8 @@ async function ensureDaemon() {
 
 /** Auto-update em processo destacado e oculto: a sessão não espera rede nem npm. */
 function launchAutoUpdate() {
-  if (!AU.enabled() || !AU.readInstallState()) return;
+  if (process.env.TOKEN_GUARD_UPDATE_CHECK === 'off') return;
+  if (AU.enabled() && !AU.readInstallState()) return;
   try {
     spawn(process.execPath, [path.join(__dirname, '..', 'lib', 'auto-update.cjs')], {
       detached: true, stdio: 'ignore', windowsHide: true,
@@ -98,6 +99,8 @@ async function main() {
   }
   const report = AU.takeReport();
   if (report) messages.push(report);
+  const notice = AU.availableNotice(PACKAGE_VERSION);
+  if (notice) messages.push(notice);
   launchAutoUpdate();
 
   if (messages.length) process.stdout.write(JSON.stringify({ systemMessage: messages.join('\n') }));
