@@ -258,6 +258,11 @@ sessão seguinte — sucesso ou falha, com o log em `~/.token-guard/auto-update.
 comando para rodar à mão. Falha não é repetida na mesma versão antes de 24 h. Desligue
 com `TOKEN_GUARD_AUTO_UPDATE=off`.
 
+Desde a 2.8.1, todo início de sessão também mostra na tela (`systemMessage`) quando há versão
+nova no npm — pelo cache da checagem, sem rede no hook. Com o auto-update desligado, o processo
+oculto segue renovando o cache e o aviso manda atualizar à mão. Só `TOKEN_GUARD_UPDATE_CHECK=off`
+cala os dois.
+
 ---
 
 ## O outro custo: o preâmbulo MCP

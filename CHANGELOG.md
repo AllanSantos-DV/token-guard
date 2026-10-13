@@ -3,6 +3,15 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.8.1] — 2026-10-13
+
+### Adicionado
+- **Aviso visível de versão nova no npm.** O `SessionStart` mostra na tela (`systemMessage`)
+  `token-guard X disponível no npm (você usa Y)`, lido do cache da checagem (sem rede no
+  hook): diz se o auto-update está cuidando ou se é preciso atualizar à mão. Com
+  `TOKEN_GUARD_AUTO_UPDATE=off` o processo oculto continua renovando o cache, então o aviso
+  não some. O aviso de "atualizado automaticamente" (2.8.0) segue como estava.
+
 ## [2.8.0] — 2026-10-13
 
 ### Corrigido

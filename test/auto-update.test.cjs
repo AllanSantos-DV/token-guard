@@ -95,11 +95,30 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   check('outra sessão atualizando (lock) → pula', r.status === 'skipped' && ran === null, r);
   fs.rmSync(AU.lockPath(), { force: true });
 
+  // aviso de versão nova (só cache, sem rede)
+  const cacheFile = path.join(path.dirname(AU.installStatePath()), 'update-check.json');
+  fs.rmSync(cacheFile, { force: true });
+  check('sem cache → sem aviso', AU.availableNotice(LOCAL) === null);
+  fs.writeFileSync(cacheFile, JSON.stringify({ latestVersion: NEXT, checkedAt: Date.now() }));
+  const note = AU.availableNotice(LOCAL);
+  check('cache com versão nova → aviso visível, auto-update em curso',
+    new RegExp(`${NEXT} disponível no npm \\(você usa ${LOCAL.replace(/\./g, '\\.')}\\).*atualizando em segundo plano`).test(note || ''), note);
+  fs.writeFileSync(cacheFile, JSON.stringify({ latestVersion: LOCAL, checkedAt: Date.now() }));
+  check('em dia → sem aviso', AU.availableNotice(LOCAL) === null);
+  fs.writeFileSync(cacheFile, JSON.stringify({ latestVersion: NEXT, checkedAt: Date.now() }));
+
   // desligado
   process.env.TOKEN_GUARD_AUTO_UPDATE = 'off';
-  r = await AU.run({ checkForUpdate: newer, runInstaller: () => ({ status: 0 }) });
-  check('TOKEN_GUARD_AUTO_UPDATE=off → desligado', r.status === 'skipped' && r.reason === 'desligado', r);
+  let checked = 0;
+  r = await AU.run({ checkForUpdate: async () => { checked++; return newer(); }, runInstaller: () => ({ status: 0 }) });
+  check('TOKEN_GUARD_AUTO_UPDATE=off → desligado, mas segue checando a versão', r.status === 'skipped' && r.reason === 'desligado' && checked === 1, { r, checked });
+  const noteOff = AU.availableNotice(LOCAL);
+  check('auto-update off → aviso manda atualizar à mão', /desligado — atualize à mão: npx .*token-guard@99\.0\.0 init/.test(noteOff || ''), noteOff);
   delete process.env.TOKEN_GUARD_AUTO_UPDATE;
+  process.env.TOKEN_GUARD_UPDATE_CHECK = 'off';
+  check('UPDATE_CHECK=off → sem aviso', AU.availableNotice(LOCAL) === null);
+  delete process.env.TOKEN_GUARD_UPDATE_CHECK;
+  fs.rmSync(cacheFile, { force: true });
 
   reset();
   console.log(`\n  auto-update: ${pass} passaram · ${fail} falharam`);
