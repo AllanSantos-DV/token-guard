@@ -73,9 +73,20 @@ repositório, confie no `matcher` do hooks.json.
 O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem guard.
 
 - O `SessionStart` do token-guard sobe o daemon no início da sessão — reinicie a
-  sessão depois de instalar.
-- Política que restringe `allowedHttpHookUrls`: inclua `http://127.0.0.1:<porta>/*`
-  (o instalador avisa) ou reinstale com `init --target claude --command-hooks`.
+  sessão depois de instalar. Se o daemon não fica pronto, ele avisa na tela
+  (`systemMessage`) em vez de seguir calado.
+- **Conexão recusada numa porta que não é a do daemon** (ex.: depois de atualizar à
+  mão): desde a 2.8.0 a porta é dinâmica. O daemon tenta a preferida, depois a última
+  registrada, depois qualquer livre; grava onde subiu em `~/.token-guard/daemon-http.json`
+  e reaponta os hooks do token-guard no `~/.claude/settings.json` (o Claude Code relê
+  hooks alterados sem reiniciar). O `SessionStart` confere de novo a cada sessão.
+- `TOKEN_GUARD_HTTP_PORT` fixa a porta, sem fallback: ocupada, o hook http fica
+  desligado e o `SessionStart` avisa o motivo (`daemon-http.json` › `error`).
+- Política que restringe `allowedHttpHookUrls`: a porta pode mudar; fixe-a com
+  `TOKEN_GUARD_HTTP_PORT` e inclua `http://127.0.0.1:<porta>/*` (o instalador avisa),
+  ou reinstale com `init --target claude --command-hooks`.
+- Daemon que cai **no meio** da sessão não é religado até o próximo início de sessão
+  (ou o autostart do logon); até lá o hook http falha aberto.
 
 ## Codex: o hook não dispara
 

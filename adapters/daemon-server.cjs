@@ -417,11 +417,27 @@ function start(endpointOverride) {
         handle: (msg) => handleMessage(msg, server.ctx),
         onActivity: () => { server.ctx.lastActivity = Date.now(); },
       });
-      httpServer.on('error', (err) => {
-        process.stderr.write(`token-guard daemon: hook http indisponível (${err.code || err.message}) — segue só no pipe\n`);
-      });
-      httpServer.listen(DH.httpPort(), '127.0.0.1', () => {
-        process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${DH.httpPort()}\n`);
+      // Porta dinâmica: preferida → última registrada → livre. Onde subiu vai
+      // para ~/.token-guard/daemon-http.json e para o settings.json do Claude
+      // Code — a URL nunca fica presa no endpoint de um daemon anterior.
+      DH.listenFirstFree(httpServer, DH.candidatePorts()).then((port) => {
+        process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${port}\n`);
+        try {
+          DH.writeJsonAtomic(DH.endpointPath(), { port, url: `http://127.0.0.1:${port}/token-guard`, pid: process.pid, version: PACKAGE_VERSION });
+        } catch (err) {
+          process.stderr.write(`token-guard daemon: não gravou ${DH.endpointPath()} (${err.message})\n`);
+        }
+        const sync = DH.syncClaudeSettings(port);
+        if (!sync.ok) process.stderr.write(`token-guard daemon: settings.json do Claude Code NÃO reapontado para a porta ${port}: ${sync.error}\n`);
+        else if (sync.changed) process.stderr.write(`token-guard daemon: ${sync.changed} hook(s) http do Claude Code reapontado(s) para a porta ${port}\n`);
+      }, (err) => {
+        // Fail-loud: sem HTTP, o hook do Claude Code cai em conexão recusada
+        // (fail-open). Registra o motivo para o SessionStart avisar o usuário.
+        const why = DH.fixedPort()
+          ? `porta fixa ${DH.fixedPort()} (TOKEN_GUARD_HTTP_PORT) ocupada ou recusada: ${err.code || err.message}`
+          : `nenhuma porta disponível: ${err.code || err.message}`;
+        process.stderr.write(`token-guard daemon: hook http DESLIGADO — ${why}\n`);
+        try { DH.writeJsonAtomic(DH.endpointPath(), { ...(DH.readEndpoint() || {}), error: why, pid: process.pid, version: PACKAGE_VERSION }); } catch { /* o stderr acima já registrou */ }
       });
       server.once('close', () => httpServer.close());
     }

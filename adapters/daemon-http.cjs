@@ -25,14 +25,112 @@ const CW = require('../lib/ctxwatch.cjs');
 
 const MAX_BODY_BYTES = 64 * 1024 * 1024; // PostToolUse traz o resultado inteiro
 const ROUTES = { '/token-guard/pre': 'pre', '/token-guard/post': 'post', '/token-guard/prompt': 'prompt' };
+const HEALTH = '/token-guard/health';
 
-/** Porta estável por conta de usuário (a URL vai fixa no settings.json). */
-function httpPort() {
+/** Porta fixada por env: sem fallback — ocupada, o HTTP não sobe (e avisa alto). */
+function fixedPort() {
   const override = Number(process.env.TOKEN_GUARD_HTTP_PORT);
-  if (Number.isInteger(override) && override > 0 && override < 65536) return override;
+  return Number.isInteger(override) && override > 0 && override < 65536 ? override : null;
+}
+
+/** Porta preferida, estável por conta de usuário. */
+function defaultPort() {
   let user;
   try { user = os.userInfo().username; } catch { user = process.env.USERNAME || process.env.USER || 'default'; }
   return 41000 + (crypto.createHash('sha1').update(String(user)).digest().readUInt32BE(0) % 8000);
+}
+
+/** Onde o daemon registra a porta em que o HTTP subiu de fato. */
+function endpointPath() {
+  return path.join(os.homedir(), '.token-guard', 'daemon-http.json');
+}
+
+function readEndpoint() {
+  try {
+    const e = JSON.parse(fs.readFileSync(endpointPath(), 'utf8'));
+    return e && Number.isInteger(e.port) && e.port > 0 && e.port < 65536 ? e : null;
+  } catch { return null; }
+}
+
+function writeJsonAtomic(file, obj) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tg-tmp-${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2) + '\n', 'utf8');
+  fs.renameSync(tmp, file);
+}
+
+/** Porta que os clientes devem usar: a fixada, senão a registrada pelo daemon, senão a preferida. */
+function httpPort() {
+  const rec = readEndpoint();
+  return fixedPort() || (rec && rec.port) || defaultPort();
+}
+
+/** Ordem de bind: preferida, última registrada, qualquer livre (0). Fixada: só ela. */
+function candidatePorts() {
+  const fixed = fixedPort();
+  if (fixed) return [fixed];
+  const rec = readEndpoint();
+  return [...new Set([defaultPort(), rec && rec.port, 0].filter((p) => p !== null && p !== undefined))];
+}
+
+/**
+ * Sobe `server` na primeira porta livre de `ports` (127.0.0.1). Resolve a
+ * porta escolhida; rejeita com o último erro se nenhuma serviu.
+ */
+function listenFirstFree(server, ports) {
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    const attempt = () => {
+      const port = ports[i];
+      const onError = (err) => {
+        server.removeListener('listening', onListening);
+        if (err && err.code === 'EADDRINUSE' && ++i < ports.length) return attempt();
+        reject(err);
+      };
+      const onListening = () => {
+        server.removeListener('error', onError);
+        resolve(server.address().port);
+      };
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(port, '127.0.0.1');
+    };
+    attempt();
+  });
+}
+
+function claudeSettingsPath() {
+  return path.join(os.homedir(), '.claude', 'settings.json');
+}
+
+const TG_URL_RE = /^http:\/\/127\.0\.0\.1:(\d+)(\/token-guard\/[a-z]+)$/;
+
+/**
+ * Reaponta os hooks http do token-guard no settings.json do Claude Code para
+ * `port` — só esses, só se a porta mudou, gravação atômica. O watcher do
+ * Claude Code relê hooks alterados no arquivo, então a sessão aberta segue o
+ * daemon que voltou em outra porta.
+ * @returns {{ok:true, changed:number} | {ok:false, error:string}}
+ */
+function syncClaudeSettings(port, file = claudeSettingsPath()) {
+  let raw;
+  try { raw = fs.readFileSync(file, 'utf8'); } catch (err) {
+    return err.code === 'ENOENT' ? { ok: true, changed: 0 } : { ok: false, error: `${file}: ${err.message}` };
+  }
+  let settings;
+  try { settings = JSON.parse(raw); } catch (err) { return { ok: false, error: `${file} não é JSON válido: ${err.message}` }; }
+  let changed = 0;
+  for (const entries of Object.values((settings && settings.hooks) || {})) {
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      for (const h of Array.isArray(entry && entry.hooks) ? entry.hooks : []) {
+        const m = h && h.type === 'http' && typeof h.url === 'string' ? TG_URL_RE.exec(h.url) : null;
+        if (m && Number(m[1]) !== port) { h.url = `http://127.0.0.1:${port}${m[2]}`; changed++; }
+      }
+    }
+  }
+  if (!changed) return { ok: true, changed: 0 };
+  try { writeJsonAtomic(file, settings); } catch (err) { return { ok: false, error: `${file}: ${err.message}` }; }
+  return { ok: true, changed };
 }
 
 function httpTokenPath() {
@@ -82,9 +180,13 @@ function createHttpServer({ token, handle, onActivity }) {
       res.writeHead(status, { 'content-type': 'application/json' });
       res.end(body);
     };
-    const kind = ROUTES[String(req.url || '').split('?')[0]];
-    if (req.method !== 'POST' || !kind) return send(404, '{"error":"rota desconhecida"}');
+    const route = String(req.url || '').split('?')[0];
+    const kind = ROUTES[route];
+    const health = req.method === 'GET' && route === HEALTH;
+    if (!health && (req.method !== 'POST' || !kind)) return send(404, '{"error":"rota desconhecida"}');
     if (!sameToken(req.headers['x-token-guard'], token)) return send(401, '{"error":"token ausente ou invalido"}');
+    // Prova de que quem responde na porta é ESTE daemon (com o token do dono), não um forasteiro.
+    if (health) return send(200, JSON.stringify({ ok: true, pid: process.pid }));
 
     const chunks = [];
     let size = 0;
@@ -109,4 +211,8 @@ function createHttpServer({ token, handle, onActivity }) {
   });
 }
 
-module.exports = { createHttpServer, httpPort, httpTokenPath, readToken };
+module.exports = {
+  createHttpServer, httpPort, httpTokenPath, readToken,
+  fixedPort, defaultPort, candidatePorts, listenFirstFree,
+  endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
+};

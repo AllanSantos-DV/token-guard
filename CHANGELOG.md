@@ -3,6 +3,31 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.8.0] — 2026-10-13
+
+### Corrigido
+- **Hook http do Claude Code preso num endpoint antigo.** A porta era gravada no
+  `settings.json` no install, e o daemon subia por conta própria, sem fallback nem
+  registro: com a porta ocupada, ou depois de atualizar à mão, o Claude Code ficava em
+  conexão recusada (fail-open, ferramentas sem guard) sem aviso. Agora o daemon tenta
+  a porta preferida, depois a última registrada, depois qualquer livre; grava onde subiu
+  em `~/.token-guard/daemon-http.json` e reaponta só os hooks http do token-guard no
+  `settings.json`, de forma atômica e só quando a porta mudou (o Claude Code relê hooks
+  alterados sem reiniciar). O `SessionStart` confere com uma rota de health autenticada
+  (`GET /token-guard/health`) e corrige um `settings.json` defasado.
+- `TOKEN_GUARD_HTTP_PORT` ocupada: o hook http fica desligado com o motivo registrado e o
+  `SessionStart` avisa na tela (`systemMessage`), em vez de seguir calado.
+
+### Adicionado
+- **Auto-update** (`lib/auto-update.cjs`). O `init` registra os alvos de máquina em
+  `~/.token-guard/install-state.json`. A cada início de sessão do Claude Code, um processo
+  oculto e destacado checa a versão (mesmo cache de 24 h do `status`) e, havendo nova,
+  roda o instalador dela nos mesmos alvos: runtime, hooks e MCP saem atualizados juntos.
+  O resultado (sucesso ou falha, com log e comando manual) aparece na sessão seguinte.
+  Falha não se repete na mesma versão antes de 24 h. Desliga com
+  `TOKEN_GUARD_AUTO_UPDATE=off`. Quem está na 2.7.0 ou anterior precisa atualizar uma
+  vez à mão (`npx @allansantos-dev/token-guard@2.8.0 init --target <alvos>`).
+
 ## [2.7.0] — 2026-10-12
 
 ### Adicionado

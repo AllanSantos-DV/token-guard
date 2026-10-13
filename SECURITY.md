@@ -51,6 +51,12 @@ faz com a sua máquina e os seus dados:
 - `~/.token-guard/update-check.json` — `{ latestVersion, checkedAt }` da checagem de
   versão descrita abaixo.
 - `~/.token-guard/daemon-http.token` — token do hook http (só com `--target claude`).
+- `~/.token-guard/daemon-http.json` — `{ port, url, pid, version }` de onde o hook http
+  subiu (ou `error`, se não subiu). O daemon reescreve, só quando a porta muda, as URLs
+  dos hooks http do token-guard em `~/.claude/settings.json` — nenhuma outra entrada.
+- `~/.token-guard/install-state.json` — alvos de máquina instalados (para o auto-update);
+  `auto-update.json` / `auto-update.log` / `auto-update.lock` — resultado, saída do
+  instalador e trava da última atualização automática.
 - Lock de singleton do daemon: `<socket>.lock` no POSIX,
   `%TEMP%/token-guard-locks/<pipe>.lock` no Windows — pid e versão de protocolo.
 - Autostart do daemon (só `--target claude`): tarefa agendada `TokenGuardDaemon` e a
@@ -70,17 +76,25 @@ nova (`lib/update-check.cjs`). O que isso significa, explicitamente:
 - **Nada sobre você vai na requisição** — é o documento público do pacote, sem corpo,
   sem identificador, sem contagem de uso. O registry vê o que vê de qualquer `npm view`:
   um IP e um user-agent.
-- **Só nesses dois comandos.** O caminho quente (hooks, plugin in-process, daemon, MCP)
+- **Só nesses dois comandos e no auto-update** (abaixo). O caminho quente (hooks, plugin in-process, daemon, MCP)
   nunca abre conexão de saída — o único listener TCP é o do hook http, em loopback.
   Um veredito jamais depende de estar on-line.
 - **No máximo 1× por 24 h**, por causa do cache em `~/.token-guard/update-check.json`.
 - **Desligável:** `TOKEN_GUARD_UPDATE_CHECK=off`. Falha de rede é silenciosa
   (best-effort): o comando segue normalmente.
 
+**Auto-update (desde a 2.8.0).** Depois de um `init` em alvo de máquina, o
+`SessionStart` do Claude Code também faz essa checagem (mesmo cache de 24 h), num
+processo oculto e destacado. Havendo versão nova, roda
+`npx --yes @allansantos-dev/token-guard@<versão> init --target <alvos registrados>`:
+baixa o pacote do npm e executa o instalador dele, com os seus privilégios de usuário.
+Só entram versão semver e alvo conhecido no comando. O resultado é mostrado na sessão
+seguinte. Desligue com `TOKEN_GUARD_AUTO_UPDATE=off` (ou `TOKEN_GUARD_UPDATE_CHECK=off`).
+
 ## O que NÃO existe
 
-- Telemetria, métricas de uso, "phone home" — a checagem de versão acima é a única
-  requisição que sai, e ela não carrega dado nenhum seu.
+- Telemetria, métricas de uso, "phone home" — a checagem de versão e o download do
+  auto-update acima são as únicas requisições que saem, e não carregam dado nenhum seu.
 - Dependência npm nenhuma em runtime (superfície de supply chain = zero).
 - Avaliação remota de código de config: JSON parseado, campos lidos, nada mais.
 

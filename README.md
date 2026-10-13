@@ -56,7 +56,8 @@ e é exatamente ela que este kit governa.
 | `lib/ipc-frame.cjs` | Framing por prefixo de tamanho — o transporte que liga hook e daemon. |
 | `lib/daemon-client.cjs` | O cliente fino dos hooks: fala com o daemon, sobe um se não houver, desarma após 3 falhas e cai no caminho efêmero. |
 | `lib/daemon-lifecycle.cjs` | Lock de singleton e handshake de versão, com todo primitivo de SO injetável. |
-| `lib/update-check.cjs` | O aviso de versão nova — a única saída de rede do projeto ([detalhes](SECURITY.md)). |
+| `lib/update-check.cjs` | O aviso de versão nova — a única consulta de rede do projeto ([detalhes](SECURITY.md)). |
+| `lib/auto-update.cjs` | Atualização automática: reinstala a versão nova nos mesmos alvos ([detalhes](SECURITY.md)). |
 
 ### Adapters — só tradução de envelope, zero regra de negócio
 
@@ -233,7 +234,8 @@ abaixo disso o custo é irrelevante e a disciplina só atrapalha.
 | Testar sem atrito | `TOKEN_GUARD=warn` |
 | Uma regra não serve a este repo | `"rules": { "shellDump": false }` |
 | Um caminho específico é legítimo (`noisePath`/`blindRead`) | `"allowlist": ["..."]` |
-| Não quero aviso de nova versão | `TOKEN_GUARD_UPDATE_CHECK=off` no ambiente |
+| Não quero aviso de nova versão | `TOKEN_GUARD_UPDATE_CHECK=off` no ambiente (desliga também o auto-update) |
+| Não quero atualização automática | `TOKEN_GUARD_AUTO_UPDATE=off` no ambiente |
 
 Um guard sem saída de emergência vira dívida. Estas cinco existem de propósito.
 
@@ -244,6 +246,17 @@ background, nunca nos hooks), se há uma versão mais nova publicada no npm.
 Consulta o registry no máximo 1x por dia (cache em
 `~/.token-guard/update-check.json`); sem rede, não trava nem avisa — fica em
 silêncio. Desligue com `TOKEN_GUARD_UPDATE_CHECK=off`.
+
+### Atualização automática
+
+Desde a 2.8.0, o `init` registra os alvos de máquina instalados
+(`~/.token-guard/install-state.json`). A cada início de sessão do Claude Code, um
+processo oculto e destacado (a sessão não espera) usa a mesma checagem acima e, havendo
+versão nova, roda `npx @allansantos-dev/token-guard@<nova> init --target <os mesmos>`:
+runtime, hooks e MCP saem atualizados juntos. O resultado aparece na tela no início da
+sessão seguinte — sucesso ou falha, com o log em `~/.token-guard/auto-update.log` e o
+comando para rodar à mão. Falha não é repetida na mesma versão antes de 24 h. Desligue
+com `TOKEN_GUARD_AUTO_UPDATE=off`.
 
 ---
 
