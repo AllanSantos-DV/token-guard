@@ -329,6 +329,9 @@ function unregisterClaudeHttp(settings) {
 /* ------------------------------------------------------------------ */
 
 const DAEMON_TASK_NAME = 'TokenGuardDaemon';
+/** Religa o daemon que caiu no meio da sessão (hook http só recebe conexão recusada). */
+const DAEMON_WATCH_TASK_NAME = 'TokenGuardDaemonWatch';
+const WATCHDOG_MINUTES = 5;
 const DAEMON_SERVICE_NAME = 'token-guard-daemon';
 
 /** Seam de teste: producao nunca seta esta var, so os testes de F7 pra
@@ -398,11 +401,13 @@ function writeUnitFile(unitPath, content, label) {
 
 function installAutostartWindows(daemonScript) {
   const sid = stableWindowsSid();
-  const tr = `"${process.execPath}" "${daemonScript}"`;
+  // conhost --headless: tarefa agendada com node.exe pisca console na tela do usuário.
+  const tr = `conhost.exe --headless "${process.execPath}" "${daemonScript}"`;
 
   if (DRY) {
     log('create', `[dry-run] TOKEN_GUARD_SID=${sid}  (setx, persistido no perfil do usuario)`);
     log('create', `[dry-run] Task Scheduler "${DAEMON_TASK_NAME}" -> ${tr}  (ONLOGON)`);
+    log('create', `[dry-run] Task Scheduler "${DAEMON_WATCH_TASK_NAME}" -> ${tr}  (a cada ${WATCHDOG_MINUTES} min)`);
     return;
   }
 
@@ -419,6 +424,15 @@ function installAutostartWindows(daemonScript) {
     taskOk
       ? `Task Scheduler "${DAEMON_TASK_NAME}"  (ONLOGON, ${tr})`
       : `Task Scheduler "${DAEMON_TASK_NAME}" nao pode ser registrada (schtasks falhou) — daemon so sobe on-demand (F5)`);
+
+  // Daemon vivo = singleton sai com 0 na hora; caído = sobe. Custo: um processo oculto a cada 5 min.
+  const watchExisted = taskExists(DAEMON_WATCH_TASK_NAME);
+  const watchOk = runQuiet('schtasks',
+    ['/create', '/tn', DAEMON_WATCH_TASK_NAME, '/tr', tr, '/sc', 'minute', '/mo', String(WATCHDOG_MINUTES), '/rl', 'limited', '/f']);
+  log(watchOk ? (watchExisted ? 'update' : 'create') : 'skip',
+    watchOk
+      ? `Task Scheduler "${DAEMON_WATCH_TASK_NAME}"  (a cada ${WATCHDOG_MINUTES} min, religa o daemon que cair)`
+      : `Task Scheduler "${DAEMON_WATCH_TASK_NAME}" nao pode ser registrada — daemon que cair no meio da sessao so volta no proximo SessionStart`);
 }
 
 function installAutostartSystemd(daemonScript) {
@@ -467,6 +481,7 @@ function installAutostartLaunchd(daemonScript) {
   </array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><false/>
+  <key>StartInterval</key><integer>300</integer>
 </dict>
 </plist>
 `;
