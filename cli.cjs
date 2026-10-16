@@ -76,6 +76,14 @@ async function status(args) {
     console.log('');
     console.log('  ATENÇÃO: o guard está DESLIGADO (mode "off" ou TOKEN_GUARD=off).');
   }
+  try {
+    const d = await require('./lib/daemon-status.cjs').inspect();
+    console.log(`  daemon (ipc):    ${d.ipc.ok ? `no ar (v${d.ipc.version})` : 'fora do ar — sobe sozinho na próxima chamada de hook'}`);
+    console.log(`  daemon (http):   porta ${d.http.port} · ${d.http.state}${d.http.detail ? ` (${d.http.detail})` : ''}`);
+    console.log(`  hook http:       ${d.verdict}`);
+  } catch (e) {
+    console.log(`  daemon:          não foi possível inspecionar (${e.message})`);
+  }
   await printUpdateNotice('  atualização:     ');
   console.log('');
 }
