@@ -30,6 +30,7 @@ const SCRIPTS = {
   mcp: path.join('adapters', 'mcp-server.cjs'),
   'mcp-cost': 'mcp-cost.cjs',
   contract: 'contract.cjs',
+  cost: 'cost.cjs',
 };
 
 function run(script, args) {
@@ -135,6 +136,14 @@ function help() {
                           --touched a.js,b.md  simula a evidência da sessão
                           --subagente   só o bloco de contexto descartável
                           --json        dados crus
+
+    cost [--since 7d]     Custo por sessão e por modelo a partir dos transcripts do
+                          Claude Code (~/.claude/projects): chamadas, tokens, cache,
+                          contexto máximo, US$ estimado e fração acima de 200k.
+                          --top N       sessões mais caras (padrão 10)
+                          --dir PASTA   outra pasta de transcripts
+                          --json        dados crus
+                          Preços: premissa em cost.prices do token-guard.config.json.
 
     test                  Roda a bateria de testes contra o hook real.
 

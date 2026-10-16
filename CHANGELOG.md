@@ -3,6 +3,31 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.10.0] — 2026-10-16
+
+### Adicionado
+- **`token-guard cost`** (A26): custo por sessão e por modelo a partir dos transcripts do
+  Claude Code — chamadas, tokens, cache lido/escrito (5 min e 1 h), contexto máximo, US$
+  estimado e fração acima de 200k. Deduplica o streaming por `message.id`+`requestId`,
+  aceita `--since 7d|AAAA-MM-DD`, `--top N`, `--json`. Preço é premissa em `cost.prices`;
+  modelo sem preço é listado e não entra na conta.
+- **Releitura idêntica chega ao modelo** (A23): o stub do dupRead agora substitui o
+  resultado do Read via `updatedToolOutput` (formato `{file:{content}}` do Claude Code),
+  para leitura ≥ 2000 caracteres de arquivo inalterado. O registro é zerado em
+  compactação/limpeza/retomada (`SessionStart`), e o stub ensina a reler com `offset/limit`.
+- **Regra do scout** (A27): `limits.scoutBurst` (8) leituras/buscas seguidas sem edição
+  geram UM aviso por rajada sugerindo o subagente `scout`. Desligável em `rules.scout`.
+  Medido em 7 dias de transcripts: limiar 6 → 470 rajadas, 8 → 256, 10 → 157.
+- **`token-guard status` mostra a saúde do daemon** (A25): IPC, porta http, token e se o
+  `settings.json` aponta para a porta viva, com veredito em uma linha.
+- **`mcp-cost` lê `~/.codex/config.toml`** (A24): tabelas `[mcp_servers.*]` do Codex.
+
+### Corrigido
+- **Daemon que cai no meio da sessão não voltava** (A29): no Windows, uma task agendada a
+  cada 5 min (`TokenGuardDaemonWatch`) religa o daemon (singleton: se vivo, sai na hora);
+  no macOS, `StartInterval` de 300 s; no Linux o `Restart=on-failure` já cobria. As tasks
+  rodam via `conhost --headless`, sem piscar console.
+
 ## [2.9.0] — 2026-10-16
 
 ### Adicionado

@@ -77,6 +77,31 @@ console.log('\n  [camada B · checkRepeat]');
     osess === null || osess.repeat !== true, JSON.stringify(osess));
 }
 
+// A23 — a duplicata chega ao modelo (updatedToolOutput), no formato do Claude Code
+{
+  const inp = { file_path: path.join(TMP, 'Big.cjs') };
+  const body = 'linha\n'.repeat(1000);
+  const res = () => ({ type: 'text', file: { filePath: inp.file_path, content: body, numLines: 1000, totalLines: 1000 } });
+  const a = { name: 'Read', input: inp, root: TMP, sessionId: 'a23', cfg: cfg() };
+  const r1 = DR.dedupe({ ...a, result: res() });
+  const r2 = DR.dedupe({ ...a, result: res() });
+  check('A23a: primeira leitura (objeto do Claude Code) não é substituída', r1 === null);
+  check('A23b: releitura idêntica vira stub mantendo o formato do objeto',
+    Boolean(r2) && r2.modifiedResult.type === 'text' && r2.modifiedResult.file.filePath === inp.file_path &&
+    r2.modifiedResult.file.content.startsWith('[dupRead]') && r2.modifiedResult.file.content.length < 600,
+    JSON.stringify(r2 && r2.modifiedResult).slice(0, 200));
+  check('A23c: o stub ensina a recuperar (offset/limit)', /offset\/limit/.test(r2.additionalContext));
+  const changed = DR.dedupe({ ...a, result: { ...res(), file: { ...res().file, content: body + 'nova\n' } } });
+  check('A23d: conteúdo alterado não é duplicata', changed === null);
+  const small = { file_path: path.join(TMP, 'Small.cjs') };
+  DR.dedupe({ ...a, input: small, result: 'pouco' });
+  check('A23e: leitura pequena repetida não é substituída (stub custaria o mesmo)',
+    DR.dedupe({ ...a, input: small, result: 'pouco' }) === null);
+  DR.resetSession(TMP, 'a23');
+  check('A23f: após compactação (resetSession) a releitura não vira stub',
+    DR.dedupe({ ...a, result: res() }) === null);
+}
+
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch {}
 
 console.log('');

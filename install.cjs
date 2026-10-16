@@ -182,7 +182,7 @@ function writeJson(file, obj, base, label) {
  *  forem copiados, os comandos quebram na cópia instalada). */
 const RUNTIME_FILES = [
   'package.json', 'cli.cjs', 'token-guard.cjs', 'token-audit.cjs',
-  'mcp-cost.cjs', 'contract.cjs', 'contract.default.md',
+  'mcp-cost.cjs', 'cost.cjs', 'contract.cjs', 'contract.default.md',
   'selftest.cjs', 'config.default.json', 'README.md',
 ];
 const RUNTIME_DIRS = ['lib', 'adapters'];

@@ -15,7 +15,8 @@
 const P = require('../lib/payload.cjs');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
-const { noteResult, isRead } = require('../lib/dupread.cjs');
+const { dedupe, isRead } = require('../lib/dupread.cjs');
+const SCOUT = require('../lib/scout.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
 const { tryDaemon } = require('../lib/daemon-client.cjs');
 const H = require('../lib/claude-hooks.cjs');
@@ -29,21 +30,18 @@ async function main() {
   const viaDaemon = await tryDaemon('postprocess', { name, input: inp, result, root, sessionId: sid });
   // Evidência do contrato (gatilhos codigo/teste/docs) — o daemon já gravou se serviu.
   if (!viaDaemon.ok) CT.noteTouched(root, sid, inp);
-  const trimmed = viaDaemon.ok
-    ? viaDaemon.result.trimmed
-    : postProcess({ name, input: inp, result, root, cfg: CFG.load(root) });
-  if (trimmed) {
-    process.stdout.write(JSON.stringify(H.postEnvelope(trimmed)));
-    return;
+  let trimmed = viaDaemon.ok ? viaDaemon.result.trimmed : null;
+  if (!viaDaemon.ok) {
+    const cfg = CFG.load(root);
+    trimmed = postProcess({ name, input: inp, result, root, cfg });
+    // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o
+    // daemon serviu este postprocess, ele já fez isso (dispatchPostprocess).
+    if (!trimmed && sid && isRead(name)) {
+      try { trimmed = dedupe({ name, input: inp, result, root, sessionId: sid, cfg }); } catch { /* evidência */ }
+    }
+    trimmed = SCOUT.withBurst(trimmed, { name, input: inp, root, sessionId: sid, cfg });
   }
-
-  // dupRead — registra hash da leitura para dedupe futuro. Se o daemon serviu
-  // este postprocess, ele já rodou noteResult internamente (dispatchPostprocess).
-  if (!viaDaemon.ok && sid && isRead(name)) {
-    try {
-      noteResult({ name, input: inp, result, root, sessionId: sid, cfg: CFG.load(root) });
-    } catch { /* evidência */ }
-  }
+  if (trimmed) process.stdout.write(JSON.stringify(H.postEnvelope(trimmed)));
 }
 
 if (require.main === module) main().catch(() => {});

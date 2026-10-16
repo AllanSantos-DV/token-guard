@@ -7,26 +7,18 @@
 
 ## Aberto
 
-Origem de A23–A25: auditoria docs × código para a apresentação no OpenAI DevDay (2026-10-10).
+Nada aberto. Item novo entra aqui com origem e esforço (S < 1h · M ~1 sessão · L multi-sessão).
 
-| # | Item | Esforço |
+## Fechado na release 2.10.0 (2026-10-16)
+
+| # | Item | Resultado |
 |---|---|---|
-| A23 | **dupRead não chega ao modelo.** `noteResult` calcula o stub de releitura idêntica, mas nenhum adapter entrega (`post-hook`, `dispatchPostprocess` e o plugin Copilot descartam o retorno; `checkRepeat` não tem chamador). No Claude Code o `tool_response` do Read é objeto, e `noteResult` exige string, então nem o registro acontece. Ligar exige extrair o texto (como o bigResult já faz) e decidir o que acontece quando a leitura anterior já saiu da janela por compactação (R6) | M |
-| A24 | `mcp-cost` não varre `~/.codex/config.toml` (`[mcp_servers.*]`): o preâmbulo MCP do Codex fica fora do inventário | S |
-| A25 | `token-guard status` não diz se o daemon/hook http responde: diagnosticar "hook http não bloqueia" exige olhar o processo à mão | S |
-
-Origem de A26–A27: diagnóstico de custo de 2026-10-12 (sessões acima de 200k tokens de contexto = ~68% de ~US$ 282/dia; Opus = 84%).
-
-| # | Item | Esforço |
-|---|---|---|
-| A26 | **`token-guard cost`**: custo por sessão a partir dos transcripts (`~/.claude/projects/**/*.jsonl`), hoje só um script descartável. Por sessão e por modelo: chamadas, tokens de entrada/saída, leitura e escrita de cache (5 min vs 1 h), contexto máximo, US$ estimado e fração acima de 200k. Tabela de preços em config (a de hoje é premissa), dedupe por `message.id`+`requestId`, `--since`, `--top N`. Fecha o ciclo de medição: sem ele não há como provar a economia do ctxwatch (comparar antes e depois) | M |
-| A27 | **Regra do scout**: rajada de leituras/buscas seguidas no contexto principal (ex.: 6+ Read/Grep/Glob/Bash de leitura sem Edit/Write no meio) sugere delegar ao `agents/scout.agent.md`, cujo contexto é descartável. Hoje nada aciona o scout; a investigação fica no contexto principal e é relida em toda chamada seguinte. Entrega como `additionalContext` único por rajada no PostToolUse, com limiar em config e desligável. Medir antes: quantas rajadas por sessão e quantos tokens elas acrescentam ao contexto (estimativa inicial US$ 15–25/dia, não medida) | M |
-
-Origem de A29: porta dinâmica do hook http (2.8.0, 2026-10-13).
-
-| # | Item | Esforço |
-|---|---|---|
-| A29 | No modo hook http, daemon que cai **no meio** da sessão não é religado: o Claude Code só recebe conexão recusada (fail-open) até o próximo `SessionStart` ou o autostart do logon. O hook de comando religa sozinho (o cliente sobe o daemon). Opções: watchdog leve no autostart, ou o `SessionStart` deixar um hook de comando de reserva que só age quando o http falha | M |
+| A23 | dupRead não chegava ao modelo | `dedupe` registra e substitui a releitura idêntica ≥ 2000 caracteres via `updatedToolOutput`; `SessionStart` zera o registro em compact/clear/resume; stub ensina a reler com `offset/limit`. Testes em `test/dupread.test.cjs` e `test/daemon-postprocess-parity.test.cjs` |
+| A24 | `mcp-cost` sem `~/.codex/config.toml` | `parseCodexMcp` (sem dependência) em `lib/mcp-cost.cjs`; teste em `test/mcp-cost.test.cjs` |
+| A25 | `status` não dizia se o daemon/hook http respondia | `lib/daemon-status.cjs` + linhas no `status`; teste em `test/daemon-status.test.cjs` |
+| A26 | `token-guard cost` | `lib/cost.cjs` + `cost.cjs`; teste em `test/cost.test.cjs`. Preços são premissa em `cost.prices` |
+| A27 | Regra do scout | `lib/scout.cjs`, medida antes (6 → 470 rajadas/7 dias, 8 → 256, 10 → 157), default 8; teste em `test/scout.test.cjs`. Ganho em tokens não medido: a regra só sugere |
+| A29 | Daemon que cai no meio da sessão não era religado | Task `TokenGuardDaemonWatch` (5 min, Windows), `StartInterval` (macOS), tasks ocultas; teste em `test/install.test.cjs` |
 
 ## Fechado na release 2.9.0 (2026-10-16)
 

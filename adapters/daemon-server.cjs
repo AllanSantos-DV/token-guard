@@ -10,7 +10,8 @@ const { decide } = require('../lib/decide.cjs');
 const { parseStream, writeFrame } = require('../lib/ipc-frame.cjs');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
-const { noteResult, isRead } = require('../lib/dupread.cjs');
+const { dedupe, isRead } = require('../lib/dupread.cjs');
+const SCOUT = require('../lib/scout.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
 const DL = require('../lib/daemon-lifecycle.cjs');
 const DH = require('./daemon-http.cjs');
@@ -123,12 +124,12 @@ function dispatchPostprocess(params) {
   try {
     CT.noteTouched(root, sessionId, input);
     const cfg = CFG.load(root);
-    const trimmed = postProcess({ name, input, result, root, cfg });
-    if (trimmed) return { ok: true, trimmed };
-    if (sessionId && isRead(name)) {
-      try { noteResult({ name, input, result, root, sessionId, cfg }); } catch { /* evidência */ }
+    let trimmed = postProcess({ name, input, result, root, cfg });
+    if (!trimmed && sessionId && isRead(name)) {
+      try { trimmed = dedupe({ name, input, result, root, sessionId, cfg }); } catch { /* evidência */ }
     }
-    return { ok: true, trimmed: null };
+    trimmed = SCOUT.withBurst(trimmed, { name, input, root, sessionId, cfg });
+    return { ok: true, trimmed };
   } catch {
     return { ok: true, trimmed: null };
   }
