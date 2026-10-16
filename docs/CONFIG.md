@@ -31,7 +31,7 @@ Escape hatch por ambiente (vence tudo): `TOKEN_GUARD=off` (ou `0`, `false`) desl
 | `limits.readBytesWithoutRange` | número, `51200` | Acima disso (50 KB), ler sem faixa é barrado. Imagem raster (`.png/.jpg/.jpeg/.gif/.webp`) fica de fora: o Read a entrega como imagem, sem linhas. PDF conta `pages` como faixa. Em `.ipynb`, `offset/limit` não contam (o Read do Claude Code os ignora); só `view_range`. |
 | `limits.minRepoFilesForScanGuard` | número, `400` | Repos menores ficam livres dos guards de varredura. |
 | `limits.resultCharsWithoutTrim` | número, `25000` | Acima disso (caracteres de texto), o resultado de ferramenta é truncado pós-execução. |
-| `limits.resultTrimKeepChars` | número, `8000` | Quanto do resultado sobrevive no stub (cabeça + cauda). |
+| `limits.resultTrimKeepChars` | número, `8000` | Quanto do resultado sobrevive no stub (cabeça + cauda; em shell, também as linhas de erro/falha do trecho cortado). |
 | `noiseDirsExtra` | string[], `[]` | **Soma** aos defaults de diretórios de ruído. |
 | `noiseDirs` | string[] | Substitui a lista inteira (use só para isso). |
 | `sourceExtExtra` | string[], `[]` | **Soma** extensões contadas como código-fonte na auditoria. |

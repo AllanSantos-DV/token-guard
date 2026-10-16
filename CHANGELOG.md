@@ -3,6 +3,22 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.9.0] — 2026-10-16
+
+### Adicionado
+- **Corte de saída de shell preserva as linhas de erro.** Para Bash/shell, o corte do
+  `bigResult` passa de "72% começo + 28% fim" para início (37,5% do orçamento) + fim (25%) +
+  linhas-sinal do trecho omitido (até 37,5%): `not ok`, `FAIL`, `ERROR`, `Error:`/`*Exception`,
+  `Traceback`, `panic:`, `fatal:`, `Caused by:`, `error:`, `N failing`. Linha-sinal tem teto de
+  300 caracteres; cada trecho omitido recebe marcador com a contagem, e o que não couber no
+  orçamento é contado. Medido em 121 saídas de shell reais: 41 de 158 linhas-sinal mantidas
+  (antes 14) gastando 608 mil caracteres (antes 968 mil, -37%). Read e MCP não mudam.
+
+### Corrigido
+- **Screenshot MCP disparava `bigResult` pelo base64.** Bloco `{type:'image', data}` e
+  `{source:{type:'base64', data}}` agora ficam fora da medida (como o `base64` do Read já
+  ficava): o modelo recebe a imagem, não o texto.
+
 ## [2.8.2] — 2026-10-13
 
 ### Corrigido
