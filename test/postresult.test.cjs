@@ -166,10 +166,10 @@ console.log('\n  [bigResult]');
 }
 
 {
-  // Objeto que o harness não substitui (Bash no Claude Code devolve
-  // {stdout,...}): a mensagem não pode afirmar que truncou.
+  // Objeto que o harness não substitui (genérico, fora do formato de shell):
+  // a mensagem não pode afirmar que truncou.
   const r = PR.postProcess({
-    name: 'Bash', input: {},
+    name: 'mcp__x__tool', input: {},
     result: { stdout: 'w'.repeat(5000), stderr: '', interrupted: false },
     root: TMP, cfg: cfg(),
   });
@@ -230,6 +230,30 @@ console.log('\n  [bigResult]');
   const many = PR.shellTruncate(noise(50) + '\n' + Array.from({ length: 200 }, (_, i) => `Error: falha ${i}`).join('\n') + '\n' + noise(500), 2000);
   check('shell: sinais além do orçamento são contados, não despejados',
     many.length <= 2000 + 200 && /\+\d+ linhas de erro\/falha/.test(many), `${many.length} chars`);
+}
+
+{
+  // Bash do Claude Code: {stdout,stderr,...} é substituível via updatedToolOutput;
+  // o erro do meio do stdout precisa sobreviver e o formato do objeto se manter.
+  const noise = (n) => Array.from({ length: n }, (_, i) => `step ${i} ok`).join('\n');
+  const stdout = noise(300) + '\nFAIL test/c.test.js\n' + noise(300);
+  const r = PR.postProcess({
+    name: 'Bash', input: {},
+    result: { stdout, stderr: '', interrupted: false, isImage: false },
+    root: TMP, cfg: cfg({ limits: { resultCharsWithoutTrim: 1000, resultTrimKeepChars: 2000 } }),
+  });
+  const m = r && r.modifiedResult;
+  check('Bash objeto: stdout cortado preservando a linha de falha do meio',
+    Boolean(m) && m.stdout.length < stdout.length && m.stdout.includes('FAIL test/c.test.js') &&
+    m.stderr === '' && m.interrupted === false && m.isImage === false);
+  check('Bash objeto: mensagem diz que truncou (a substituição vale)',
+    /Truncated/.test(r.additionalContext));
+  const env = require('../lib/claude-hooks.cjs').postEnvelope(r);
+  check('postEnvelope devolve o objeto cortado em updatedToolOutput',
+    env.hookSpecificOutput.updatedToolOutput === m);
+  const stub = PR.postProcess({ name: 'mcp__x__tool', input: {}, result: { stdout: 'w'.repeat(5000) }, root: TMP, cfg: cfg() });
+  check('stub informativo não vira updatedToolOutput',
+    require('../lib/claude-hooks.cjs').postEnvelope(stub).hookSpecificOutput.updatedToolOutput === undefined);
 }
 
 {
