@@ -13,6 +13,12 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   300 caracteres; cada trecho omitido recebe marcador com a contagem, e o que não couber no
   orçamento é contado. Medido em 121 saídas de shell reais: 41 de 158 linhas-sinal mantidas
   (antes 14) gastando 608 mil caracteres (antes 968 mil, -37%). Read e MCP não mudam.
+- **O corte agora vale de fato no Bash do Claude Code.** O `tool_response` do Bash é
+  `{stdout,stderr,...}` e, até aqui, o Token Guard só gravava a cópia e avisava: o stdout
+  inteiro entrava na janela (os 33 cortes de Bash medidos eram só aviso). O `PostToolUse`
+  aceita `updatedToolOutput` nesse mesmo formato (documentação oficial do Claude Code,
+  hooks, lida em 2026-10-16), então `stdout`/`stderr` acima do orçamento são cortados com a
+  regra de linhas-sinal e o resto do objeto segue intacto.
 
 ### Corrigido
 - **Screenshot MCP disparava `bigResult` pelo base64.** Bloco `{type:'image', data}` e
