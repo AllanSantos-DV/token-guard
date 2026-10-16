@@ -12,7 +12,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const CFG = require('../lib/config.cjs');
-const { noteResult, isRead } = require('../lib/dupread.cjs');
+const { dedupe, isRead } = require('../lib/dupread.cjs');
+const SCOUT = require('../lib/scout.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
 const { dispatchPostprocess, handleMessage } = require('../adapters/daemon-server.cjs');
 
@@ -41,12 +42,12 @@ const norm = (v) => v == null ? '__NULL__' : stripTimestamp(v);
 /** Replica post-hook.cjs:26-53 — a mesma sequência que dispatchPostprocess. */
 function computeDirect({ name, input, result, root, sessionId }) {
   const cfg = CFG.load(root);
-  const trimmed = postProcess({ name, input, result, root, cfg });
-  if (trimmed) return { trimmed };
-  if (sessionId && isRead(name)) {
-    try { noteResult({ name, input, result, root, sessionId, cfg }); } catch { /* evidência */ }
+  let trimmed = postProcess({ name, input, result, root, cfg });
+  if (!trimmed && sessionId && isRead(name)) {
+    try { trimmed = dedupe({ name, input, result, root, sessionId, cfg }); } catch { /* evidência */ }
   }
-  return { trimmed: null };
+  trimmed = SCOUT.withBurst(trimmed, { name, input, root, sessionId, cfg });
+  return { trimmed };
 }
 
 function newRoot() {
@@ -100,6 +101,22 @@ try {
     // então rodamos a sequência real uma vez (direto) pra popular o mapa antes de comparar.
     computeDirect(params1);
     assertParity('dupRead hit', params1);
+  }
+
+  // Caso 3b: dupRead hit grande no formato de objeto do Claude Code (é substituído)
+  {
+    const root = newRoot();
+    cleanupDirs.push(root);
+    const content = 'linha\n'.repeat(1000);
+    const params1 = {
+      name: 'Read', input: { file_path: path.join(root, 'b.txt') },
+      result: { type: 'text', file: { filePath: path.join(root, 'b.txt'), content } },
+      root, sessionId: 'sess-3b',
+    };
+    computeDirect(params1);
+    assertParity('dupRead hit grande (objeto)', params1);
+    check('dupRead grande chega como trimmed substituível',
+      Boolean(computeDirect(params1).trimmed) && /^\[dupRead\]/.test(computeDirect(params1).trimmed.modifiedResult.file.content));
   }
 
   // Caso 4: dupRead miss (arquivo nunca visto)

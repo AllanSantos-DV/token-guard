@@ -27,7 +27,10 @@ Escape hatch por ambiente (vence tudo): `TOKEN_GUARD=off` (ou `0`, `false`) desl
 | `rules.broadScan` | boolean, `true` | Barra glob sem escopo e grep conteúdo sem teto nem filtro. |
 | `rules.shellDump` | boolean, `true` | Barra comando de shell que despeja árvore. |
 | `rules.bigResult` | boolean, `true` | Pós-execução: resultado acima de `limits.resultCharsWithoutTrim` vira stub + integral em `.token-guard/results/`. |
-| `rules.dupRead` | boolean, `true` | Registra o hash de cada leitura por sessão (dedupe de leitura; a substituição ainda não chega ao modelo — ver [BACKLOG](BACKLOG.md)). |
+| `rules.dupRead` | boolean, `true` | Releitura idêntica (arquivo inalterado, ≥ 2000 caracteres) é substituída por um stub que diz como reler com `offset/limit`. O registro por sessão é zerado quando o Claude Code compacta, limpa ou retoma a sessão. |
+| `rules.scout` | boolean, `true` | Rajada de leituras/buscas sem edição sugere o subagente `scout` (um aviso por rajada). |
+| `limits.scoutBurst` | número, `8` | Quantas leituras/buscas seguidas formam a rajada. Medido: 6 → 470 rajadas em 7 dias; 8 → 256; 10 → 157. |
+| `cost.prices` | objeto | Preço por família de modelo em US$/Mtok para `token-guard cost`, ex.: `{"opus":{"in":5,"out":25}}`. Premissa, não fatura; modelo sem preço é listado e não contado. |
 | `limits.readBytesWithoutRange` | número, `51200` | Acima disso (50 KB), ler sem faixa é barrado. Imagem raster (`.png/.jpg/.jpeg/.gif/.webp`) fica de fora: o Read a entrega como imagem, sem linhas. PDF conta `pages` como faixa. Em `.ipynb`, `offset/limit` não contam (o Read do Claude Code os ignora); só `view_range`. |
 | `limits.minRepoFilesForScanGuard` | número, `400` | Repos menores ficam livres dos guards de varredura. |
 | `limits.resultCharsWithoutTrim` | número, `25000` | Acima disso (caracteres de texto), o resultado de ferramenta é truncado pós-execução. |

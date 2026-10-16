@@ -78,6 +78,7 @@ e é exatamente ela que este kit governa.
 | Peça | O que faz |
 |---|---|
 | `token-audit.cjs` | Mede o custo de contexto de qualquer repositório e grava o cache que calibra os guards. |
+| `cost.cjs` | Custo por sessão e por modelo a partir dos transcripts do Claude Code (`token-guard cost`). |
 | `mcp-cost.cjs` | Mede o custo fixo de preâmbulo dos servidores MCP declarados, por handshake real. |
 | `agents/scout.agent.md` | Sub-agente de investigação com contexto descartável. |
 | `skills/token-economy/SKILL.md` | O procedimento, em divulgação progressiva. |

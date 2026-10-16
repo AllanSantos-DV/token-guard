@@ -25,6 +25,7 @@ const P = require('../lib/payload.cjs');
 const { tryDaemon, shutdownDaemon } = require('../lib/daemon-client.cjs');
 const { checkHandshake } = require('../lib/daemon-lifecycle.cjs');
 const AU = require('../lib/auto-update.cjs');
+const DR = require('../lib/dupread.cjs');
 const { PROTOCOL_VERSION, PACKAGE_VERSION } = require('./daemon-server.cjs');
 const DH = require('./daemon-http.cjs');
 
@@ -90,7 +91,11 @@ function launchAutoUpdate() {
 
 async function main() {
   process.stdout.on('error', () => {});
-  try { await P.readPayload(); } catch { /* o payload não é usado */ }
+  let payload = null;
+  try { payload = await P.readPayload(); } catch { /* sem payload: nada a limpar */ }
+  // Depois de compactar/limpar/retomar, a leitura anterior saiu da janela: o dedupe não pode apontar para ela.
+  const sid = payload && (payload.session_id || payload.sessionId);
+  if (sid && ['compact', 'clear', 'resume'].includes(payload.source)) DR.resetSession(payload.cwd || process.cwd(), sid);
 
   const messages = [];
   const problem = await ensureDaemon();
