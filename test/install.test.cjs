@@ -329,6 +329,10 @@ console.log('\n  [claude] autostart do daemon (F7)');
     /\[dry-run\].*TOKEN_GUARD_SID=/.test(r.stdout), r.stdout);
   check('dry-run win32 anuncia a task ONLOGON',
     /\[dry-run\].*Task Scheduler "TokenGuardDaemon".*ONLOGON/.test(r.stdout), r.stdout);
+  check('dry-run win32 anuncia o watchdog a cada 5 min (A29)',
+    /\[dry-run\].*Task Scheduler "TokenGuardDaemonWatch".*5 min/.test(r.stdout), r.stdout);
+  check('tasks do daemon rodam ocultas (conhost --headless), sem piscar console',
+    (r.stdout.match(/conhost\.exe --headless/g) || []).length === 2, r.stdout);
   fs.rmSync(repo, { recursive: true, force: true });
   fs.rmSync(home, { recursive: true, force: true });
 }
@@ -373,6 +377,8 @@ console.log('\n  [claude] autostart do daemon (F7)');
   const plistContent = fs.existsSync(plistPath) ? fs.readFileSync(plistPath, 'utf8') : '';
   check('plist launchd referencia node + daemon-server.cjs',
     plistContent.includes('daemon-server.cjs') && plistContent.includes('RunAtLoad'), plistContent);
+  check('plist launchd religa o daemon que cair (StartInterval, A29)',
+    /StartInterval<\/key><integer>300</.test(plistContent), plistContent);
 
   const second = runInstall(['--target', 'claude', repo], envForce);
   check('segunda instalacao launchd e idempotente (conteudo identico, skip)',
