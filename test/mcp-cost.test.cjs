@@ -209,6 +209,39 @@ console.log('  [descoberta]');
 }
 
 {
+  // Codex declara em ~/.codex/config.toml, tabela [mcp_servers.NOME].
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-codex-'));
+  TG_HOMES.push(home);
+  fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.codex', 'config.toml'), [
+    'model = "gpt-5"',
+    '[mcp_servers.fs]',
+    'command = "npx"',
+    'args = ["-y", "@x/server-fs", "C:\\\\dados"] # comentário',
+    '[mcp_servers.fs.env]',
+    'TOKEN = "abc"',
+    '[mcp_servers."remoto-1"]',
+    'url = "https://exemplo/mcp"',
+    '[mcp_servers.longo]',
+    'command = "node"',
+    'args = [',
+    '  "a.js",',
+    "  'b',",
+    ']',
+    '[profiles.x]',
+    'command = "nao-e-mcp"',
+  ].join('\n'), 'utf8');
+  const found = MC.discover({ home, cwd: home });
+  const by = (n) => found.find((f) => f.name === n);
+  check('Codex: lê [mcp_servers.*] do config.toml (e ignora outras tabelas)',
+    found.length === 3 && found.every((f) => f.ide === 'Codex'), JSON.stringify(found.map((f) => f.name)));
+  check('Codex: command, args, env e url extraídos',
+    by('fs').spec.command === 'npx' && by('fs').spec.args.length === 3 && by('fs').spec.env.TOKEN === 'abc' &&
+    by('remoto-1').transport === 'http' && by('longo').spec.args.join() === 'a.js,b',
+    JSON.stringify(found.map((f) => f.spec)));
+}
+
+{
   // O mesmo servidor declarado em duas IDEs é UM custo por sessão, não dois.
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home2-'));
   TG_HOMES.push(home);
