@@ -28,6 +28,12 @@ Origem de A29: porta dinâmica do hook http (2.8.0, 2026-10-13).
 |---|---|---|
 | A29 | No modo hook http, daemon que cai **no meio** da sessão não é religado: o Claude Code só recebe conexão recusada (fail-open) até o próximo `SessionStart` ou o autostart do logon. O hook de comando religa sozinho (o cliente sobe o daemon). Opções: watchdog leve no autostart, ou o `SessionStart` deixar um hook de comando de reserva que só age quando o http falha | M |
 
+Origem de A30: corte de shell com linhas-sinal (2.9.0, 2026-10-16).
+
+| # | Item | Esforço |
+|---|---|---|
+| A30 | **Bash do Claude Code não recebe o corte.** O `tool_response` do Bash é objeto `{stdout,...}`; `postProcess` só consegue substituir string (Claude Code) ou `ToolResultObject` (Copilot), então no Claude Code o Bash grande entra inteiro e o Token Guard só grava a cópia e avisa. A regra de linhas-sinal de 2.9.0 vale hoje para resultado string/Copilot. Investigar se o `PostToolUse` do Claude Code aceita substituir `stdout` (saída atualizada de ferramenta) e, se sim, aplicar `shellTruncate` ao `stdout` | M |
+
 ## Fechado na release 2.8.0 (2026-10-13)
 
 | # | Item | Resultado |

@@ -208,6 +208,45 @@ console.log('\n  [bigResult]');
 }
 
 {
+  // Shell: erro no MEIO de log longo precisa sobreviver ao corte (início + fim
+  // + linhas-sinal); Read e MCP continuam com o corte início+fim.
+  const noise = (n) => Array.from({ length: n }, (_, i) => `step ${i} ok`).join('\n');
+  const log = noise(400) + '\nnot ok 7 - parser quebra com entrada vazia\n' +
+    '  Error: expected 3 got 4\n' + noise(400) + '\nFAIL test/b.test.js\n' + noise(10) + '\nfim do log';
+  const c = cfg({ limits: { resultCharsWithoutTrim: 1000, resultTrimKeepChars: 2000 } });
+  const sh = PR.postProcess({ name: 'Bash', input: {}, result: log, root: TMP, cfg: c });
+  const m = sh && sh.modifiedResult;
+  check('shell: erro no meio do log sobrevive ao corte',
+    Boolean(m) && m.includes('not ok 7 - parser quebra') && m.includes('Error: expected 3 got 4') &&
+    m.includes('FAIL test/b.test.js'));
+  check('shell: início e fim preservados, com marcador de trecho omitido',
+    m.startsWith('step 0 ok') && m.endsWith('fim do log') && /caracteres omitidos/.test(m));
+  check('shell: respeita o teto de tamanho', m.length <= 2000 + 400, `${m.length} chars`);
+  const rd = PR.postProcess({ name: 'Read', input: {}, result: log, root: TMP, cfg: c });
+  check('Read mantém o corte início+fim (sem linhas-sinal)',
+    Boolean(rd) && !rd.modifiedResult.includes('not ok 7') && /truncados/.test(rd.modifiedResult));
+  const clean = PR.shellTruncate(noise(2000), 2000);
+  check('shell sem sinais: só início+fim', clean.length < 2000 && !/linhas de erro/.test(clean));
+  const many = PR.shellTruncate(noise(50) + '\n' + Array.from({ length: 200 }, (_, i) => `Error: falha ${i}`).join('\n') + '\n' + noise(500), 2000);
+  check('shell: sinais além do orçamento são contados, não despejados',
+    many.length <= 2000 + 200 && /\+\d+ linhas de erro\/falha/.test(many), `${many.length} chars`);
+}
+
+{
+  // Bloco de imagem MCP (screenshot): o data base64 não entra na janela.
+  const b64 = 'A'.repeat(400000);
+  const shots = [
+    [{ type: 'image', data: b64, mimeType: 'image/png' }],
+    [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: b64 } }],
+    { content: [{ type: 'image', data: b64 }, { type: 'text', text: 'ok' }] },
+  ];
+  check('imagem MCP (data base64) não dispara bigResult',
+    shots.every((x) => PR.postProcess({ name: 'mcp__computer-use__screenshot', input: {}, result: x, root: TMP, cfg: cfg() }) === null));
+  const txt = PR.postProcess({ name: 'mcp__x__tool', input: {}, result: [{ type: 'text', data: 'z'.repeat(5000) }], root: TMP, cfg: cfg() });
+  check('campo data de bloco NÃO-imagem continua medido', Boolean(txt));
+}
+
+{
   // .token-guard/results não cresce sem limite.
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-post-cap-'));
   for (let i = 0; i < PR.MAX_SAVED_RESULTS + 15; i++) {
