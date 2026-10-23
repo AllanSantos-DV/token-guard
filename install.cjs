@@ -401,8 +401,10 @@ function writeUnitFile(unitPath, content, label) {
 
 function installAutostartWindows(daemonScript) {
   const sid = stableWindowsSid();
+  // Launcher copiado com o runtime (adapters/run-daemon.cmd): acha o node ao disparar, nada gravado.
+  const launcher = path.join(path.dirname(daemonScript), 'run-daemon.cmd');
   // conhost --headless: tarefa agendada com node.exe pisca console na tela do usuário.
-  const tr = `conhost.exe --headless "${process.execPath}" "${daemonScript}"`;
+  const tr = `conhost.exe --headless cmd.exe /d /c "${launcher}"`;
 
   if (DRY) {
     log('create', `[dry-run] TOKEN_GUARD_SID=${sid}  (setx, persistido no perfil do usuario)`);
@@ -442,7 +444,7 @@ function installAutostartSystemd(daemonScript) {
 Description=token-guard daemon (daemon-unico)
 
 [Service]
-ExecStart=${nodeCmd(daemonScript)}
+ExecStart=/usr/bin/env ${nodeCmd(daemonScript)}
 Restart=on-failure
 
 [Install]
@@ -476,9 +478,14 @@ function installAutostartLaunchd(daemonScript) {
   <key>Label</key><string>${label}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${process.execPath}</string>
+    <string>/usr/bin/env</string>
+    <string>node</string>
     <string>${daemonScript}</string>
   </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><false/>
   <key>StartInterval</key><integer>300</integer>
@@ -763,6 +770,29 @@ function upsertTomlTable(file, table, bodyLines, base, label) {
   log(prev ? 'merge' : 'create', label);
 }
 
+/**
+ * Comando do node para configs de terceiros que spawnam sem shell (Codex):
+ * "node" puro, resolvido pelo PATH de quem spawna na hora do uso. So se o node
+ * nao esta no PATH daqui cai num local conhecido; nunca grava process.execPath.
+ * Reinstalar repara entrada que ficou com caminho obsoleto.
+ */
+function nodeForConfig() {
+  const win = process.platform === 'win32';
+  const exe = win ? 'node.exe' : 'node';
+  const onPath = (process.env.PATH || process.env.Path || '').split(path.delimiter)
+    .some((d) => d && fs.existsSync(path.join(d.replace(/^"|"$/g, ''), exe)));
+  if (onPath) return 'node';
+  const e = process.env;
+  const known = win
+    ? [e.LOCALAPPDATA && path.join(e.LOCALAPPDATA, 'Programs', 'nodejs', exe),
+       e.NVM_SYMLINK && path.join(e.NVM_SYMLINK, exe),
+       e.VOLTA_HOME && path.join(e.VOLTA_HOME, 'bin', exe),
+       e.ProgramFiles && path.join(e.ProgramFiles, 'nodejs', exe),
+       e['ProgramFiles(x86)'] && path.join(e['ProgramFiles(x86)'], 'nodejs', exe)].filter(Boolean)
+    : ['/opt/homebrew/bin/node', '/usr/local/bin/node', '/usr/bin/node', path.join(HOME, '.volta', 'bin', 'node')];
+  return known.find((p) => fs.existsSync(p)) || 'node';
+}
+
 function installCodex() {
   const base = process.env.CODEX_HOME || path.join(HOME, '.codex');
   const dir = path.join(base, 'token-guard');
@@ -773,7 +803,7 @@ function installCodex() {
   // escapa igual) com barras normais.
   const fwd = (p) => p.replace(/\\/g, '/');
   upsertTomlTable(path.join(base, 'config.toml'), 'mcp_servers.token-guard', [
-    `command = ${JSON.stringify(fwd(process.execPath))}`,
+    `command = ${JSON.stringify(fwd(nodeForConfig()))}`,
     `args = [${JSON.stringify(fwd(path.join(dir, 'adapters', 'mcp-server.cjs')))}]`,
   ], base, 'config.toml  ([mcp_servers.token-guard])');
 
