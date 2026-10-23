@@ -10,6 +10,7 @@
 | # | Item | Origem | Esforço |
 |---|------|--------|---------|
 | A30 | `schtasks /sc onlogon` do `TokenGuardDaemon` falha sem elevação nesta máquina (achado ao verificar a 2.10.1): o instalador avisa "nao pode ser registrada", e só o watchdog de 5 min (`/sc minute`, não exige elevação) religa o daemon após o logon. Avaliar `/sc onlogon` com `/it`/atalho em Startup ou aceitar o watchdog como único gatilho | verificação local 2026-10-23 | S |
+| A32 | Flake em `test/daemon-singleton.test.cjs` ("win32 close() durante janela de retry": `FAIL:no-error-event`, espera de 4 s). Reproduzido também no código da 2.10.0 (1 em 5 execuções normais sob a máquina compartilhada), logo não vem da 2.10.1. Dar margem ao timer ou tornar o evento determinístico | verificação local 2026-10-23 | S |
 
 ## Fechado na release 2.10.1 (2026-10-23)
 
