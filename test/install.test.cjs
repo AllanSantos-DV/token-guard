@@ -45,9 +45,14 @@ function mkrepo(name) {
 }
 
 function runInstall(args, envExtra) {
+  // Windows ignora a caixa do nome: sobrescrever "ProgramFiles" sem tirar
+  // "PROGRAMFILES" herdado deixaria o valor herdado vencer.
+  const over = envExtra || {};
+  const wanted = new Set(Object.keys(over).map((k) => k.toLowerCase()));
+  const base = Object.fromEntries(Object.entries(process.env).filter(([k]) => !wanted.has(k.toLowerCase())));
   return spawnSync(process.execPath, [INSTALL, ...args], {
     encoding: 'utf8',
-    env: { ...process.env, ...(envExtra || {}) },
+    env: { ...base, ...over },
     timeout: 60000,
   });
 }
@@ -333,6 +338,75 @@ console.log('\n  [claude] autostart do daemon (F7)');
     /\[dry-run\].*Task Scheduler "TokenGuardDaemonWatch".*5 min/.test(r.stdout), r.stdout);
   check('tasks do daemon rodam ocultas (conhost --headless), sem piscar console',
     (r.stdout.match(/conhost\.exe --headless/g) || []).length === 2, r.stdout);
+  check('tasks nao gravam o caminho do node (apontam para o launcher)',
+    !r.stdout.includes(process.execPath) && (r.stdout.match(/run-daemon\.cmd/g) || []).length >= 2, r.stdout);
+  fs.rmSync(repo, { recursive: true, force: true });
+  fs.rmSync(home, { recursive: true, force: true });
+}
+
+if (process.platform === 'win32') {
+  // Launcher da tarefa (adapters/run-daemon.cmd): acha o node na hora, com o node "em outro caminho".
+  const sys32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-launcher-'));
+  const launcher = path.join(ROOT, 'adapters', 'run-daemon.cmd');
+  const run = (env) => spawnSync('cmd.exe', ['/d', '/c', launcher], { encoding: 'utf8', env, timeout: 30000 });
+  const baseEnv = { SystemRoot: process.env.SystemRoot, ComSpec: process.env.ComSpec };
+
+  console.log('\n  [claude] launcher do daemon resolve o node na hora (node em outro caminho)');
+  // 1) node so no PATH, numa pasta qualquer (shim que registra o argumento)
+  const bin = path.join(tmp, 'novo lugar');
+  fs.mkdirSync(bin);
+  const log = path.join(tmp, 'chamado.txt');
+  fs.writeFileSync(path.join(bin, 'node.cmd'), `@echo %~1>"${log}"\r\n`, 'utf8');
+  const r1 = run({ ...baseEnv, PATH: `${bin};${sys32}` });
+  check('launcher usa o node do PATH, qualquer que seja a pasta',
+    r1.status === 0 && fs.existsSync(log) && fs.readFileSync(log, 'utf8').includes('daemon-server.cjs'), r1.stderr);
+
+  // 2) sem node no PATH: cai em local conhecido (ProgramFiles apontado para pasta falsa)
+  const pf = path.join(tmp, 'pf');
+  fs.mkdirSync(path.join(pf, 'nodejs'), { recursive: true });
+  const fake = path.join(pf, 'nodejs', 'node.exe');
+  fs.copyFileSync(path.join(sys32, 'cmd.exe'), fake); // exe qualquer como node.exe: sem ele o launcher sairia 1 com a mensagem (caso 3)
+  const r2 = run({ ...baseEnv, PATH: sys32, ProgramFiles: pf });
+  check('sem node no PATH, launcher cai no local conhecido (exe invocado)', r2.status !== 1 && !/node nao encontrado/.test(r2.stderr), `${r2.status} ${r2.stdout} ${r2.stderr}`);
+
+  // 3) node em lugar nenhum: falha alto, nao silencioso
+  const r3 = run({ ...baseEnv, PATH: sys32, ProgramFiles: path.join(tmp, 'vazio') });
+  check('sem node em lugar nenhum, launcher falha com mensagem (exit 1)',
+    r3.status === 1 && /node nao encontrado/.test(r3.stderr), `${r3.status} ${r3.stderr}`);
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
+
+console.log('\n  [codex] node em outro caminho');
+{
+  const repo = mkrepo('codex-nodepath');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-codexnode-'));
+  const codexHome = path.join(home, '.codex');
+  fs.mkdirSync(codexHome, { recursive: true });
+  const cfgPath = path.join(codexHome, 'config.toml');
+  const ENV = { HOME: home, USERPROFILE: home, CODEX_HOME: codexHome };
+  // entrada antiga com o caminho de um node que sumiu
+  fs.writeFileSync(cfgPath, '[mcp_servers.token-guard]\ncommand = "C:/node-velho/node.exe"\nargs = ["C:/x/mcp-server.cjs"]\n', 'utf8');
+  const r = runInstall(['--target', 'codex', repo], ENV);
+  const cfg = fs.readFileSync(cfgPath, 'utf8');
+  check('node no PATH: config grava "node" puro e repara o caminho obsoleto',
+    r.status === 0 && /command = "node"/.test(cfg) && !cfg.includes('node-velho'), cfg);
+  check('config nao grava process.execPath', !cfg.includes(process.execPath.replace(/\\/g, '/')), cfg);
+
+  // node fora do PATH, so num local conhecido: usa o local (fail-soft com caminho que existe)
+  const pf = path.join(home, 'pf');
+  fs.mkdirSync(path.join(pf, 'Programs', 'nodejs'), { recursive: true });
+  const exe = process.platform === 'win32' ? 'node.exe' : 'node';
+  fs.writeFileSync(path.join(pf, 'Programs', 'nodejs', exe), '');
+  const sys32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
+  const known = process.platform === 'win32' ? { LOCALAPPDATA: pf, PATH: sys32 } : null;
+  if (known) {
+    // PATH sem node: o proprio processo precisa do execPath absoluto para subir
+    const r2 = runInstall(['--target', 'codex', repo], { ...ENV, ...known });
+    const cfg2 = fs.readFileSync(cfgPath, 'utf8');
+    check('node fora do PATH: usa o local conhecido que existe',
+      r2.status === 0 && cfg2.includes(path.join(pf, 'Programs', 'nodejs', exe).replace(/\\/g, '/')), cfg2);
+  }
   fs.rmSync(repo, { recursive: true, force: true });
   fs.rmSync(home, { recursive: true, force: true });
 }

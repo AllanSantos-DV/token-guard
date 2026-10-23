@@ -3,6 +3,18 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.10.1] — 2026-10-23
+
+### Corrigido
+- **Instalação não grava mais o caminho do node** — trocar o node de pasta deixava as tasks
+  do daemon e a entrada do Codex apontando para um executável que sumiu, em silêncio.
+  No Windows, as tasks `TokenGuardDaemon` e `TokenGuardDaemonWatch` chamam o launcher
+  `adapters/run-daemon.cmd`, que acha o node ao disparar (PATH primeiro; locais conhecidos
+  só se não achar; sem node em lugar nenhum, sai 1 com mensagem). O `config.toml` do Codex
+  grava `node` puro (ou um local conhecido que exista, se o node não está no PATH). No macOS
+  o plist usa `/usr/bin/env node` com PATH explícito; no Linux o `ExecStart` também.
+  Reinstalar (ou o auto-update) repara entrada que ficou com caminho obsoleto.
+
 ## [2.10.0] — 2026-10-16
 
 ### Adicionado

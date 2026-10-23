@@ -7,7 +7,15 @@
 
 ## Aberto
 
-Nada aberto. Item novo entra aqui com origem e esforço (S < 1h · M ~1 sessão · L multi-sessão).
+| # | Item | Origem | Esforço |
+|---|------|--------|---------|
+| A30 | `schtasks /sc onlogon` do `TokenGuardDaemon` falha sem elevação nesta máquina (achado ao verificar a 2.10.1): o instalador avisa "nao pode ser registrada", e só o watchdog de 5 min (`/sc minute`, não exige elevação) religa o daemon após o logon. Avaliar `/sc onlogon` com `/it`/atalho em Startup ou aceitar o watchdog como único gatilho | verificação local 2026-10-23 | S |
+
+## Fechado na release 2.10.1 (2026-10-23)
+
+| # | Item | Resolução |
+|---|------|-----------|
+| A31 | Tasks do daemon e `config.toml` do Codex gravavam `process.execPath`; trocar o node de pasta quebrava em silêncio | Launcher `adapters/run-daemon.cmd` resolve o node ao disparar; Codex grava `node` puro; plist/systemd via `/usr/bin/env node`; reinstalar repara. Testes em `test/install.test.cjs` |
 
 ## Fechado na release 2.10.0 (2026-10-16)
 
