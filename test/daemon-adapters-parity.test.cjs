@@ -155,12 +155,12 @@ async function main() {
       check('hook-cmd: daemon efetivamente serviu um veredito', withDaemon.stdout.includes('permissionDecision'));
     }
 
-    // --- A2 (backlog): TOKEN_GUARD=off/warn ponta a ponta com daemon real de pé.
+    // --- A2 (backlog): TOKEN_GUARD=off ponta a ponta com daemon real de pé.
     // O daemon é um processo de vida longa com seu próprio env congelado — se
     // a decisão de honrar TOKEN_GUARD=off fosse tomada DENTRO do daemon, ela
     // leria o env do DAEMON (sem TOKEN_GUARD=off), não o do hook que fez a
     // chamada. `hasTokenGuardEnvOverride()` em lib/daemon-client.cjs evita
-    // isso: quando o CLIENTE tem TOKEN_GUARD=off/warn no próprio env, ele
+    // isso: quando o CLIENTE tem TOKEN_GUARD=off no próprio env, ele
     // nunca tenta a RPC — cai direto no `decide()` local, que lê o env
     // correto. Prova: mesmo payload/daemon que gera `deny` na baseline vira
     // `allow` (stdout vazio) só setando TOKEN_GUARD=off no processo do hook,
@@ -176,15 +176,11 @@ async function main() {
       check('A2: TOKEN_GUARD=off — processo sai sem erro', withOff.status === 0, `status=${withOff.status} stderr=${withOff.stderr}`);
       check('A2: TOKEN_GUARD=off no cliente bypassa o daemon e permite (stdout vazio)', withOff.stdout === '', JSON.stringify(withOff.stdout));
 
+      // warn foi aposentado: o cliente com TOKEN_GUARD=warn segue o daemon e recebe deny, nunca ask.
       const warnPayload = { ...denyPayload, session_id: `${sid}-warn` };
       const withWarn = await runHookAsync(HOOK_CMD, warnPayload, { ...hookEnvBase, TOKEN_GUARD: 'warn' });
       check('A2: TOKEN_GUARD=warn — processo sai sem erro', withWarn.status === 0, `status=${withWarn.status} stderr=${withWarn.stderr}`);
-      // Asserção positiva e específica (não "não contém deny"): TOKEN_GUARD=warn
-      // faz decide() local retornar decision:'ask' (lib/decide.cjs:55-60) — é
-      // esse veredito exato que prova que hasTokenGuardEnvOverride() desviou do
-      // daemon (que serviria o 'deny' cacheado da baseline), não um efeito
-      // colateral de stdout vazio/crash.
-      check('A2: TOKEN_GUARD=warn no cliente vira "ask" local (não usa o veredito deny cacheado do daemon)', withWarn.stdout.includes('"permissionDecision":"ask"'), withWarn.stdout.slice(0, 200));
+      check('A2: TOKEN_GUARD=warn (aposentado) nega, nunca pergunta', withWarn.stdout.includes('"permissionDecision":"deny"') && !withWarn.stdout.includes('"ask"'), withWarn.stdout.slice(0, 200));
     }
 
     // --- prompt-hook (UserPromptSubmit) ---

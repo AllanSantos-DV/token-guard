@@ -3,6 +3,36 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.12.0] — 2026-10-24
+
+### Alterado
+- **A recusa ensina o agente e nunca pergunta ao usuário.** O usuário sempre confirmava o
+  `ask`, então perguntar não treinava ninguém; no Claude Code só o `deny` leva o motivo ao
+  modelo, e no Codex o `ask` nem é suportado (o hook falha e a chamada segue sem guard).
+  Fontes em `docs/research/refusal-hook-decisions-2026-10.md`.
+  - `mode: "warn"` (config, `TOKEN_GUARD=warn`, `--mode warn`) foi aposentado e vale `block`.
+    `--mode warn` grava `block` e avisa; `status` diz que o `warn` foi aposentado.
+  - Nenhum arquivo de `lib/` ou `adapters/` emite `ask` (o Cursor também só recebe `deny`).
+  - O cliente com `TOKEN_GUARD=warn` deixa de pular o daemon: só `off` o pula.
+- **A recusa traz a reescrita concreta, com os argumentos do pedido.** Antes a correção era uma
+  orientação ("filtre e limite"); agora é o comando ou a chamada pronta:
+  - `shellDump`: o próprio comando refeito com filtro e teto (`ls -R` → `ls <dir> | head -50`,
+    `find src` → `find src -name '*.ts' | head -50`, `gci -r` → `Get-ChildItem . -Recurse -Filter *.ts | Select-Object -First 50`,
+    `tree` → `tree -L 2 .`, `rg --files`, `fd`, `dir /s`, `findstr /s`; busca por conteúdo → `grep -l ... | head -50`
+    e a mesma busca restrita a `src`; `git ls-files` → `git ls-files src/`).
+  - `blindRead`: a busca da linha e a leitura por faixa com o caminho do arquivo
+    (`Grep ... path="<arquivo>"`, `Read file_path=... offset=<linha-20> limit=80`, e `sed`/`Get-Content`);
+    para notebook, `jq` que acha a célula e a extrai.
+  - `noisePath`: a correção segue a classe do diretório — dependência (`node_modules`, `vendor`…:
+    buscar o uso no projeto, `npm view <pkg> readme`), controle de versão (`git log`, `git show`),
+    logs e temporários (`tail -n 100`, `grep -n | tail`), artefato de build (`Glob "**/<nome>.*"`
+    para achar a fonte); e a linha de `allowlist` já com o caminho relativo.
+  - `broadScan`: a chamada `Glob`/`Grep` reescrita com o padrão do pedido.
+- Teste `test/refusal-teaches.test.cjs`: toda recusa é `deny`, o texto é executável, o comando
+  sugerido passa pelo próprio guard (a recusa que manda fazer o que ela mesma nega foi a
+  classe de falso positivo nº 1) e nenhum caminho emite `ask`. Contra o código da 2.11.1 falha
+  em 38 casos.
+
 ## [2.11.1] — 2026-10-23
 
 ### Corrigido

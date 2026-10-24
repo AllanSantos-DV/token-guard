@@ -11,17 +11,11 @@ corporativa sem `npm install`.
 # 1. veja o tamanho do problema antes de instalar qualquer coisa
 npx @allansantos-dev/token-guard audit
 
-# 2. instale em tudo que é de máquina, começando sem atrito
-npx @allansantos-dev/token-guard init --target all --mode warn
+# 2. instale em tudo que é de máquina
+npx @allansantos-dev/token-guard init --target all
 
 # 3. confirme que responde neste ambiente
 npx @allansantos-dev/token-guard test
-```
-
-Depois de uma semana em `warn`, vire para `block`:
-
-```bash
-npx @allansantos-dev/token-guard init --target all --mode block --force
 ```
 
 ## Escolhendo o alvo
@@ -114,7 +108,6 @@ Para desligar sem desinstalar:
 
 ```bash
 TOKEN_GUARD=off      # desliga (aceita também 0 e false)
-TOKEN_GUARD=warn     # só avisa
 ```
 
 ## Configuração

@@ -67,8 +67,8 @@ if (off.decision === 'allow') { pass++; console.log('  ok    TOKEN_GUARD=off lib
 else { fail++; failures.push({ label: 'TOKEN_GUARD=off', expected: 'allow', got: off.decision }); console.log('  FALHA TOKEN_GUARD=off'); }
 
 const warn = run(vscode('glob', { pattern: '**/*' }), { TOKEN_GUARD: 'warn' });
-if (warn.decision === 'ask') { pass++; console.log('  ok    TOKEN_GUARD=warn vira "ask" e mantém a correção'); }
-else { fail++; failures.push({ label: 'TOKEN_GUARD=warn', expected: 'ask', got: warn.decision }); console.log('  FALHA TOKEN_GUARD=warn'); }
+if (warn.decision === 'deny') { pass++; console.log('  ok    TOKEN_GUARD=warn (aposentado) vale deny: a recusa ensina, nunca pergunta'); }
+else { fail++; failures.push({ label: 'TOKEN_GUARD=warn', expected: 'deny', got: warn.decision }); console.log('  FALHA TOKEN_GUARD=warn'); }
 
 /* a mensagem realmente ensina? */
 const sample = run(vscode('glob', { pattern: '**/*' }));

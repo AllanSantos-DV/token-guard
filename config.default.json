@@ -3,7 +3,7 @@
 
   "version": 1,
 
-  "$comment_mode": "block = nega e injeta a correção · warn = pede confirmação mostrando a correção · off = desliga. Sugestão de adoção: comece em warn por uma sprint, depois vire block.",
+  "$comment_mode": "block = nega e injeta a reescrita pronta · off = desliga. warn foi aposentado (pedia confirmação ao usuário, que sempre confirma) e vale block.",
   "mode": "block",
 
   "charsPerToken": 4,

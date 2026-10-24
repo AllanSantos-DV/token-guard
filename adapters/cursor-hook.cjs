@@ -35,7 +35,7 @@
 const P = require('../lib/payload.cjs');
 const { decide } = require('../lib/decide.cjs');
 
-/** O Cursor mapeia 'ask' para confirmação do usuário; 'deny' corta a chamada. */
+/** 'deny' corta a chamada e o motivo volta ao agente; nunca emitimos 'ask' (confirmação do usuário). */
 const ALLOW = { permission: 'allow' };
 
 function eventName(payload) {
@@ -108,7 +108,7 @@ async function main() {
   if (!verdict) return respond(ALLOW);
 
   respond({
-    permission: verdict.decision === 'ask' ? 'ask' : 'deny',
+    permission: 'deny',
     userMessage: `token-guard: chamada barata disponível (regra: ${verdict.rule}).`,
     agentMessage: verdict.reason,
   });

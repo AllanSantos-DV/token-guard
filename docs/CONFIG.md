@@ -13,13 +13,13 @@ Um template comentado vive em `config.default.json`.
 3. A config do repositório vence sobre as globais.
 
 Escape hatch por ambiente (vence tudo): `TOKEN_GUARD=off` (ou `0`, `false`) desliga;
-`TOKEN_GUARD=warn` degrada qualquer deny para "ask".
+`TOKEN_GUARD=warn` (aposentado) vale `block`: o guard nunca pergunta ao usuário, a recusa ensina a reescrita.
 
 ## Chaves
 
 | Chave | Tipo / Default | Efeito |
 |---|---|---|
-| `mode` | `"block"` \| `"warn"` \| `"off"` | `block`: nega e injeta a correção · `warn`: pede confirmação mostrando a correção · `off`: desliga. |
+| `mode` | `"block"` \| `"off"` | `block`: nega e injeta a reescrita · `off`: desliga. `"warn"` (aposentado) vale `block`. |
 | `charsPerToken` | número, `4` | Razão caracteres→token usada nas estimativas da auditoria e do mcp-cost. 4 é a média para código/texto latino. |
 | `contextWindow` | número, `200000` | Janela de referência dos relatórios ("janelas de contexto"). |
 | `rules.noisePath` | boolean, `true` | Barra leitura dentro de diretórios de build/dependência. |
