@@ -21,7 +21,7 @@
  *
  * Contrato de saída (verificado no runtime, aceito pelos dois harnesses):
  *   { hookSpecificOutput: { hookEventName:'PreToolUse',
- *       permissionDecision:'deny'|'allow'|'ask', permissionDecisionReason:string } }
+ *       permissionDecision:'deny'|'allow', permissionDecisionReason:string } }
  *
  * Silêncio (stdout vazio) = libera. Qualquer erro interno = libera.
  * Um guard de economia jamais pode derrubar a sessão que ele deveria baratear.

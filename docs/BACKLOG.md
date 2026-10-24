@@ -10,6 +10,7 @@
 | # | Item | Origem | Esforço |
 |---|------|--------|---------|
 
+| A33 | O shellDump não reconhece flags de grep combinadas: `grep -rn "x" .` e `grep -rni ...` passam (só `-r`/`-R`/`-re` isolados são lidos como recursivos em `grepUnbounded`). É falha de recall do guard, achada ao escrever o teste da recusa; corrigir muda quais comandos são barrados | 2026-10-24 | S |
 | P1 | Scout barato por construção: `model: haiku`, `tools` só de leitura, `maxTurns` e `effort` no frontmatter de `agents/scout.agent.md`, e hook `SubagentStart` que injeta o bloco `subagente` do contrato. Muda o modelo do scout: medir a qualidade antes | pesquisa 2026-10-23 | M |
 | P2 | `env` opt-in no `settings.json` (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, `BASH_MAX_OUTPUT_LENGTH`) para compactar mais cedo; hoje o ctxwatch só avisa. Muda quando o contexto compacta | pesquisa 2026-10-23 | S |
 | P3 | Aviso de cache frio no ctxwatch (TTL do prompt cache vencido: o próximo prompt reprocessa tudo). Confirmar se o transcript traz o horário por linha | pesquisa 2026-10-23 | S |

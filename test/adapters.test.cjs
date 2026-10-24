@@ -148,7 +148,7 @@ console.log('  [cursor]');
     workspace_roots: [TMP],
   });
   check('beforeMCPExecution repassa a ferramenta ao núcleo',
-    r && (r.permission === 'deny' || r.permission === 'ask'), JSON.stringify(r));
+    r && r.permission === 'deny', JSON.stringify(r));
 }
 
 {
@@ -176,8 +176,8 @@ console.log('  [cursor]');
     file_path: BIG,
     workspace_roots: [TMP],
   }, { TOKEN_GUARD: 'warn' });
-  check('TOKEN_GUARD=warn vira "ask", não "deny"',
-    r && r.permission === 'ask', JSON.stringify(r));
+  check('TOKEN_GUARD=warn (aposentado) nega com a correção, nunca pergunta',
+    r && r.permission === 'deny', JSON.stringify(r));
 }
 
 {

@@ -3,7 +3,7 @@
 /**
  * cli.cjs — porta de entrada do token-guard.
  *
- *   npx @allansantos-dev/token-guard init [caminho] [--mode warn] [--dry-run] [--global]
+ *   npx @allansantos-dev/token-guard init [caminho] [--mode block|off] [--dry-run] [--global]
  *   npx @allansantos-dev/token-guard audit [caminho] [--md|--json] [--top N]
  *   npx @allansantos-dev/token-guard status [caminho]
  *   npx @allansantos-dev/token-guard contract [caminho]
@@ -105,7 +105,7 @@ function help() {
                             repo      .github/ do repositório      (viaja no git)
                             all       copilot + claude + codex + cursor + mcp
 
-                          --mode warn   começa avisando em vez de bloquear
+                          --mode off    grava a config global desligada (warn foi aposentado: vale block)
                           --dry-run     simula, não escreve nada
                           --force       sobrescreve config já existente
                           --command-hooks  Claude Code com hook de comando em vez de http
@@ -151,7 +151,7 @@ function help() {
   COMEÇANDO
 
     npx @allansantos-dev/token-guard audit                       # veja o tamanho do problema
-    npx @allansantos-dev/token-guard init --target all --mode warn   # instale sem atrito
+    npx @allansantos-dev/token-guard init --target all             # instale
     npx @allansantos-dev/token-guard test                        # confirme que responde aqui
 
   Depois reinicie a sessão do agente para carregar o hook.

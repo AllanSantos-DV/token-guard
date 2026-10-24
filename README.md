@@ -95,7 +95,7 @@ e é exatamente ela que este kit governa.
 npx @allansantos-dev/token-guard audit
 
 # 2. instale onde você trabalha, começando sem atrito
-npx @allansantos-dev/token-guard init --target all --mode warn
+npx @allansantos-dev/token-guard init --target all
 
 # 3. confirme que responde neste ambiente
 npx @allansantos-dev/token-guard test
@@ -219,7 +219,7 @@ abaixo disso o custo é irrelevante e a disciplina só atrapalha.
 }
 ```
 
-- `mode`: `block` (nega e corrige) · `warn` (pede confirmação mostrando a correção) · `off`
+- `mode`: `block` (nega e ensina a reescrita; o padrão) · `off`. O antigo `warn` pedia confirmação ao usuário, que sempre confirma; foi aposentado e vale `block`.
 - `noiseDirsExtra` / `sourceExtExtra` **somam** aos defaults.
   Use `noiseDirs` / `sourceExt` (sem `Extra`) só para substituir a lista inteira.
 - `allowlist`: substrings de caminho liberadas nas regras que julgam CAMINHO
@@ -232,7 +232,6 @@ abaixo disso o custo é irrelevante e a disciplina só atrapalha.
 | Situação | Como sair |
 |---|---|
 | Emergência pontual | `TOKEN_GUARD=off` no ambiente |
-| Testar sem atrito | `TOKEN_GUARD=warn` |
 | Uma regra não serve a este repo | `"rules": { "shellDump": false }` |
 | Um caminho específico é legítimo (`noisePath`/`blindRead`) | `"allowlist": ["..."]` |
 | Não quero aviso de nova versão | `TOKEN_GUARD_UPDATE_CHECK=off` no ambiente (desliga também o auto-update) |
@@ -479,9 +478,8 @@ Duas defesas, nesta ordem:
 
 | Quando | O quê | Esforço |
 |---|---|---|
-| Dia 1 | `token-guard init --target all --mode warn` + rodar a auditoria | nenhum |
-| Semana 1 | Ler os avisos que apareceram, ajustar `allowlist` e `noiseDirsExtra` | baixo |
-| Semana 2 | Virar para `"mode": "block"` | nenhum |
+| Dia 1 | `token-guard init --target all` + rodar a auditoria | nenhum |
+| Semana 1 | Ler as recusas que apareceram, ajustar `allowlist` e `noiseDirsExtra` | baixo |
 | Contínuo | Rodar a auditoria a cada release e acompanhar a tendência | baixo |
 
 Comece medindo. Sem o número de antes, não há como provar o de depois.

@@ -20,7 +20,7 @@ agente planeja  Grep "**/*"  ──►  harness dispara o evento pré-execução
                                         │
                 lib/rules.cjs     broadScan · blindRead · noisePath · shellDump
                                         │
-                   null (libera)  ou  { deny | ask, reason, rule }
+                   null (libera)  ou  { deny, reason, rule }
 ```
 
 1. **Triagem por família.** A ferramenta é casada por família, não por nome exato:
@@ -29,14 +29,16 @@ agente planeja  Grep "**/*"  ──►  harness dispara o evento pré-execução
    famílias vigiadas sai sem tocar no disco.
 2. **Config.** `token-guard.config.json` subindo a árvore a partir do cwd do payload.
    Se não houver nenhuma, valem os globais (`~/.copilot`, `~/.claude`, `~/.cursor`,
-   `~/.token-guard`). `TOKEN_GUARD=off|warn` no ambiente vence tudo.
+   `~/.token-guard`). `TOKEN_GUARD=off` no ambiente vence tudo.
 3. **Regras.** Cada regra julga uma coisa só: escopo da busca (`broadScan`), leitura
    grande sem faixa (`blindRead`), caminho de build/dependência (`noisePath`) ou dump
    de árvore pelo shell (`shellDump`). Com `.token-guard/repo-stats.json` (gravado por
    `token-guard audit`), repositórios com menos de 400 arquivos ficam livres dos guards
    de varredura.
-4. **Veredito.** `deny` em `block`, `ask` em `warn`. O `reason` **sempre** traz a
-   alternativa barata, pronta para reexecutar. Nunca é um deny cego.
+4. **Veredito.** Sempre `deny` (nunca `ask`: o usuário sempre confirma, então perguntar não
+   treina ninguém). O `reason` **sempre** traz a reescrita concreta — o comando ou a chamada
+   de ferramenta, com os argumentos do pedido — pronta para o agente reexecutar. Nunca é um
+   deny cego.
 5. **Fail-open.** Payload inválido, config corrompida, regra que lança: tudo vira
    "libera". Um guard de economia não pode derrubar a sessão que deveria baratear.
 

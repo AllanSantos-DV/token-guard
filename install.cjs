@@ -36,7 +36,7 @@
  *   all       copilot + claude + codex + cursor + mcp (tudo que é de máquina)
  *
  * OPÇÕES
- *   --mode block|warn|off   grava a config global com esse modo
+ *   --mode block|off        grava a config global com esse modo (warn foi aposentado: vale block)
  *   --dry-run               mostra tudo que faria, sem escrever um byte
  *   --force                 sobrescreve config/agente/skill já existentes
  *
@@ -70,9 +70,13 @@ function optValue(flag) {
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null;
 }
 
-const MODE = optValue('--mode');
-if (MODE && !['block', 'warn', 'off'].includes(MODE)) {
-  console.error(`install: --mode inválido: "${MODE}". Use block, warn ou off.`);
+let MODE = optValue('--mode');
+if (MODE === 'warn') {
+  console.log('install: --mode warn foi aposentado (pedia confirmação ao usuário, que sempre confirma). Gravando "block": a recusa ensina a reescrita.');
+  MODE = 'block';
+}
+if (MODE && !['block', 'off'].includes(MODE)) {
+  console.error(`install: --mode inválido: "${MODE}". Use block ou off.`);
   process.exit(1);
 }
 
@@ -1112,6 +1116,6 @@ console.log('');
 console.log('    Confirme que os guards respondem aqui:  node selftest.cjs');
 console.log('    Meca o custo do repositorio:            node token-audit.cjs');
 console.log('');
-console.log('  Adocao sem atrito: comece com --mode warn e vire para block depois.');
+console.log('  A recusa traz o comando alternativo pronto; ninguem precisa aprovar nada no meio.');
 console.log('  Emergencia: TOKEN_GUARD=off desliga sem editar arquivo.');
 console.log('');

@@ -16,7 +16,11 @@ Registro antigo apontando para script que não existe mais era mascarado como
 "já registrado" em versões anteriores. Reinstale — versões atuais **reparam** o
 registro obsoleto e avisam (`registro obsoleto reparado`).
 
-## Meu `--mode warn` não está valendo (bloqueia mesmo assim)
+## Meu `--mode warn` não pergunta nada, nega
+
+`warn` foi aposentado: a pergunta caía no usuário, que sempre confirma, e o agente não aprendia nada. Agora vale `block`: a recusa traz o comando alternativo pronto e o agente o executa no turno seguinte. `--mode warn` grava `block` e avisa.
+
+## Minha config global não está valendo
 
 Em versões anteriores, a config global gravada em `~/.claude/`, `~/.cursor/` ou
 `~/.token-guard/` nunca era lida (só `~/.copilot/`). Atualize: o loader agora lê

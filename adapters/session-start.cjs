@@ -57,9 +57,9 @@ async function ensureDaemon() {
 
   for (let i = 0; i < ATTEMPTS; i++) {
     const r = await tryDaemon('ping', {});
-    // TOKEN_GUARD=off|warn faz o cliente nem tentar o daemon (lib/daemon-client.cjs): não é falha.
+    // TOKEN_GUARD=off faz o cliente nem tentar o daemon (lib/daemon-client.cjs): não é falha.
     // Sem token não há hook http: o hook de comando avalia inline sem o daemon.
-    if (!r.ok) return !token || /^(off|0|false|warn)$/i.test(process.env.TOKEN_GUARD || '') ? null : 'o daemon não respondeu (cliente desarmado)';
+    if (!r.ok) return !token || /^(off|0|false)$/i.test(process.env.TOKEN_GUARD || '') ? null : 'o daemon não respondeu (cliente desarmado)';
     const current = checkHandshake(r.handshake, expected).ok; // velho é aposentado pelo próprio tryDaemon
     if (current && !token) return null;
     if (current) {

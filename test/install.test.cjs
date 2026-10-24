@@ -118,7 +118,7 @@ console.log('\n  [máquina] preservação de assets do usuário');
     },
   }), 'utf8');
 
-  const r = runInstall(['--target', 'claude', '--mode', 'warn', '--command-hooks', repo], FAKE_ENV);
+  const r = runInstall(['--target', 'claude', '--mode', 'off', '--command-hooks', repo], FAKE_ENV);
   check('instalação claude em home falso sai 0', r.status === 0, r.stderr);
   check('agente personalizado é PRESERVADO na reinstalação',
     fs.readFileSync(agentPath, 'utf8').includes('personalizada'),
@@ -157,7 +157,7 @@ console.log('\n  [máquina] preservação de assets do usuário');
   ] }];
   fs.writeFileSync(settingsPath, JSON.stringify(s2));
 
-  runInstall(['--target', 'claude', '--mode', 'warn', '--command-hooks', repo], FAKE_ENV);
+  runInstall(['--target', 'claude', '--mode', 'off', '--command-hooks', repo], FAKE_ENV);
   const s3 = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   const tgPre3 = s3.hooks.PreToolUse.filter((e) => JSON.stringify(e).includes('token-guard'));
   check('liveOther: layout antigo vivo é SUBSTITUÍDO, não duplicado',
@@ -173,8 +173,8 @@ console.log('\n  [máquina] preservação de assets do usuário');
 
   // A config global gravada no home do ALVO tem que ser lida pelo loader.
   const cfgWritten = path.join(home, '.claude', 'token-guard.config.json');
-  check('--mode warn grava config no home do alvo',
-    fs.existsSync(cfgWritten) && JSON.parse(fs.readFileSync(cfgWritten, 'utf8')).mode === 'warn');
+  check('--mode off grava config no home do alvo',
+    fs.existsSync(cfgWritten) && JSON.parse(fs.readFileSync(cfgWritten, 'utf8')).mode === 'off');
 
   const emptyRepo = mkrepo('empty');
   const prevHome = process.env.HOME;
@@ -187,7 +187,7 @@ console.log('\n  [máquina] preservação de assets do usuário');
   process.env.HOME = prevHome;
   process.env.USERPROFILE = prevProfile;
   check('loader lê a config global do home do alvo (~/.claude)',
-    loaded.mode === 'warn' && /\.claude/.test(loaded._source),
+    loaded.mode === 'off' && /\.claude/.test(loaded._source),
     `mode=${loaded.mode} source=${loaded._source}`);
 
   fs.rmSync(home, { recursive: true, force: true });
@@ -300,20 +300,31 @@ console.log('\n  [codex] ponte mcp_tool -> servidor MCP do token-guard');
     !cfg2.includes('token-guard.env') && cfg2.includes('[profiles.fim]\r\nmodel = "y"') && cfg2.startsWith(cfgBefore), cfg2);
 
   // --mode: ~/.codex não é home de config — vai para ~/.token-guard, que o loader lê.
-  runInstall(['--target', 'codex', '--mode', 'warn', repo], ENV);
+  runInstall(['--target', 'codex', '--mode', 'off', repo], ENV);
   const tgCfg = path.join(home, '.token-guard', 'token-guard.config.json');
-  check('codex --mode warn grava config num home que o loader lê',
-    fs.existsSync(tgCfg) && JSON.parse(fs.readFileSync(tgCfg, 'utf8')).mode === 'warn', tgCfg);
+  check('codex --mode off grava config num home que o loader lê',
+    fs.existsSync(tgCfg) && JSON.parse(fs.readFileSync(tgCfg, 'utf8')).mode === 'off', tgCfg);
+}
+
+console.log('\n  [--mode warn aposentado]');
+{
+  const repo = mkrepo('host-mode-warn');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-warn-'));
+  const r = runInstall(['--target', 'mcp', '--mode', 'warn', repo], { HOME: home, USERPROFILE: home });
+  const tgCfg = path.join(home, '.token-guard', 'token-guard.config.json');
+  check('--mode warn grava "block" e avisa que foi aposentado',
+    r.status === 0 && fs.existsSync(tgCfg) && JSON.parse(fs.readFileSync(tgCfg, 'utf8')).mode === 'block' && /aposentado/.test(r.stdout),
+    r.stderr || r.stdout);
 }
 
 console.log('\n  [mcp] --mode');
 {
   const repo = mkrepo('host-mcp-mode');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-mcp-'));
-  const r = runInstall(['--target', 'mcp', '--mode', 'warn', repo], { HOME: home, USERPROFILE: home });
+  const r = runInstall(['--target', 'mcp', '--mode', 'off', repo], { HOME: home, USERPROFILE: home });
   const tgCfg = path.join(home, '.token-guard', 'token-guard.config.json');
-  check('mcp --mode warn grava ~/.token-guard/token-guard.config.json',
-    r.status === 0 && fs.existsSync(tgCfg) && JSON.parse(fs.readFileSync(tgCfg, 'utf8')).mode === 'warn',
+  check('mcp --mode off grava ~/.token-guard/token-guard.config.json',
+    r.status === 0 && fs.existsSync(tgCfg) && JSON.parse(fs.readFileSync(tgCfg, 'utf8')).mode === 'off',
     r.stderr || tgCfg);
 }
 
