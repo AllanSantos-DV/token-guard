@@ -12,7 +12,12 @@
 
 | P1 | Scout barato por construção, **sem trocar o modelo** (a medição com haiku reprovou, ver `docs/research/scout-haiku-medicao-2026-10-24.md`): `tools` só de leitura, `maxTurns` e `effort` no frontmatter de `agents/scout.agent.md`, e hook `SubagentStart` que injeta o bloco `subagente` do contrato | pesquisa 2026-10-23 | M |
 | P4 | `updatedInput` no lugar de `deny` quando a correção é mecânica (faixa no `Read`, `\| head` no shell). Poupa o turno de repetição, mas perde o efeito pedagógico do deny | pesquisa 2026-10-23 | M |
-| A35 | `dupRead` guarda o hash da leitura por `sessionId`, e o subagente herda o `sessionId` do pai: o `Read` do scout (ou de um irmão em paralelo) volta como stub `[dupRead] conteúdo idêntico…` sem que aquela janela tenha visto o arquivo. Os 4 scouts da medição do P1 tiveram o stub. Chavear por `agent_id` quando o payload o trouxer (confirmar o campo) e testar | achado na medição do P1, 2026-10-24 | S |
+
+## Fechado na release 2.12.3 (2026-10-24)
+
+| # | Item | Resolução |
+|---|------|-----------|
+| A35 | `dupRead` devolvia stub ao subagente por chavear a releitura pelo `sessionId` do pai | estado da janela (`dupRead`, rajada do scout) chaveado por `sessionId~agent_id` (`windowKey` em `lib/claude-hooks.cjs`); `test/dupread-subagent.test.cjs` |
 
 ## Fechado na release 2.12.2 (2026-10-24)
 
