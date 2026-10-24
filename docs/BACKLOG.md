@@ -10,11 +10,23 @@
 | # | Item | Origem | Esforço |
 |---|------|--------|---------|
 
-| A34 | `grep -r PADRÃO` e `rg PADRÃO` sem caminho-alvo (buscam a pasta atual) passam pelo `shellDump`: `grepUnbounded` toma o padrão por alvo. Mesma classe do A33, mas `rg padrão` é muito comum; medir os falsos positivos no replay antes de barrar | achado ao corrigir o A33, 2026-10-24 | S |
-| P1 | Scout barato por construção: `model: haiku`, `tools` só de leitura, `maxTurns` e `effort` no frontmatter de `agents/scout.agent.md`, e hook `SubagentStart` que injeta o bloco `subagente` do contrato. Muda o modelo do scout: medir a qualidade antes | pesquisa 2026-10-23 | M |
-| P2 | `env` opt-in no `settings.json` (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, `BASH_MAX_OUTPUT_LENGTH`) para compactar mais cedo; hoje o ctxwatch só avisa. Muda quando o contexto compacta | pesquisa 2026-10-23 | S |
-| P3 | Aviso de cache frio no ctxwatch (TTL do prompt cache vencido: o próximo prompt reprocessa tudo). Confirmar se o transcript traz o horário por linha | pesquisa 2026-10-23 | S |
+| P1 | Scout barato por construção, **sem trocar o modelo** (a medição com haiku reprovou, ver `docs/research/scout-haiku-medicao-2026-10-24.md`): `tools` só de leitura, `maxTurns` e `effort` no frontmatter de `agents/scout.agent.md`, e hook `SubagentStart` que injeta o bloco `subagente` do contrato | pesquisa 2026-10-23 | M |
 | P4 | `updatedInput` no lugar de `deny` quando a correção é mecânica (faixa no `Read`, `\| head` no shell). Poupa o turno de repetição, mas perde o efeito pedagógico do deny | pesquisa 2026-10-23 | M |
+| A35 | `dupRead` guarda o hash da leitura por `sessionId`, e o subagente herda o `sessionId` do pai: o `Read` do scout (ou de um irmão em paralelo) volta como stub `[dupRead] conteúdo idêntico…` sem que aquela janela tenha visto o arquivo. Os 4 scouts da medição do P1 tiveram o stub. Chavear por `agent_id` quando o payload o trouxer (confirmar o campo) e testar | achado na medição do P1, 2026-10-24 | S |
+
+## Fechado na release 2.12.2 (2026-10-24)
+
+| # | Item | Resolução |
+|---|------|-----------|
+| A34 | `grep -r PADRÃO` e `rg PADRÃO` sem caminho passavam: o alvo era o último argumento, que sem caminho é o padrão | alvo = argumentos posicionais menos o padrão, pulando valores de flags, com aspas; busca depois de pipe segue liberada; `uniq` conta como teto. Replay de 30.206 buscas reais: 1 novo negado (correto), 0 falso positivo; medição em `docs/research/scout-haiku-medicao-2026-10-24.md` |
+| P1 (modelo) | Scout com `model: haiku` | medido e reprovado (4 perguntas × 2 modelos, haiku errou o ponto central em 1); o scout segue herdando o modelo da conversa |
+
+## Descartados (2026-10-24)
+
+| # | Item | Por que não |
+|---|------|-------------|
+| P2 | `env` opt-in (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, `BASH_MAX_OUTPUT_LENGTH`) para compactar mais cedo | O claude-code-boss já cobre a frio: `scripts/lib/cost-tuning.js` (ajuste de cache e janela), `hooks/compaction.mjs` e `scripts/lib/compaction-core.mjs` (portão que só compacta com o cache frio). Um env fixo compactaria a quente: cada compactação com cache quente paga um resumo mais a regravação do cache (o cost-tuning registra 15 compactações assim numa sessão). Duplicar o mecanismo aqui só pioraria |
+| P3 | Aviso de cache frio no ctxwatch | O Boss já mede o cache pelo timestamp do transcript e age no portão do prompt (`isCacheWarm`, `decideTiming` em `compaction-core.mjs`); o aviso ao humano duplicaria uma decisão que o Boss já toma sozinho |
 
 ## Fechado na release 2.12.1 (2026-10-24)
 
