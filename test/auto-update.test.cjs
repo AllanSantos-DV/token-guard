@@ -115,6 +115,15 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   const noteOff = AU.availableNotice(LOCAL);
   check('auto-update off → aviso manda atualizar à mão', /desligado — atualize à mão: npx .*token-guard@99\.0\.0 init/.test(noteOff || ''), noteOff);
   delete process.env.TOKEN_GUARD_AUTO_UPDATE;
+
+  // cópia sem install-state: segue checando (alimenta o aviso) e o aviso diz como se atualizar
+  fs.rmSync(AU.installStatePath(), { force: true });
+  checked = 0;
+  r = await AU.run({ checkForUpdate: async () => { checked++; return newer(); }, runInstaller: () => { throw new Error('não instala sem estado'); } });
+  check('sem install-state → pula, mas renova o cache da versão', r.status === 'skipped' && r.reason === 'sem install-state' && checked === 1, { r, checked });
+  const noteNoState = AU.availableNotice(LOCAL);
+  check('sem install-state → aviso manda rodar init uma vez (não diz "atualizando")',
+    /não se atualiza sozinha — rode uma vez: npx -y .*token-guard@99\.0\.0 init --target claude/.test(noteNoState || '') && !/atualizando em segundo plano/.test(noteNoState), noteNoState);
   process.env.TOKEN_GUARD_UPDATE_CHECK = 'off';
   check('UPDATE_CHECK=off → sem aviso', AU.availableNotice(LOCAL) === null);
   delete process.env.TOKEN_GUARD_UPDATE_CHECK;

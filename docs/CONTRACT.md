@@ -55,6 +55,11 @@ npx @allansantos-dev/token-guard contract --subagente            # bloco pronto 
 | Claude Code | automática (`UserPromptSubmit`) | automáticos desde a 2.6.2 |
 | Cursor, Codex, MCP | manual (`--subagente` ou copiar o texto) | manual |
 
+Depois de `/compact` ou `/clear` no Claude Code, o `SessionStart` zera o que já foi
+injetado e o prompt seguinte traz o contrato de volta (no `resume` o histórico já o contém).
+Se a compactação automática cair no meio de um turno, o contrato só reaparece na próxima
+mensagem do usuário.
+
 Como a evidência chega: o pós-execução (`PostToolUse` / `onPostToolUse`) grava o
 arquivo que cada ferramenta tocou em `.token-guard/sessions/<id>-touched.json`; no
 prompt seguinte, a seção que o gatilho liga entra uma vez. Antes da 2.6.2, no Claude

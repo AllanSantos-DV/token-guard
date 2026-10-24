@@ -350,6 +350,7 @@ function mockDeps(initialFiles) {
       let sawListening = false;
       server.once('listening', () => { sawListening = true; });
       server.once('error', () => {
+        console.log('FIRST-ERROR');
         server.close(() => {
           setTimeout(() => {
             console.log(sawListening ? 'BUG:relistened-after-close' : 'OK:stayed-closed');
@@ -359,16 +360,22 @@ function mockDeps(initialFiles) {
       });
       setTimeout(() => { console.log('FAIL:no-error-event'); process.exit(1); }, 4000);
     `;
+    // O relógio das 80ms parte do 1º erro VISTO PELO FILHO, não do spawn: o cold
+    // start do node (antivírus, máquina carregada) pode passar de 80ms, e liberar
+    // o holder antes de o filho tentar o 1º listen faz o bind dar certo — sem erro.
+    let firstError;
+    const sawFirstError = new Promise((res) => { firstError = res; });
     const childPromise2 = new Promise((resolve) => {
       const child = spawn(process.execPath, ['-e', retryCloseScript]);
       let out = '';
-      child.stdout.on('data', (d) => { out += d; });
-      child.on('close', (code) => resolve({ code, out }));
+      child.stdout.on('data', (d) => { out += d; if (out.includes('FIRST-ERROR')) firstError(); });
+      child.on('close', (code) => { firstError(); resolve({ code, out }); });
     });
 
-    // Libera em 80ms: depois da 1ª tentativa (t≈0) e da 1ª reagenda (~50ms),
-    // mas antes da 2ª reagenda (~100ms) esgotar as 3 tentativas — deixa uma
-    // janela real pra um timer não-cancelado conseguir reabrir o server.
+    // Libera 80ms depois do 1º erro: depois da 1ª reagenda (~50ms), mas antes da
+    // 2ª (~100ms) esgotar as 3 tentativas — deixa uma janela real pra um timer
+    // não-cancelado conseguir reabrir o server.
+    await sawFirstError;
     await new Promise((r) => setTimeout(r, 80));
     holder2.close();
 

@@ -374,6 +374,33 @@ function runQuiet(cmd, args) {
   }
 }
 
+const xmlEscape = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * Task de logon SÓ do usuário atual, via XML. `schtasks /sc onlogon` vale para todo
+ * usuário e exige elevação; o gatilho de logon com UserId próprio e RunLevel
+ * LeastPrivilege é aceito sem ela. O schtasks só lê o XML em UTF-16 com BOM.
+ */
+function registerLogonTask(name, launcher) {
+  const user = `${process.env.USERDOMAIN || os.hostname()}\\${os.userInfo().username}`;
+  const xml = `<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>${xmlEscape(user)}</UserId></LogonTrigger></Triggers>
+  <Principals><Principal id="Author"><UserId>${xmlEscape(user)}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
+  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><Hidden>true</Hidden></Settings>
+  <Actions Context="Author"><Exec><Command>conhost.exe</Command><Arguments>${xmlEscape(`--headless cmd.exe /d /c "${launcher}"`)}</Arguments></Exec></Actions>
+</Task>`;
+  const file = path.join(os.tmpdir(), `${name}-${process.pid}.xml`);
+  try {
+    fs.writeFileSync(file, '\ufeff' + xml, 'utf16le');
+    return runQuiet('schtasks', ['/create', '/tn', name, '/xml', file, '/f']);
+  } catch {
+    return false;
+  } finally {
+    try { fs.rmSync(file, { force: true }); } catch { /* temporário */ }
+  }
+}
+
 function taskExists(name) {
   try {
     execFileSync('schtasks', ['/query', '/tn', name], { stdio: 'pipe' });
@@ -420,8 +447,8 @@ function installAutostartWindows(daemonScript) {
     ? `TOKEN_GUARD_SID=${sid}  (setx — vale para sessoes novas apos reiniciar o Windows/logon)`
     : 'TOKEN_GUARD_SID nao pode ser gravado (setx falhou) — daemon so sobe on-demand (F5), nunca fica quente');
 
-  const taskOk = runQuiet('schtasks',
-    ['/create', '/tn', DAEMON_TASK_NAME, '/tr', tr, '/sc', 'onlogon', '/rl', 'limited', '/f']);
+  const taskOk = registerLogonTask(DAEMON_TASK_NAME, launcher)
+    || runQuiet('schtasks', ['/create', '/tn', DAEMON_TASK_NAME, '/tr', tr, '/sc', 'onlogon', '/rl', 'limited', '/f']);
   log(taskOk ? (existed ? 'update' : 'create') : 'skip',
     taskOk
       ? `Task Scheduler "${DAEMON_TASK_NAME}"  (ONLOGON, ${tr})`

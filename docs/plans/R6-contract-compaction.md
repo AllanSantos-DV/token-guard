@@ -1,5 +1,10 @@
 # R6 · Contrato sobrevive à Compaction — SDD
 
+> **Entregue na 2.11.0 por outro caminho:** em vez do adapter `PreCompact`, o `SessionStart`
+> com `source` `compact`/`clear` zera `injected` (a alternativa "(a) scoping por source" desta
+> ADR). Não precisa de registro de hook novo, então chega às instalações existentes pelo
+> auto-update. Este plano segue como registro da decisão original.
+
 > Status: **PLANO · Rev.3 — APROVADO pela revisão #3** (zero MAJOR/MINOR;
 > fixes finais de metadado/typo aplicados conforme pré-autorização da #3:
 > "After these two edits, this spec is CLEAN"). **Liberado para implementação.**

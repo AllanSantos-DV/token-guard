@@ -9,8 +9,20 @@
 
 | # | Item | Origem | Esforço |
 |---|------|--------|---------|
-| A30 | `schtasks /sc onlogon` do `TokenGuardDaemon` falha sem elevação nesta máquina (achado ao verificar a 2.10.1): o instalador avisa "nao pode ser registrada", e só o watchdog de 5 min (`/sc minute`, não exige elevação) religa o daemon após o logon. Avaliar `/sc onlogon` com `/it`/atalho em Startup ou aceitar o watchdog como único gatilho | verificação local 2026-10-23 | S |
-| A32 | Flake em `test/daemon-singleton.test.cjs` ("win32 close() durante janela de retry": `FAIL:no-error-event`, espera de 4 s). Reproduzido também no código da 2.10.0 (1 em 5 execuções normais sob a máquina compartilhada), logo não vem da 2.10.1. Dar margem ao timer ou tornar o evento determinístico | verificação local 2026-10-23 | S |
+
+| P1 | Scout barato por construção: `model: haiku`, `tools` só de leitura, `maxTurns` e `effort` no frontmatter de `agents/scout.agent.md`, e hook `SubagentStart` que injeta o bloco `subagente` do contrato. Muda o modelo do scout: medir a qualidade antes | pesquisa 2026-10-23 | M |
+| P2 | `env` opt-in no `settings.json` (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, `BASH_MAX_OUTPUT_LENGTH`) para compactar mais cedo; hoje o ctxwatch só avisa. Muda quando o contexto compacta | pesquisa 2026-10-23 | S |
+| P3 | Aviso de cache frio no ctxwatch (TTL do prompt cache vencido: o próximo prompt reprocessa tudo). Confirmar se o transcript traz o horário por linha | pesquisa 2026-10-23 | S |
+| P4 | `updatedInput` no lugar de `deny` quando a correção é mecânica (faixa no `Read`, `\| head` no shell). Poupa o turno de repetição, mas perde o efeito pedagógico do deny | pesquisa 2026-10-23 | M |
+| P5 | Premissa do `mcp-cost`: no Claude Code as ferramentas MCP são adiadas por padrão e só nome e instruções entram no contexto; o README ainda diz "9.695 tokens em toda sessão" para esse harness. Reler a medida | pesquisa 2026-10-23 | S |
+
+## Fechado na release 2.11.0 (2026-10-23)
+
+| # | Item | Resolução |
+|---|------|-----------|
+| A30 | `schtasks /sc onlogon` do `TokenGuardDaemon` falhava sem elevação | Task por XML, só do usuário atual (`registerLogonTask` em `install.cjs`) |
+| A32 | Flake em `daemon-singleton.test.cjs` | O relógio parte do primeiro erro visto pelo filho |
+| R6 | Contrato não voltava depois de compactar | `SessionStart` `compact`/`clear` zera `injected`; `test/contract-compaction.test.cjs` |
 
 ## Fechado na release 2.10.1 (2026-10-23)
 

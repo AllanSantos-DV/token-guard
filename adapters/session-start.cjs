@@ -26,6 +26,8 @@ const { tryDaemon, shutdownDaemon } = require('../lib/daemon-client.cjs');
 const { checkHandshake } = require('../lib/daemon-lifecycle.cjs');
 const AU = require('../lib/auto-update.cjs');
 const DR = require('../lib/dupread.cjs');
+const CT = require('../lib/contract.cjs');
+const H = require('../lib/claude-hooks.cjs');
 const { PROTOCOL_VERSION, PACKAGE_VERSION } = require('./daemon-server.cjs');
 const DH = require('./daemon-http.cjs');
 
@@ -81,7 +83,6 @@ async function ensureDaemon() {
 /** Auto-update em processo destacado e oculto: a sessão não espera rede nem npm. */
 function launchAutoUpdate() {
   if (process.env.TOKEN_GUARD_UPDATE_CHECK === 'off') return;
-  if (AU.enabled() && !AU.readInstallState()) return;
   try {
     spawn(process.execPath, [path.join(__dirname, '..', 'lib', 'auto-update.cjs')], {
       detached: true, stdio: 'ignore', windowsHide: true,
@@ -96,6 +97,9 @@ async function main() {
   // Depois de compactar/limpar/retomar, a leitura anterior saiu da janela: o dedupe não pode apontar para ela.
   const sid = payload && (payload.session_id || payload.sessionId);
   if (sid && ['compact', 'clear', 'resume'].includes(payload.source)) DR.resetSession(payload.cwd || process.cwd(), sid);
+  // O contrato injetado também saiu da janela (compact/clear); no resume o histórico volta com ele.
+  const prompt = payload && ['compact', 'clear'].includes(payload.source) ? H.promptArgs(payload) : null;
+  if (prompt) CT.resetInjected(prompt.root, prompt.sessionId);
 
   const messages = [];
   const problem = await ensureDaemon();

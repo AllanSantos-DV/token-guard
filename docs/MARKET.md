@@ -68,7 +68,7 @@ O guard ENXERGUA o garimpo em tempo real (é ele que vê os broadScan/dumps). En
 | R3 | **Seções anti-boilerplate/reuso no contract** (`quando: codigo`: preferir abstração existente, consultar antes de criar helper, registrar decisão em ADR para não regarimpar) | context engineering (instruções certas economizam SAÍDA e re-leitura); DRY como economia de reescrita | S |
 | R4 | **response_format concise/detailed** nas 3 tools MCP do guard | Anthropic: −65% (206→72 tok) | S |
 | R5 | **Replay v2 com bytes reais** de tool_result (JSONL traz inline) | dado real > estimativa | M |
-| R6 | **Contrato sobrevive à compaction** (PreCompact persist + SessionStart re-injeta) | compaction descarta contexto injetado | M |
+| R6 | **Contrato sobrevive à compaction** — entregue na 2.11.0: `SessionStart` `compact`/`clear` zera `injected`, o prompt seguinte reinjeta | compaction descarta contexto injetado | M |
 
 Fontes primárias: anthropic.com/engineering/writing-tools-for-agents ·
 anthropic.com/engineering/effective-context-engineering-for-ai-agents ·
