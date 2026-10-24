@@ -3,6 +3,26 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.12.2] — 2026-10-24
+
+### Corrigido
+- **`rg PADRÃO` e `grep -r PADRÃO` sem caminho passavam pelo `shellDump`.** Sem caminho a busca é a
+  pasta atual, mas o guard tomava o último argumento por alvo, que nesse caso é o próprio padrão. Agora o
+  alvo são os argumentos posicionais menos o padrão (o primeiro, salvo `-e`/`-f`), pulando o valor das flags
+  que o levam (`-g`, `-t`, `-m`, `-A/-B/-C`, `--glob`…), com aspas respeitadas e parando em pipe, redirect e
+  `&&`. Busca depois de um pipe filtra o stdin e segue liberada; `uniq` passou a contar como teto
+  (`grep -rn x . | cut -d: -f1 | sort | uniq -c` agrega e é barato).
+- Falsos positivos medidos no replay de 30.206 buscas reais de transcripts: 1 comando novo negado
+  (`rg -n 'TOKEN'` sem caminho nem teto), nenhum liberado, nenhuma busca com caminho, glob ou pipe barrada.
+  Oito fixtures de deny falhavam na 2.12.1; sete de allow passam nas duas. Método e números em
+  `docs/research/scout-haiku-medicao-2026-10-24.md`.
+
+### Documentação
+- Medição do scout com `model: haiku` (4 perguntas × 2 modelos): haiku errou o ponto central em uma e
+  o scout segue herdando o modelo da conversa. P2 e P3 do backlog descartados: o claude-code-boss já cobre
+  a compactação a frio e o cache frio. Achado novo no backlog (A35): o `dupRead` devolve stub ao subagente
+  por compartilhar o `sessionId` do pai.
+
 ## [2.12.1] — 2026-10-24
 
 ### Corrigido
