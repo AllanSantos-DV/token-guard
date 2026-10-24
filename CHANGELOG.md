@@ -3,6 +3,18 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.12.1] — 2026-10-24
+
+### Corrigido
+- **`grep -rn "x" .` passava pelo `shellDump`.** Só `-r`, `-R` e `-re` isolados eram lidos como
+  busca recursiva; flags curtas combinadas (`-rn`, `-nr`, `-rni`, `-Rn`) escapavam. Agora qualquer
+  cluster de flags curtas que contenha `r` ou `R` conta (no grep `r` é só a recursão), e também
+  `--recursive`/`--dereference-recursive`. A recusa sugere o comando certo
+  (`grep -l -rn "x" . | head -50`, ou a mesma busca restrita a `src`) e ele passa pelo guard.
+  Falsos positivos checados: `grep -rn "x" src/`, `grep -rn "x" . | head -50`, `grep -n "x" arquivo`,
+  `grep -in foo a.txt b.txt` e `cat a.log | grep -c ERROR` continuam liberados. Testes em
+  `selftest.cjs` (fixtures) e `test/refusal-teaches.test.cjs`; contra a 2.12.0 quatro casos falham.
+
 ## [2.12.0] — 2026-10-24
 
 ### Alterado

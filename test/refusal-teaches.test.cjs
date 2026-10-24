@@ -71,7 +71,7 @@ console.log('\n  [a correção sugerida passa pelo próprio guard]');
 {
   const shellCases = [
     'Get-ChildItem -Recurse', 'gci -r', 'ls -R /repo', 'dir /s', 'find src', 'tree', 'findstr /s TODO *',
-    'rg --files', 'fd .', 'grep -r TODO .', 'rg -n TODO .',
+    'rg --files', 'fd .', 'grep -r TODO .', 'rg -n TODO .', 'grep -rn "Service" .', 'grep -rni TODO .', 'grep -nr TODO .', 'egrep -Rn foo .',
   ];
   const quoted = /`([^`]+)`/g;
   for (const command of shellCases) {
