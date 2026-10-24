@@ -48,3 +48,12 @@ do próprio `adapters/cursor-hook.cjs`. **Não reli a documentação do Cursor n
 - `mode: "warn"` (config, `TOKEN_GUARD=warn`, `--mode warn`) foi aposentado e vale `block`.
 - Teste `test/refusal-teaches.test.cjs`: toda recusa é `deny`, o texto é executável, o comando
   sugerido passa pelo próprio guard, nenhum arquivo de `lib/` ou `adapters/` emite `ask`.
+
+## Achado no teste: flags combinadas do grep (A33, corrigido na 2.12.1)
+
+Ao escrever o teste da recusa, `grep -rn "x" .` passou pelo `shellDump`: só `-r`, `-R` e `-re`
+isolados eram lidos como recursivos. A regra passou a aceitar qualquer cluster de flags curtas
+com `r` ou `R` (`-rn`, `-nr`, `-rni`, `-Rn`) e `--recursive`/`--dereference-recursive`. Os
+falsos positivos checados em fixture: `grep -rn "x" src/`, `grep -rn "x" . | head -50`,
+`grep -n "x" arquivo`, `grep -in foo a.txt b.txt`, `cat a.log | grep -c ERROR`. Em aberto (A34):
+`grep -r PADRÃO` e `rg PADRÃO` sem caminho-alvo.
