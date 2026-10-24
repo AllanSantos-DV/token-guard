@@ -3,6 +3,36 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.11.0] — 2026-10-23
+
+### Adicionado
+- **O contrato volta depois de compactar ou limpar (R6).** O contrato é injetado uma vez
+  por sessão; `/compact` e `/clear` apagam o texto da janela, mas o estado seguia
+  dizendo "já injetado" e as sessões longas ficavam sem ele. O `SessionStart` com
+  `source` `compact` ou `clear` zera `injected` (`CT.resetInjected`) e o próximo prompt
+  reinjeta a camada `sempre` e os gatilhos por evidência. No `resume` o histórico volta
+  inteiro, então nada muda. Custo: ~185 tokens (742 caracteres) por compactação. Reusa o
+  hook que já existe, sem registro novo. Teste: `test/contract-compaction.test.cjs`.
+- **Aviso para cópia sem registro de instalação.** Uma cópia que não passou pelo `init` da
+  2.8.0 em diante (instalada antes do auto-update, ou à mão) nunca consultava o npm e
+  nunca avisava nada. Agora o `SessionStart` consulta e diz: "esta cópia não tem registro
+  de instalação e não se atualiza sozinha — rode uma vez: npx -y …@X init --target claude".
+- `test/images.test.cjs`: imagens (png, jpg, jpeg, gif, webp; 10, 45, 49 e 300 KB; quatro
+  formatos de resposta do Read e de MCP) passam pelos hooks reais sem bloqueio nem alteração.
+  Contra o código da 2.5.0 o teste falha em 65 de 100 casos.
+
+### Corrigido
+- **`TokenGuardDaemon` (logon) não era registrada sem elevação** (A30): `schtasks /sc onlogon`
+  vale para todo usuário e exige admin. A task agora é criada por XML, só para o usuário
+  atual e com `RunLevel` limitado — aceita sem elevação; o caminho antigo fica de reserva.
+- **Flake de `test/daemon-singleton.test.cjs`** (A32): o relógio de 80 ms partia do spawn do
+  filho e não do primeiro erro dele; com o cold start do node acima disso o bind dava certo e
+  não havia erro para observar. Agora parte do primeiro erro visto pelo filho.
+
+### Documentação
+- `docs/research/token-economy-harness-2026-10.md`: mecanismos de harness para economizar
+  tokens, com fonte e data de acesso. Ideias que mudam o uso estão no backlog (P1–P5).
+
 ## [2.10.1] — 2026-10-23
 
 ### Corrigido
