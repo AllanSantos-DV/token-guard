@@ -121,8 +121,9 @@ function help() {
     mcp                   Sobe o MCP server (stdio). Use no campo "command"
                           da configuração MCP do seu IDE.
 
-    mcp-cost [caminho]    Mede quanto os servidores MCP declarados custam de
-                          preâmbulo, em toda sessão, antes da primeira pergunta.
+    mcp-cost [caminho]    Mede o tamanho do schema dos servidores MCP declarados
+                          (preâmbulo onde o harness o carrega por inteiro; o Claude
+                          Code adia as ferramentas por padrão).
                           --list        só inventaria (não executa nada)
                           --server NOME mede um servidor só
                           --timeout MS  teto por handshake (padrão 15000)

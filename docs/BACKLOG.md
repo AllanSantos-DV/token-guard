@@ -14,7 +14,12 @@
 | P2 | `env` opt-in no `settings.json` (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`, `BASH_MAX_OUTPUT_LENGTH`) para compactar mais cedo; hoje o ctxwatch só avisa. Muda quando o contexto compacta | pesquisa 2026-10-23 | S |
 | P3 | Aviso de cache frio no ctxwatch (TTL do prompt cache vencido: o próximo prompt reprocessa tudo). Confirmar se o transcript traz o horário por linha | pesquisa 2026-10-23 | S |
 | P4 | `updatedInput` no lugar de `deny` quando a correção é mecânica (faixa no `Read`, `\| head` no shell). Poupa o turno de repetição, mas perde o efeito pedagógico do deny | pesquisa 2026-10-23 | M |
-| P5 | Premissa do `mcp-cost`: no Claude Code as ferramentas MCP são adiadas por padrão e só nome e instruções entram no contexto; o README ainda diz "9.695 tokens em toda sessão" para esse harness. Reler a medida | pesquisa 2026-10-23 | S |
+
+## Fechado na release 2.11.1 (2026-10-23)
+
+| # | Item | Resolução |
+|---|------|-----------|
+| P5 | Premissa do `mcp-cost`: o Claude Code adia as ferramentas MCP por padrão | README, `docs/IDES.md`, relatório e `--help` corrigidos; teste em `test/mcp-cost.test.cjs` |
 
 ## Fechado na release 2.11.0 (2026-10-23)
 

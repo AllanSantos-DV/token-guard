@@ -48,7 +48,7 @@ e é exatamente ela que este kit governa.
 | `lib/rules.cjs` | As quatro regras: `broadScan`, `blindRead`, `noisePath`, `shellDump`. |
 | `lib/config.cjs` | Config subindo a árvore, com fallback global (4 homes) e escape hatch por env. |
 | `lib/audit.cjs` | A medição de custo de contexto. |
-| `lib/mcp-cost.cjs` | A medição do preâmbulo MCP: quanto os servidores declarados custam por sessão — com recomendações acionáveis por servidor e ferramenta. |
+| `lib/mcp-cost.cjs` | A medição do preâmbulo MCP: o tamanho do schema dos servidores declarados (o Claude Code adia esse custo por padrão) — com recomendações acionáveis por servidor e ferramenta. |
 | `lib/contract.cjs` | O contrato de saída: regras por gatilho de evidência, injetadas 1×/sessão via UserPromptSubmit ([docs](docs/CONTRACT.md)). |
 | `lib/postresult.cjs` | A regra `bigResult`: resultado de ferramenta gigante vira stub + versão integral em disco + alternativa barata. |
 | `lib/dupread.cjs` | Dedupe de leitura: registra o hash de cada leitura por sessão. A substituição da releitura idêntica por ponteiro ainda não chega ao modelo ([backlog](docs/BACKLOG.md)). |
@@ -270,7 +270,17 @@ cala os dois.
 
 A auditoria mede o que o agente **lê durante** a sessão. Ela não vê o que já estava
 carregado **antes da primeira pergunta**: o schema de cada ferramenta de cada servidor MCP
-declarado. Esse custo é fixo, silencioso e pago em toda sessão, use você a ferramenta ou não.
+declarado. Quando o harness carrega esses schemas por inteiro, o custo é fixo, silencioso e
+pago em toda sessão, use você a ferramenta ou não.
+
+> **No Claude Code o custo padrão é menor.** As definições das ferramentas MCP são
+> adiadas por padrão: só os nomes e as instruções do servidor entram no contexto até
+> o Claude usar uma ferramenta ([custos](https://code.claude.com/docs/en/costs),
+> [tool search](https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search), lidos
+> em 2026-10-23). O schema inteiro volta à janela com `ENABLE_TOOL_SEARCH=false`, em
+> modelos anteriores ao Opus 4 e ao Sonnet 4 e em implantações Microsoft Foundry no
+> Azure. O número do `mcp-cost` é o tamanho do schema: o que se paga nesses casos, e o
+> que pesa quando a ferramenta é de fato usada.
 
 ```bash
 npx @allansantos-dev/token-guard mcp-cost --list      # só inventaria: nada é executado
@@ -293,7 +303,7 @@ Playwright      33 ferram.   3.454 tok
 firebase-mcp    12 ferram.   1.883 tok
 token-guard      3 ferram.     400 tok
 
-74 ferramentas em 4 servidores ≈ 9.695 tokens = 0,048 janela(s), em toda sessão
+74 ferramentas em 4 servidores ≈ 9.695 tokens de schema = 0,048 janela(s)
 ```
 
 O próprio token-guard declara hoje 4 ferramentas (`token_guard_hook` entrou na 2.6.0,

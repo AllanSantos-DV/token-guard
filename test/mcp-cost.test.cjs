@@ -180,6 +180,8 @@ console.log('  [consolidação]');
   check('o relatório nomeia o servidor mais caro', /megatool/.test(txt));
   check('o relatório expõe quem não respondeu', /crasher/.test(txt), txt.slice(0, 300));
   check('o relatório não inventa custo para quem falhou', !/crasher.*\d+ tok/.test(txt));
+  check('o relatório diz que o Claude Code adia as ferramentas MCP (não afirma custo fixo por sessão)',
+    /Claude Code adia/.test(txt) && /ENABLE_TOOL_SEARCH=false/.test(txt) && !/em toda sessão, use ou não/.test(txt), txt.slice(-500));
 }
 
 /* ================================================================== */
