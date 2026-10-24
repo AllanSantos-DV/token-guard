@@ -160,8 +160,11 @@ chave externa; `command` e `args` são iguais em todos.
 
 ### Quanto os seus servidores MCP já custam
 
-Cada servidor declarado nesses arquivos carrega o schema de todas as suas ferramentas no
-preâmbulo de toda sessão, independentemente de uso. Para ver o número:
+Cada servidor declarado nesses arquivos tem um schema por ferramenta. Onde o harness o
+carrega por inteiro, ele entra no preâmbulo de toda sessão, independentemente de uso; o
+Claude Code adia essas definições por padrão (só nomes e instruções do servidor entram até
+a ferramenta ser usada — `ENABLE_TOOL_SEARCH=false` volta ao carregamento integral). Para
+ver o tamanho do schema:
 
 ```bash
 npx @allansantos-dev/token-guard mcp-cost --list   # inventário — nada é executado

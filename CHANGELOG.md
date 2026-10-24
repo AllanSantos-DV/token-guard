@@ -3,6 +3,20 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.11.1] — 2026-10-23
+
+### Corrigido
+- **Documentação do `mcp-cost` afirmava um custo que o Claude Code não paga por padrão.**
+  README, `docs/IDES.md`, o relatório do `mcp-cost` e o `--help` diziam que o schema das
+  ferramentas MCP entra no preâmbulo "em toda sessão". No Claude Code as definições são
+  adiadas por padrão: só nomes e instruções do servidor entram até o uso
+  (https://code.claude.com/docs/en/costs e
+  https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search, lidos em 2026-10-23). O
+  schema inteiro volta com `ENABLE_TOOL_SEARCH=false`, em modelos anteriores ao Opus 4 e ao
+  Sonnet 4 e em implantações Microsoft Foundry no Azure. O número medido continua certo — é
+  o tamanho do schema —, mas deixa de ser apresentado como custo fixo de toda sessão.
+  Teste em `test/mcp-cost.test.cjs`.
+
 ## [2.11.0] — 2026-10-23
 
 ### Adicionado
