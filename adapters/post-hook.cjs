@@ -25,9 +25,10 @@ async function main() {
   process.stdout.on('error', () => {});
   const payload = await P.readPayload();
 
-  const { name, input: inp, result, root, sessionId: sid } = H.postArgs(payload);
+  const { name, input: inp, result, root, sessionId: sid, agentId } = H.postArgs(payload);
+  const win = H.windowKey(sid, agentId);
 
-  const viaDaemon = await tryDaemon('postprocess', { name, input: inp, result, root, sessionId: sid });
+  const viaDaemon = await tryDaemon('postprocess', { name, input: inp, result, root, sessionId: sid, agentId });
   // Evidência do contrato (gatilhos codigo/teste/docs) — o daemon já gravou se serviu.
   if (!viaDaemon.ok) CT.noteTouched(root, sid, inp);
   let trimmed = viaDaemon.ok ? viaDaemon.result.trimmed : null;
@@ -37,9 +38,9 @@ async function main() {
     // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o
     // daemon serviu este postprocess, ele já fez isso (dispatchPostprocess).
     if (!trimmed && sid && isRead(name)) {
-      try { trimmed = dedupe({ name, input: inp, result, root, sessionId: sid, cfg }); } catch { /* evidência */ }
+      try { trimmed = dedupe({ name, input: inp, result, root, sessionId: win, cfg }); } catch { /* evidência */ }
     }
-    trimmed = SCOUT.withBurst(trimmed, { name, input: inp, root, sessionId: sid, cfg });
+    trimmed = SCOUT.withBurst(trimmed, { name, input: inp, root, sessionId: win, cfg });
   }
   if (trimmed) process.stdout.write(JSON.stringify(H.postEnvelope(trimmed)));
 }

@@ -33,7 +33,7 @@ Os quatro scouts (dois haiku, dois sonnet) relataram que o `Read` de `agents/sco
 `lib/dupread.cjs` voltou como stub `[dupRead] conteúdo idêntico…` sem que eles tivessem lido o arquivo antes.
 Os subagentes compartilham o `sessionId` do pai e o `dupRead` guarda o hash por sessão: a leitura do pai (ou de um
 irmão rodando em paralelo) faz o stub aparecer numa janela que nunca viu o conteúdo. Isso fere a razão de ser do
-scout (janela própria). Fora do escopo desta entrega; anotado no `docs/BACKLOG.md`.
+scout (janela própria). Corrigido na 2.12.3: o hook traz `agent_id` dentro de subagente e o estado da janela (`dupRead`, rajada do scout) passa a usar `sessionId~agent_id`; o pai segue com `sessionId`. Teste `test/dupread-subagent.test.cjs`: 3 casos falham na 2.12.2, os 10 passam agora, e a releitura do agente principal continua virando stub.
 
 ## A34 — falsos positivos e recall
 

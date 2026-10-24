@@ -12,6 +12,7 @@ const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
 const { dedupe, isRead } = require('../lib/dupread.cjs');
 const SCOUT = require('../lib/scout.cjs');
+const { windowKey } = require('../lib/claude-hooks.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
 const DL = require('../lib/daemon-lifecycle.cjs');
 const DH = require('./daemon-http.cjs');
@@ -120,15 +121,16 @@ function dispatchContract(params) {
 
 /** Replica post-hook.cjs — evidência do contrato + bigResult + dupRead, cfg carregado quente no daemon. */
 function dispatchPostprocess(params) {
-  const { name, input, result, root, sessionId } = params || {};
+  const { name, input, result, root, sessionId, agentId } = params || {};
   try {
     CT.noteTouched(root, sessionId, input);
     const cfg = CFG.load(root);
+    const win = windowKey(sessionId, agentId);
     let trimmed = postProcess({ name, input, result, root, cfg });
     if (!trimmed && sessionId && isRead(name)) {
-      try { trimmed = dedupe({ name, input, result, root, sessionId, cfg }); } catch { /* evidência */ }
+      try { trimmed = dedupe({ name, input, result, root, sessionId: win, cfg }); } catch { /* evidência */ }
     }
-    trimmed = SCOUT.withBurst(trimmed, { name, input, root, sessionId, cfg });
+    trimmed = SCOUT.withBurst(trimmed, { name, input, root, sessionId: win, cfg });
     return { ok: true, trimmed };
   } catch {
     return { ok: true, trimmed: null };

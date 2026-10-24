@@ -3,6 +3,20 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.12.3] — 2026-10-24
+
+### Corrigido
+- **O `dupRead` entregava ao subagente um stub que apontava para a conversa do pai (A35).** O subagente
+  divide o `session_id` com o pai mas tem janela de contexto própria; o estado de releitura era chaveado
+  por sessão, então o `Read` do scout (ou de um irmão em paralelo) voltava como
+  `[dupRead] conteúdo idêntico… está acima na conversa` sem que aquela janela tivesse visto o arquivo
+  (4 de 4 scouts da medição do P1). O hook traz `agent_id` quando a chamada é de um subagente
+  (https://code.claude.com/docs/en/hooks); o estado de "o que esta janela já viu" (`dupRead` e a rajada do
+  scout) passa a usar `sessionId~agent_id`. O contrato e a evidência seguem por sessão. A economia do
+  agente principal não muda: a releitura idêntica ainda vira stub, e a releitura dentro da própria janela do
+  subagente também. Teste `test/dupread-subagent.test.cjs` (hook de comando e daemon); 3 dos casos falham
+  na 2.12.2.
+
 ## [2.12.2] — 2026-10-24
 
 ### Corrigido
