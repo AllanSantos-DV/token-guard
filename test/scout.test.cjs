@@ -19,6 +19,8 @@ function check(label, ok, detail) {
 }
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-scout-'));
+fs.mkdirSync(path.join(root, '.claude', 'agents'), { recursive: true });
+fs.writeFileSync(path.join(root, '.claude', 'agents', 'scout.agent.md'), '---\nname: scout\n---\n', 'utf8');
 const cfg = (limit) => ({ rules: { scout: true }, limits: limit ? { scoutBurst: limit } : {} });
 let seq = 0;
 const call = (sid, name, input, c) => SC.note({ name, input: input || {}, root, sessionId: sid, cfg: c || cfg(4) });
@@ -67,6 +69,18 @@ console.log('\n  [config e fail-open]');
   check('limiar inválido cai no default', Boolean(junk[SC.DEFAULT_BURST - 1]));
   check('sem sessionId não faz nada', SC.note({ name: 'Read', input: {}, root, cfg: cfg(1) }) === null);
   check('root impossível não lança', SC.note({ name: 'Read', input: {}, root: '\0:/x', sessionId: 'z', cfg: cfg(1) }) === null);
+}
+
+console.log('\n  [agente instalado]');
+{
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-scout-bare-'));
+  const noAgent = Array.from({ length: 4 }, (_, i) => SC.note({ name: 'Read', input: { file_path: `g${i}.js` }, root: bare, sessionId: 's10', cfg: cfg(4) }));
+  check('sem scout instalado em nenhuma pasta, a rajada não sugere um agente que não existe', noAgent.every((x) => x === null));
+  fs.mkdirSync(path.join(bare, '.github', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(bare, '.github', 'agents', 'scout.agent.md'), 'x', 'utf8');
+  const withAgent = SC.note({ name: 'Read', input: { file_path: 'g9.js' }, root: bare, sessionId: 's10', cfg: cfg(4) });
+  check('scout em .github/agents (Copilot) basta, e a rajada que já passou do limiar avisa', Boolean(withAgent));
+  fs.rmSync(bare, { recursive: true, force: true });
 }
 
 console.log('\n  [withBurst]');

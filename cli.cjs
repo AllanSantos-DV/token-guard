@@ -85,6 +85,11 @@ async function status(args) {
   } catch (e) {
     console.log(`  daemon:          não foi possível inspecionar (${e.message})`);
   }
+  try {
+    console.log(`  scout:           ${require('./lib/daemon-status.cjs').inspectScout().verdict}`);
+  } catch (e) {
+    console.log(`  scout:           não foi possível inspecionar (${e.message})`);
+  }
   await printUpdateNotice('  atualização:     ');
   console.log('');
 }

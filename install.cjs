@@ -129,7 +129,10 @@ function ensureDir(p) {
   if (!DRY) fs.mkdirSync(p, { recursive: true });
 }
 
-function copyFile(from, to, base, { overwrite = true } = {}) {
+/** Campos de frontmatter que só o Claude Code entende; o Copilot (`.github/agents`) não deve recebê-los. */
+const CLAUDE_ONLY_AGENT_FIELDS = /^(?:disallowedTools|maxTurns|effort):.*\r?\n/gm;
+
+function copyFile(from, to, base, { overwrite = true, transform } = {}) {
   if (!fs.existsSync(from)) return;
   if (fs.existsSync(to) && !overwrite && !FORCE) {
     skipped.push(`${rel(base, to)} (já existe — preservado)`);
@@ -137,7 +140,10 @@ function copyFile(from, to, base, { overwrite = true } = {}) {
   }
   const existed = fs.existsSync(to);
   ensureDir(path.dirname(to));
-  if (!DRY) fs.copyFileSync(from, to);
+  if (!DRY) {
+    if (transform) fs.writeFileSync(to, transform(fs.readFileSync(from, 'utf8')), 'utf8');
+    else fs.copyFileSync(from, to);
+  }
   log(existed ? 'update' : 'create', rel(base, to));
 }
 
@@ -1015,7 +1021,8 @@ function installRepo() {
   copyTree(path.join(SRC, 'adapters'), path.join(guardDir, 'adapters'), DEST);
 
   copyFile(path.join(SRC, 'agents', 'scout.agent.md'),
-           path.join(BASE, 'agents', 'scout.agent.md'), DEST, { overwrite: false });
+           path.join(BASE, 'agents', 'scout.agent.md'), DEST,
+           { overwrite: false, transform: (t) => t.replace(CLAUDE_ONLY_AGENT_FIELDS, '') });
   copyFile(path.join(SRC, 'skills', 'token-economy', 'SKILL.md'),
            path.join(BASE, 'skills', 'token-economy', 'SKILL.md'), DEST, { overwrite: false });
 

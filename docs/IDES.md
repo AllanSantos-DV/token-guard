@@ -20,6 +20,7 @@ O núcleo (`lib/`) é o mesmo em todos. O que muda é o quanto dele consegue rod
 | GitHub Copilot App | `copilot` | Extensão in-process (SDK) | ✅ sim | todas as 4 + bigResult real |
 | Copilot CLI (repo) | `repo` | `PreToolUse` via `.github/hooks/hooks.json` | ✅ sim | todas as 4 |
 | Claude Code | `claude` | `PreToolUse` **http** servido pelo daemon (sem processo por chamada); `--command-hooks` volta ao hook de comando | ✅ sim | todas as 4 |
+| Claude Code (scout) | `claude` | `SubagentStart` de comando (matcher `^scout$`) injeta o bloco `subagente`; `~/.claude/agents/scout.agent.md` | ❌ só injeta | contrato de saída do scout |
 | Claude Code (saída) | `claude` | `PostToolUse` http · `updatedToolOutput` (v2.1.121+) | ✅ substitui | bigResult real |
 | Codex CLI | `codex` | `PreToolUse` **`mcp_tool`** → servidor MCP do token-guard (sem processo por chamada) | ✅ sim, depois de aprovado em `/hooks` | shellDump (o agente lê arquivos pelo shell) |
 | Cursor (IDE) | `cursor` | `preToolUse` genérico (recente) + os 3 nomeados | ✅ sim | **todas as 4** |

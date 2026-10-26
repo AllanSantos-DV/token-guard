@@ -96,7 +96,7 @@ três coisas, nesta ordem:
 ## 5. No prompt: o contrato de saída
 
 Os guards cuidam do que **entra** na janela, e o contrato cuida do que o agente
-**escreve**. No `UserPromptSubmit` (Claude Code) e no `onUserPromptSubmitted`
+**escreve**. No Claude Code, o `SubagentStart` injeta o bloco `subagente` no scout. No `UserPromptSubmit` (Claude Code) e no `onUserPromptSubmitted`
 (Copilot), a seção `sempre` de `contract.default.md` entra uma vez por sessão. As
 seções `quando: codigo`, `quando: teste` e `quando: docs` entram no prompt seguinte
 àquele em que a sessão tocou um arquivo do tipo. A evidência vem do passo 4.1, nunca
