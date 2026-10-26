@@ -1,6 +1,9 @@
 ---
 name: scout
 description: "Investiga o código e devolve apenas o veredito. Use quando a resposta exigir ler muitos arquivos, seguir uma cadeia de chamadas, rastrear uma origem ou eliminar hipóteses — trabalho cujo custo de leitura não deve entrar na janela principal. NÃO use para ler um arquivo já conhecido, para uma busca única e simples, nem para implementar mudanças."
+disallowedTools: Edit, Write, NotebookEdit
+maxTurns: 30
+effort: medium
 ---
 
 # Scout — reconhecimento com contexto descartável

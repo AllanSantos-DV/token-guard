@@ -22,7 +22,7 @@ narrativa de sessão em comentário, cerimônia sem valor — porque saída-lixo
 | `quando: codigo` | A sessão leu/escreveu arquivo-fonte | sim, uma única vez |
 | `quando: teste` | Tocou arquivo de teste | sim, uma única vez |
 | `quando: docs` | Escreveu markdown/docs | sim, uma única vez |
-| `subagente` | — | NUNCA: vai no prompt de quem roda em contexto descartável |
+| `subagente` | — | NUNCA na sessão principal: no Claude Code o `SubagentStart` o injeta no scout; nos demais vai no prompt de quem roda em contexto descartável |
 
 O gatilho é **evidência acumulada** (caminhos tocados), nunca classificação da
 frase do usuário. Uma sessão de prosa não recebe regra de código. Cada seção é
@@ -52,7 +52,7 @@ npx @allansantos-dev/token-guard contract --subagente            # bloco pronto 
 | Harness | Camada `sempre` | Gatilhos por evidência (`codigo`/`teste`/`docs`) |
 |---|---|---|
 | Copilot CLI/App (plugin) | automática (`onUserPromptSubmitted`) | automáticos |
-| Claude Code | automática (`UserPromptSubmit`) | automáticos desde a 2.6.2 |
+| Claude Code | automática (`UserPromptSubmit`); bloco `subagente` no scout via `SubagentStart` | automáticos desde a 2.6.2 |
 | Cursor, Codex, MCP | manual (`--subagente` ou copiar o texto) | manual |
 
 Depois de `/compact` ou `/clear` no Claude Code, o `SessionStart` zera o que já foi

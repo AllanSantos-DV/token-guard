@@ -7,11 +7,14 @@
 
 ## Aberto
 
-| # | Item | Origem | Esforço |
-|---|------|--------|---------|
+_Nenhum item técnico aberto._
 
-| P1 | Scout barato por construção, **sem trocar o modelo** (a medição com haiku reprovou, ver `docs/research/scout-haiku-medicao-2026-10-24.md`): `tools` só de leitura, `maxTurns` e `effort` no frontmatter de `agents/scout.agent.md`, e hook `SubagentStart` que injeta o bloco `subagente` do contrato | pesquisa 2026-10-23 | M |
-| P4 | `updatedInput` no lugar de `deny` quando a correção é mecânica (faixa no `Read`, `\| head` no shell). Poupa o turno de repetição, mas perde o efeito pedagógico do deny | pesquisa 2026-10-23 | M |
+## Fechado na release 2.13.0 (2026-10-26)
+
+| # | Item | Resolução |
+|---|------|-----------|
+| P1 | Scout barato por construção sem trocar o modelo | `disallowedTools`, `maxTurns: 30` e `effort: medium` no frontmatter; hook `SubagentStart` injeta o bloco `subagente`; o instalador passou a gravar o scout em `~/.claude/agents` (antes ele nunca chegava lá). `test/subagent-start.test.cjs`; fonte e medição em `docs/research/scout-barato-e-updatedinput-2026-10-26.md` |
+| P4 | `updatedInput` no lugar de `deny` | **Decidido: não fazer.** Sem correção mecânica que preserve o sentido; reescrita silenciosa esconde o que rodou; `updatedInput` de hooks paralelos tem ordem indefinida e o Smart Tool 0.9.34 já reescreve buscas no Bash. Reabrir só se o harness definir o merge. Evidência no mesmo documento |
 
 ## Fechado na release 2.12.3 (2026-10-24)
 

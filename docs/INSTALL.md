@@ -89,7 +89,7 @@ Tudo que o instalador cria, em um lugar só:
 | Alvo | Runtime | Registro | Config global |
 |---|---|---|---|
 | `copilot` | `~/.copilot/extensions/token-guard/` | — (extensão) | `~/.copilot/token-guard.config.json` |
-| `claude` | `~/.claude/token-guard/` | entradas em `~/.claude/settings.json` › `hooks`: `PreToolUse`, `PostToolUse`, `UserPromptSubmit` (http) e `SessionStart` (comando); token em `~/.token-guard/daemon-http.token`; autostart do daemon (abaixo) | `~/.claude/token-guard.config.json` |
+| `claude` | `~/.claude/token-guard/` | entradas em `~/.claude/settings.json` › `hooks`: `PreToolUse`, `PostToolUse`, `UserPromptSubmit` (http), `SessionStart` e `SubagentStart` (comando); agente `~/.claude/agents/scout.agent.md`; token em `~/.token-guard/daemon-http.token`; autostart do daemon (abaixo) | `~/.claude/token-guard.config.json` |
 | `codex` | `~/.codex/token-guard/` | tabela `[mcp_servers.token-guard]` em `~/.codex/config.toml` + entrada `mcp_tool` (server `token-guard`) em `~/.codex/hooks.json` › `PreToolUse` | `~/.token-guard/token-guard.config.json` |
 | `cursor` | `~/.cursor/token-guard/` | entradas em `~/.cursor/hooks.json` (`preToolUse`, `beforeReadFile`, `beforeShellExecution`, `beforeMCPExecution`) | `~/.cursor/token-guard.config.json` |
 | `mcp` | `~/.token-guard/runtime/` (+ o snippet `~/.token-guard/mcp.json`) | bloco `token-guard` na config MCP do IDE | `~/.token-guard/token-guard.config.json` |
