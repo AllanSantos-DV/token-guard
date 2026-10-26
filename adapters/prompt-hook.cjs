@@ -11,7 +11,7 @@
  *
  * Os gatilhos por evidência (codigo/teste/docs) entram no prompt seguinte ao
  * toque: o PostToolUse registra o arquivo (CT.noteTouched) e este hook lê.
- * O bloco `subagente` segue manual (`token-guard contract --subagente`).
+ * O bloco `subagente` não passa por aqui: o SubagentStart (subagent-start.cjs) o injeta no scout.
  *
  * Fail-open absoluto: qualquer erro = silêncio. Um hook de prompt jamais
  * pode bloquear ou poluir a sessão.

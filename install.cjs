@@ -314,6 +314,43 @@ function registerClaudeHttp(settings, dir) {
   }
 }
 
+/**
+ * SubagentStart do scout: hook de comando nos dois modos (o daemon não serve este evento).
+ * O matcher ancorado só dispara para o scout; o hook injeta o bloco `subagente` do contrato.
+ * Devolve true se o settings mudou.
+ */
+function registerSubagentStart(settings, dir) {
+  const before = JSON.stringify(settings.hooks.SubagentStart);
+  const entry = {
+    matcher: '^scout$',
+    hooks: [{ type: 'command', command: nodeCmd(path.join(dir, 'adapters', 'subagent-start.cjs')), timeout: 10 }],
+  };
+  settings.hooks.SubagentStart = [...withoutHooks(settings.hooks.SubagentStart, isTokenGuardHook), entry];
+  return JSON.stringify(settings.hooks.SubagentStart) !== before;
+}
+
+const SCOUT_TITLE = '# Scout — reconhecimento com contexto descartável';
+
+/**
+ * O scout só vale para o Claude Code se estiver em ~/.claude/agents (a cópia em
+ * token-guard/agents é só o asset). Atualiza o que é nosso (reconhecido pelo título);
+ * agente homônimo do usuário fica como está.
+ */
+function installClaudeScout(base) {
+  const from = path.join(SRC, 'agents', 'scout.agent.md');
+  const to = path.join(base, 'agents', 'scout.agent.md');
+  if (!fs.existsSync(from)) return;
+  const next = fs.readFileSync(from, 'utf8');
+  if (!fs.existsSync(to)) return copyFile(from, to, base);
+  const current = fs.readFileSync(to, 'utf8');
+  if (current === next) return;
+  if (!current.includes(SCOUT_TITLE)) {
+    skipped.push('~/.claude/agents/scout.agent.md (agente do usuário — preservado)');
+    return;
+  }
+  copyFile(from, to, base);
+}
+
 /** Modo comando: some com o http e o SessionStart do token-guard (volta do modo http). */
 function unregisterClaudeHttp(settings) {
   const isTgHttp = (h) => h?.type === 'http' && isTokenGuardHook(h);
@@ -601,8 +638,10 @@ function installClaude() {
   if (!COMMAND_HOOKS) {
     const before = JSON.stringify(settings);
     registerClaudeHttp(settings, dir);
+    registerSubagentStart(settings, dir);
     if (JSON.stringify(settings) === before) skipped.push('~/.claude/settings.json (hooks http do token-guard ja registrados)');
-    else writeJson(settingsPath, settings, base, 'settings.json  (PreToolUse/PostToolUse/UserPromptSubmit via http no daemon + SessionStart)');
+    else writeJson(settingsPath, settings, base, 'settings.json  (PreToolUse/PostToolUse/UserPromptSubmit via http no daemon + SessionStart + SubagentStart)');
+    installClaudeScout(base);
     writeGlobalConfig(base, base);
     installDaemonAutostart(dir);
     notes.push('claude   · reinicie a sessao do Claude Code: o SessionStart sobe o daemon e os hooks passam a ser http (sem processo por chamada).');
@@ -747,7 +786,12 @@ function installClaude() {
     }
   }
 
-  if (strippedHttp) writeJson(settingsPath, settings, base, 'settings.json  (hooks http do token-guard removidos: modo comando)');
+  const subChanged = registerSubagentStart(settings, dir);
+  if (strippedHttp || subChanged) {
+    writeJson(settingsPath, settings, base,
+      strippedHttp ? 'settings.json  (hooks http do token-guard removidos: modo comando)' : 'settings.json  (SubagentStart do scout)');
+  }
+  installClaudeScout(base);
   writeGlobalConfig(base, base);
   installDaemonAutostart(dir);
   notes.push('claude   · reinicie a sessao do Claude Code para carregar o hook.');

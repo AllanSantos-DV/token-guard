@@ -3,6 +3,22 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.13.0] — 2026-10-26
+
+### Adicionado
+- **Scout barato por construção, sem trocar o modelo (P1).** O frontmatter de `agents/scout.agent.md` ganhou `disallowedTools: Edit, Write, NotebookEdit` (somente leitura sem cortar o Bash nem as ferramentas MCP de busca), `maxTurns: 30` (a medição viu 5 a 13 chamadas) e `effort: medium` (não medido). Um hook `SubagentStart` (`adapters/subagent-start.cjs`, matcher `^scout# Changelog
+
+Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
+Versionamento [SemVer](https://semver.org/lang/pt-BR/).
+
+) injeta o bloco `subagente` do contrato no início da conversa do scout; acabou a cola manual de `contract --subagente`. Respeita `TOKEN_GUARD=off`, usa o contrato do repositório sobre o default e falha aberto. Teste: `test/subagent-start.test.cjs`.
+
+### Corrigido
+- **O scout nunca chegava à pasta que o Claude Code lê.** O instalador só o copiava para `~/.claude/token-guard/agents/`; o `scout` que a regra de rajada sugere não existia na lista de agentes. O alvo `claude` agora grava `~/.claude/agents/scout.agent.md`, atualiza o que é do token-guard (reconhecido pelo título) e preserva agente homônimo do usuário.
+
+### Decidido
+- **`updatedInput` no lugar de `deny` (P4): não fazer.** Não há correção mecânica que preserve o sentido (faixa de `Read`, `| head`), a reescrita silenciosa esconde do modelo o que de fato rodou, e `updatedInput` de hooks paralelos tem ordem indefinida (o Smart Tool já reescreve buscas no Bash). Evidência em `docs/research/scout-barato-e-updatedinput-2026-10-26.md`.
+
 ## [2.12.3] — 2026-10-24
 
 ### Corrigido
