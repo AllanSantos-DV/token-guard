@@ -16,6 +16,10 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Corrigido
 - **O scout nunca chegava à pasta que o Claude Code lê.** O instalador só o copiava para `~/.claude/token-guard/agents/`; o `scout` que a regra de rajada sugere não existia na lista de agentes. O alvo `claude` agora grava `~/.claude/agents/scout.agent.md`, atualiza o que é do token-guard (reconhecido pelo título) e preserva agente homônimo do usuário.
 
+- **`token-guard status` mostra o scout.** Linha `scout:` diz se faltam o hook `SubagentStart` ou o agente em `~/.claude/agents` (`inspectScout`, `lib/daemon-status.cjs`).
+- **Alvo `repo` grava o scout sem `disallowedTools`, `maxTurns` e `effort`**, campos que só o Claude Code entende (`.github/agents` é do Copilot).
+- **A sugestão de scout (rajada de leituras) só sai se o agente existe** em `.claude/agents`, `.github/agents`, `~/.claude/agents` ou `~/.copilot/agents`.
+
 ### Decidido
 - **`updatedInput` no lugar de `deny` (P4): não fazer.** Não há correção mecânica que preserve o sentido (faixa de `Read`, `| head`), a reescrita silenciosa esconde do modelo o que de fato rodou, e `updatedInput` de hooks paralelos tem ordem indefinida (o Smart Tool já reescreve buscas no Bash). Evidência em `docs/research/scout-barato-e-updatedinput-2026-10-26.md`.
 

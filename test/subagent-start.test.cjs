@@ -111,5 +111,18 @@ function install(args, home) {
   for (const d of [repo, home]) fs.rmSync(d, { recursive: true, force: true });
 }
 
+console.log('\n  [alvo repo (Copilot)]');
+{
+  const repo = tmp('repo-target');
+  const home = tmp('repo-home');
+  const r = install(['--target', 'repo', repo], home);
+  const agent = path.join(repo, '.github', 'agents', 'scout.agent.md');
+  const text = fs.existsSync(agent) ? fs.readFileSync(agent, 'utf8') : '';
+  check('alvo repo instala o scout em .github/agents', r.status === 0 && /^name: scout$/m.test(text), r.stderr);
+  check('o scout do alvo repo não leva os campos que só o Claude Code entende',
+    !/^(?:disallowedTools|maxTurns|effort):/m.test(text) && /^description: /m.test(text) && /# Scout/.test(text), text.slice(0, 300));
+  for (const d of [repo, home]) fs.rmSync(d, { recursive: true, force: true });
+}
+
 console.log(`\n  ${pass} ok, ${fail} falha(s)`);
 process.exit(fail ? 1 : 0);

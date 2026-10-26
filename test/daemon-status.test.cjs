@@ -60,6 +60,24 @@ async function main() {
   const r2 = await DS.inspect({ settingsFile: file });
   check('inspect com porta divergente: veredito aponta as duas portas', /aponta para 1 .* usa \d+/.test(r2.verdict), r2.verdict);
 
+  console.log('\n  [inspectScout]');
+  const sdir = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-scoutstat-'));
+  const sfile = path.join(sdir, 'settings.json');
+  const hookCmd = 'node "C:/Users/x/.claude/token-guard/adapters/subagent-start.cjs"';
+  fs.writeFileSync(sfile, JSON.stringify({ hooks: { SubagentStart: [{ matcher: '^scout$', hooks: [{ type: 'command', command: hookCmd }] }] } }));
+  const noAgent = DS.inspectScout({ settingsFile: sfile });
+  check('hook registrado sem agente: veredito aponta o agente que falta', noAgent.hook && !noAgent.agent && /falta agente/.test(noAgent.verdict), noAgent.verdict);
+  fs.mkdirSync(path.join(sdir, 'agents'));
+  fs.writeFileSync(path.join(sdir, 'agents', 'scout.agent.md'), '---\nname: scout\n---\n');
+  const both = DS.inspectScout({ settingsFile: sfile });
+  check('hook e agente presentes: veredito completo', both.hook && both.agent && /instalados/.test(both.verdict), both.verdict);
+  fs.writeFileSync(sfile, JSON.stringify({ hooks: { SubagentStart: [{ hooks: [{ type: 'command', command: 'node "C:/outro/subagent-start.cjs"' }] }] } }));
+  const foreignHook = DS.inspectScout({ settingsFile: sfile });
+  check('hook de outro projeto não conta como o do token-guard', !foreignHook.hook && /falta hook SubagentStart/.test(foreignHook.verdict), foreignHook.verdict);
+  const none = DS.inspectScout({ settingsFile: path.join(sdir, 'nao-existe.json') });
+  check('sem settings: não lança e diz que o hook falta', !none.hook && /hook SubagentStart/.test(none.verdict), none.verdict);
+  try { fs.rmSync(sdir, { recursive: true, force: true }); } catch { /* ignore */ }
+
   console.log('');
   console.log(`  ${pass} passaram · ${fail} falharam`);
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }

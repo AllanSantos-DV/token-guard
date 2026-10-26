@@ -67,6 +67,7 @@ e é exatamente ela que este kit governa.
 | `adapters/hook-cmd.cjs` | Copilot CLI (`hooks.json`, alvo `repo`) e Claude Code com `--command-hooks` | ✅ |
 | `adapters/daemon-http.cjs` | Claude Code — `PreToolUse`/`PostToolUse`/`UserPromptSubmit` como hook http no daemon, sem processo por chamada | ✅ |
 | `adapters/session-start.cjs` | Claude Code — `SessionStart` sobe o daemon antes da primeira ferramenta | — |
+| `adapters/subagent-start.cjs` | Claude Code — `SubagentStart` do scout injeta o bloco `subagente` do contrato | ❌ só injeta |
 | `adapters/prompt-hook.cjs` | `UserPromptSubmit` (modo comando) — injeta o contrato de saída 1×/sessão | ❌ só injeta |
 | `adapters/post-hook.cjs` | `PostToolUse` (modo comando) — `bigResult` e registro de evidência | ❌ substitui o resultado |
 | `adapters/daemon-server.cjs` | Nenhum: é o daemon residente que serve a decisão aos hooks por IPC | ✅ via cliente |
@@ -80,7 +81,7 @@ e é exatamente ela que este kit governa.
 | `token-audit.cjs` | Mede o custo de contexto de qualquer repositório e grava o cache que calibra os guards. |
 | `cost.cjs` | Custo por sessão e por modelo a partir dos transcripts do Claude Code (`token-guard cost`). |
 | `mcp-cost.cjs` | Mede o custo fixo de preâmbulo dos servidores MCP declarados, por handshake real. |
-| `agents/scout.agent.md` | Sub-agente de investigação com contexto descartável. |
+| `agents/scout.agent.md` | Sub-agente de investigação com contexto descartável. No alvo `claude` o instalador o grava em `~/.claude/agents/`: somente leitura (`disallowedTools`), até 30 turnos e `effort: medium`. O alvo `repo` o grava em `.github/agents/` sem esses campos, que só o Claude Code entende. Um scout seu, de outro conteúdo, é preservado; um scout nosso editado é substituído a cada instalação (edite uma cópia com outro nome). |
 | `skills/token-economy/SKILL.md` | O procedimento, em divulgação progressiva. |
 | `cli.cjs` | `init`, `audit`, `status`, `mcp`, `mcp-cost`, `contract`, `test` — a porta de entrada do `npx`. |
 | `install.cjs` | Instala em 6 alvos, com **merge** seguro de todo arquivo de config. |
@@ -552,8 +553,8 @@ Estado honesto: no Claude Code (`UserPromptSubmit`) e no Copilot (`onUserPromptS
 a injeção é automática — a camada "sempre" no primeiro prompt e os gatilhos por
 evidência (`codigo`/`teste`/`docs`) no prompt seguinte ao toque, alimentados pelos
 arquivos que a sessão tocou (no Claude Code, desde a 2.6.2).
-Onde o kit não registra hook de prompt (Cursor, Codex, MCP), o consumo é manual
-(`--subagente` no prompt do scout). Detalhes em [docs/CONTRACT.md](docs/CONTRACT.md).
+O bloco `subagente` é automático só no Claude Code (`SubagentStart`, no scout); no Copilot,
+Cursor, Codex e MCP o consumo é manual (`--subagente` no prompt do scout). Detalhes em [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ---
 

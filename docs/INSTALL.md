@@ -100,6 +100,7 @@ Tudo que o instalador cria, em um lugar só:
    - Windows: `schtasks /delete /tn TokenGuardDaemon /f` e `reg delete HKCU\Environment /v TOKEN_GUARD_SID /f`
    - Linux: `systemctl --user disable --now token-guard-daemon` e apague `~/.config/systemd/user/token-guard-daemon.service`
    - macOS: `launchctl unload -w ~/Library/LaunchAgents/com.token-guard.daemon.plist` e apague o arquivo
+   No alvo `claude`, apague também `~/.claude/agents/scout.agent.md` se for o do token-guard (começa por `# Scout — reconhecimento com contexto descartável`); ele fica fora de `~/.claude/token-guard/`. No alvo `repo`, `.github/agents/scout.agent.md`.
 2. Apague as configs globais cujos homes você usou (só existem se você passou `--mode`).
 3. Estado regenerável, seguro de apagar: `<repo>/.token-guard/` (cache + estado de sessão).
 4. No alvo `repo`: reverta também a linha `.token-guard/` adicionada ao `.gitignore`.
