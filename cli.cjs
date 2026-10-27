@@ -50,7 +50,7 @@ async function printUpdateNotice(prefix) {
     const localVersion = require('./package.json').version;
     const r = await UC.checkForUpdate({ localVersion, cacheFile: updateCacheFile() });
     if (r.checked && r.updateAvailable) {
-      console.log(`${prefix}v${r.latestVersion} disponível (você está na v${r.localVersion}) — npm i -g @allansantos-dev/token-guard`);
+      console.log(`${prefix}v${r.latestVersion} disponível (você está na v${r.localVersion}) — npm i -g @allansantos-dev/token-guard — novidades: ${UC.SITE_URL}`);
     }
   } catch { /* aviso de update é best-effort, nunca pode quebrar status/--version */ }
 }
@@ -180,7 +180,7 @@ if (cmd === 'status') {
       const UC = require('./lib/update-check.cjs');
       const r = await UC.checkForUpdate({ localVersion, cacheFile: updateCacheFile() });
       if (r.checked && r.updateAvailable) {
-        console.log(`${localVersion} (nova versão disponível: ${r.latestVersion} — npm i -g @allansantos-dev/token-guard)`);
+        console.log(`${localVersion} (nova versão disponível: ${r.latestVersion} — npm i -g @allansantos-dev/token-guard — novidades: ${UC.SITE_URL})`);
       } else {
         console.log(localVersion);
       }

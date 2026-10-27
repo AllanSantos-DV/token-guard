@@ -124,6 +124,20 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   const noteNoState = AU.availableNotice(LOCAL);
   check('sem install-state → aviso manda rodar init uma vez (não diz "atualizando")',
     /não se atualiza sozinha — rode uma vez: npx -y .*token-guard@99\.0\.0 init --target claude/.test(noteNoState || '') && !/atualizando em segundo plano/.test(noteNoState), noteNoState);
+  // o link do aviso é o Pages (leitor humano), nunca README nem blob do repositório
+  const SITE = 'https://allansantos-dv.github.io/token-guard/';
+  const linkOk = (n) => !!n && n.includes(SITE) && !/README|\/blob\//i.test(n)
+    && (n.match(/https?:\/\/\S+/g) || []).every((u) => u === SITE);
+  process.env.TOKEN_GUARD_AUTO_UPDATE = 'off';
+  const noteOffLink = AU.availableNotice(LOCAL);
+  delete process.env.TOKEN_GUARD_AUTO_UPDATE;
+  check('aviso (sem install-state) linka o Pages, sem README//blob/', linkOk(noteNoState), noteNoState);
+  check('aviso (auto-update off) linka o Pages, sem README//blob/', linkOk(noteOffLink), noteOffLink);
+  fs.writeFileSync(AU.installStatePath(), JSON.stringify({ targets: ['claude'], runs: 1 }));
+  check('aviso (atualizando em segundo plano) linka o Pages, sem README//blob/', linkOk(AU.availableNotice(LOCAL)), AU.availableNotice(LOCAL));
+  fs.rmSync(AU.installStatePath(), { force: true });
+  check('SITE_URL é o Pages', require('../lib/update-check.cjs').SITE_URL === SITE);
+
   process.env.TOKEN_GUARD_UPDATE_CHECK = 'off';
   check('UPDATE_CHECK=off → sem aviso', AU.availableNotice(LOCAL) === null);
   delete process.env.TOKEN_GUARD_UPDATE_CHECK;

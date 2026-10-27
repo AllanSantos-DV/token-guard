@@ -432,9 +432,17 @@ async function main() {
     check('F3c: cli --version sai com código 0 (caminho positivo)', versionOn.status === 0, `status=${versionOn.status} stderr=${versionOn.stderr}`);
     check(
       'F3d: cli --version imprime o texto exato do aviso de atualização',
-      versionOn.stdout.trim() === `${pkgVersion} (nova versão disponível: 9.9.9 — npm i -g @allansantos-dev/token-guard)`,
+      versionOn.stdout.trim() === `${pkgVersion} (nova versão disponível: 9.9.9 — npm i -g @allansantos-dev/token-guard — novidades: ${UC.SITE_URL})`,
       JSON.stringify(versionOn.stdout)
     );
+
+    // O link do aviso é o Pages (leitor humano): nunca README nem blob, e nenhum outro URL.
+    const onlyPages = (out) => (out.match(/https?:\/\/\S+/g) || [])
+      .every((u) => u.replace(/[).,]+$/, '') === UC.SITE_URL);
+    for (const [label, out] of [['status', statusOn.stdout], ['--version', versionOn.stdout]]) {
+      check(`F3e: aviso do cli ${label} linka só o Pages (sem README, /blob/ ou outro URL)`,
+        out.includes(UC.SITE_URL) && !/README|\/blob\//i.test(out) && onlyPages(out), JSON.stringify(out));
+    }
 
     try { fs.rmSync(fakeHome, { recursive: true, force: true }); } catch {}
   }

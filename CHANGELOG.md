@@ -3,6 +3,11 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.13.1] — 2026-10-27
+
+### Corrigido
+- **O aviso de versão nova linka o Pages do projeto.** Os avisos visíveis de atualização (SessionStart e `status`/`--version`) agora terminam com a página pública (`https://allansantos-dv.github.io/token-guard/`), pensada para leitor humano, e nunca com README ou blob do repositório. O texto e o mecanismo de atualização não mudaram. Teste em `test/auto-update.test.cjs` falha se o link contiver README ou `/blob/`.
+
 ## [2.13.0] — 2026-10-26
 
 ### Adicionado
