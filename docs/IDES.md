@@ -53,9 +53,9 @@ A força varia por harness:
 | Claude Code | ✅ substitui (v2.1.121+) | `PostToolUse` › `updatedToolOutput`, no hook http e no de comando; versões antigas ignoram o campo e sobra a orientação. O integral fica em `.token-guard/results/` |
 | Codex CLI | ❌ | o hook é só `PreToolUse` |
 
-O dedupe de leitura (`dupRead`, `lib/dupread.cjs`) registra o hash de cada leitura
-por sessão, mas a substituição da releitura idêntica por um ponteiro **ainda não
-chega ao modelo em nenhum harness** — está no [backlog](BACKLOG.md).
+O dedupe de leitura (`dupRead`, `lib/dupread.cjs`) troca a releitura idêntica
+(≥ 2000 caracteres) na mesma janela por um ponteiro para a leitura anterior; no
+Claude Code o ponteiro substitui o resultado (`updatedToolOutput`).
 
 Fonte externa que motivou a regra: outputs de ferramenta são apontados como o
 maior custo escondido de sessões agentivas; a Context Editing API da Anthropic
@@ -78,7 +78,7 @@ No hook de comando o Claude Code abre um processo Node a cada chamada — numa
 máquina com antivírus que inspeciona cada processo novo, é isso, não a decisão,
 que custa. Desde a 2.6.0 o `init --target claude` registra os três eventos como
 hook `type: "http"`: o Claude Code faz POST do mesmo JSON para o daemon em
-`127.0.0.1` (porta estável por usuário, token no header `X-Token-Guard`) e lê a
+`127.0.0.1` (porta preferida estável por usuário, com reserva; token no header `X-Token-Guard`) e lê a
 resposta no mesmo formato. Um hook `SessionStart` de comando — um processo por
 **sessão** — deixa o daemon de pé antes da primeira ferramenta.
 

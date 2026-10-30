@@ -51,7 +51,7 @@ e é exatamente ela que este kit governa.
 | `lib/mcp-cost.cjs` | A medição do preâmbulo MCP: o tamanho do schema dos servidores declarados (o Claude Code adia esse custo por padrão) — com recomendações acionáveis por servidor e ferramenta. |
 | `lib/contract.cjs` | O contrato de saída: regras por gatilho de evidência, injetadas 1×/sessão via UserPromptSubmit ([docs](docs/CONTRACT.md)). |
 | `lib/postresult.cjs` | A regra `bigResult`: resultado de ferramenta gigante vira stub + versão integral em disco + alternativa barata. |
-| `lib/dupread.cjs` | Dedupe de leitura: registra o hash de cada leitura por sessão. A substituição da releitura idêntica por ponteiro ainda não chega ao modelo ([backlog](docs/BACKLOG.md)). |
+| `lib/dupread.cjs` | Dedupe de leitura: a releitura idêntica (≥ 2000 caracteres) na mesma janela vira um ponteiro para a leitura anterior; no Claude Code substitui o resultado. |
 | `lib/claude-hooks.cjs` | O envelope do Claude Code, comum ao hook http e ao de comando — os dois caminhos montam a mesma resposta. |
 | `lib/ipc-frame.cjs` | Framing por prefixo de tamanho — o transporte que liga hook e daemon. |
 | `lib/daemon-client.cjs` | O cliente fino dos hooks: fala com o daemon, sobe um se não houver, desarma após 3 falhas e cai no caminho efêmero. |
@@ -144,7 +144,7 @@ Detalhes em [docs/INSTALL.md](docs/INSTALL.md).
     token-guard.cjs                   ← o hook (shim → adapters/hook-cmd.cjs)
     token-audit.cjs                   ← o medidor
     selftest.cjs                      ← a bateria de testes
-    cli.cjs                           ← init/audit/status/mcp-cost/contract/test
+    cli.cjs                           ← audit/status/mcp-cost/contract/cost/test
     adapters/                         ← todos os adapters
     lib/                              ← o núcleo inteiro
   agents/scout.agent.md
@@ -242,8 +242,8 @@ Um guard sem saída de emergência vira dívida. Estas cinco existem de propósi
 
 ### Aviso de nova versão
 
-`token-guard status` e `token-guard --version` checam, sob demanda (nunca em
-background, nunca nos hooks), se há uma versão mais nova publicada no npm.
+`token-guard status` e `token-guard --version` checam, sob demanda, se há uma versão mais nova publicada no npm; o SessionStart do Claude
+Code também checa, num processo destacado (ver [Atualização automática](#atualização-automática)).
 Consulta o registry no máximo 1x por dia (cache em
 `~/.token-guard/update-check.json`); sem rede, não trava nem avisa — fica em
 silêncio. Desligue com `TOKEN_GUARD_UPDATE_CHECK=off`.
@@ -380,7 +380,7 @@ três hooks — sem ele, cada evento de ferramenta paga o cold start do Node int
 não guarda estado de conversa: só um cache de veredito chaveado por raiz mais o hash das
 regras e de todas as configs em efeito, invalidado quando qualquer uma delas muda no
 disco. Nasce no logon (ou sob demanda, no primeiro hook), autoencerra após 10 min
-ociosos, e se estiver inacessível o hook decide localmente — fail-open, como o resto.
+ociosos (exceto com o hook http ligado), e se estiver inacessível o hook decide localmente — fail-open, como o resto.
 Endpoint, ACL e ciclo de vida: [SECURITY.md](SECURITY.md).
 
 Os modos podem coexistir: todos importam a mesma decisão de `lib/decide.cjs`, então
@@ -501,7 +501,7 @@ npm run test:hooks                # bigResult + UserPromptSubmit ponta a ponta
 node test/daemon-http.test.cjs    # o hook http do Claude Code contra o daemon real
 ```
 
-São 23 suítes em Node puro, sem framework. Cada uma imprime a própria contagem e sai
+As suítes são Node puro, sem framework. Cada uma imprime a própria contagem e sai
 com código 1 se qualquer caso falhar. O CI roda todas em Linux e Windows sobre Node 16,
 18, 20 e 22 — mais a simulação de instalação (`--dry-run`) e a auditoria do próprio
 repositório.

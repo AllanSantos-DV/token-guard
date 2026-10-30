@@ -1,6 +1,6 @@
 {
   "name": "@allansantos-dev/token-guard",
-  "version": "2.13.1",
+  "version": "2.13.2",
   "publishConfig": {
     "access": "public"
   },
@@ -85,5 +85,5 @@
   "bugs": {
     "url": "https://github.com/AllanSantos-DV/token-guard/issues"
   },
-  "homepage": "https://github.com/AllanSantos-DV/token-guard#readme"
+  "homepage": "https://allansantos-dv.github.io/token-guard/"
 }

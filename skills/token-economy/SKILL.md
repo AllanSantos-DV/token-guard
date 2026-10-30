@@ -77,7 +77,7 @@ Use them together:
   don't churn `CLAUDE.md`/config files mid-session, and keep stable instructions ahead
   of volatile ones so the cached prefix survives.
 - **Prefer CLI over MCP when equal.** A shell command costs one line; an MCP tool costs
-  its schema on every request. Reserve MCP for what genuinely needs structure.
+  its schema on every request in harnesses that load schemas eagerly (Claude Code defers them by default). Reserve MCP for what genuinely needs structure.
 - **Slim your MCP fleet.** Run `npx @allansantos-dev/token-guard mcp-cost` — servers over ~1.5k tokens of
   schema and tools over ~500 are flagged with actionable advice. Tool search / slimmed
   servers routinely cut preamble 50–85% in published benchmarks.

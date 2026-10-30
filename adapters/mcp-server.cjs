@@ -83,7 +83,7 @@ const TOOLS = [
     },
     handler: (args) => {
       const { cfg, lines } = CFG.statusSummary(args?.path || process.cwd());
-      lines.splice(1, 0, 'transporte: MCP (advisory — este harness não permite bloquear a chamada)');
+      lines.splice(1, 0, 'transporte: MCP (bloqueia onde o harness chama token_guard_hook, como o Codex; nos demais, orienta)');
       lines.push('', `chamadas avaliadas nesta sessão: ${checked}`);
       for (const [rule, n] of Object.entries(byRule)) lines.push(`  ${rule}: ${n}`);
       if (cfg.mode === 'off') lines.push('', 'ATENÇÃO: o guard está DESLIGADO (mode "off" ou TOKEN_GUARD=off).');

@@ -113,5 +113,5 @@ de classificar a frase do usuário. Detalhes em [CONTRACT.md](CONTRACT.md).
 - `npm run replay` roda a `decide()` atual sobre as chamadas reais dos transcripts do
   Claude Code e mostra o que seria barrado hoje.
 
-Nada disso abre conexão de saída. A única requisição de rede do projeto é a checagem
-de versão de `status`/`--version` ([SECURITY.md](../SECURITY.md)).
+Nada disso abre conexão de saída. As únicas requisições de rede do projeto são a checagem
+de versão (`status`/`--version`) e o auto-update disparado pelo SessionStart do Claude Code ([SECURITY.md](../SECURITY.md)).

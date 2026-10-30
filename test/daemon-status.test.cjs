@@ -78,6 +78,16 @@ async function main() {
   check('sem settings: não lança e diz que o hook falta', !none.hook && /hook SubagentStart/.test(none.verdict), none.verdict);
   try { fs.rmSync(sdir, { recursive: true, force: true }); } catch { /* ignore */ }
 
+  console.log('\n  [regras ativas e modo no status]');
+  const CFG = require('../lib/config.cjs');
+  const defaults = CFG.activeRules({ rules: { broadScan: true, blindRead: true, noisePath: true, shellDump: true } });
+  check('status lista bigResult, dupRead e scout, ligados por padrão sem chave na config',
+    ['bigResult', 'dupRead', 'scout'].every((r) => defaults.includes(r)), defaults.join(','));
+  const offs = CFG.activeRules({ rules: { broadScan: false, blindRead: true, bigResult: 'off', dupRead: 0, scout: 'false' } });
+  check('status omite regra desligada com o mesmo teste que a regra usa', offs.join(',') === 'blindRead', offs.join(','));
+  check('modo com "warn" aposentado explica a troca', /"warn" foi aposentado/.test(CFG.modeLabel({ mode: 'block', _warnRetired: true })));
+  check('modo sem "warn" não acrescenta aviso', CFG.modeLabel({ mode: 'block' }) === 'block');
+
   console.log('');
   console.log(`  ${pass} passaram · ${fail} falharam`);
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }

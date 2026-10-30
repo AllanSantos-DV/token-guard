@@ -89,8 +89,9 @@ O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem gu
 - Política que restringe `allowedHttpHookUrls`: a porta pode mudar; fixe-a com
   `TOKEN_GUARD_HTTP_PORT` e inclua `http://127.0.0.1:<porta>/*` (o instalador avisa),
   ou reinstale com `init --target claude --command-hooks`.
-- Daemon que cai **no meio** da sessão não é religado até o próximo início de sessão
-  (ou o autostart do logon); até lá o hook http falha aberto.
+- Daemon que cai **no meio** da sessão volta pelo vigia em até ~5 min (tarefa
+  `TokenGuardDaemonWatch` no Windows, `StartInterval` no macOS, `Restart=on-failure` no
+  Linux); até lá o hook http falha aberto.
 
 ## Codex: o hook não dispara
 

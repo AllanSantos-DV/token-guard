@@ -88,8 +88,22 @@ console.log('\n  [repo] idempotência e reparo');
     fs.existsSync(path.join(repo, '.github', 'token-guard', 'token-guard.cjs')) &&
     cmds.every((c) => !c.includes('GONE')), cmds.join(' | '));
 
+  // cli.cjs da cópia roteia para estes scripts; sem eles o comando quebra na cópia.
+  const guardDir = path.join(repo, '.github', 'token-guard');
+  const missing = ['mcp-cost.cjs', 'contract.cjs', 'cost.cjs', 'contract.default.md']
+    .filter((f) => !fs.existsSync(path.join(guardDir, f)));
+  check('cópia do repo traz os scripts que o cli.cjs roteia', missing.length === 0, missing.join(', '));
+  const selftest = spawnSync(process.execPath, [path.join(guardDir, 'cli.cjs'), 'test'],
+    { encoding: 'utf8', timeout: 120000, windowsHide: true });
+  check('`cli.cjs test` roda na cópia instalada (fixtures e bootstrap copiados)', selftest.status === 0,
+    (selftest.stderr || selftest.stdout || '').slice(-400));
+
   fs.rmSync(repo, { recursive: true, force: true });
 }
+
+console.log('\n  [manifesto] versão');
+check('plugin.json acompanha a versão do package.json',
+  require(path.join(ROOT, 'plugin.json')).version === require(path.join(ROOT, 'package.json')).version);
 
 console.log('\n  [máquina] preservação de assets do usuário');
 {
