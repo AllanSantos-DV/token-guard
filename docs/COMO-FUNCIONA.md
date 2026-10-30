@@ -38,7 +38,7 @@ agente planeja  Grep "**/*"  ──►  harness dispara o evento pré-execução
    recusa acrescenta, **só se o Smart Tool estiver instalado**, a sugestão do `read_document`
    dele (`info_only=true` para páginas e tokens, depois `range`). Instalado = servidor MCP de
    nome `smart-tool` num destes arquivos: config do usuário do Claude Code (topo ou escopo local
-   do projeto), `.mcp.json`, `.vscode/mcp.json` e `.cursor/mcp.json` do projeto,
+   do projeto), `.mcp.json`, `.vscode/mcp.json` e `.cursor/mcp.json` do projeto (a detecção lê, nunca executa),
    `~/.codex/config.toml`, `~/.cursor/mcp.json`. Só leitura de arquivo; qualquer falha na
    detecção vale como ausente e a mensagem sai sem a sugestão. O texto muda por IDE (a carga
    por `ToolSearch` só aparece no Claude Code) e o `Read` nativo nunca é redirecionado. A

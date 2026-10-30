@@ -93,7 +93,7 @@ check('Cursor: config MCP do projeto conta', smartToolPresent({ home: vazio, cwd
   const rules = require('../lib/rules.cjs');
   const cwd = path.join(WORK, 'pj-chave');
   const keyFiles = rules.smartToolConfigFiles(cwd).map((f) => path.normalize(f)).sort();
-  const discFiles = MC.configFiles({ cwd }).map((f) => path.normalize(f.file)).sort();
+  const discFiles = MC.configFiles({ cwd, detection: true }).map((f) => path.normalize(f.file)).sort();
   check('a lista da chave do cache é exatamente a da descoberta', JSON.stringify(keyFiles) === JSON.stringify(discFiles));
   check('a lista inclui os três arquivos de projeto', ['.mcp.json', path.join('.vscode', 'mcp.json'), path.join('.cursor', 'mcp.json')].every((r) => keyFiles.includes(path.normalize(path.join(cwd, r)))));
 }
@@ -111,6 +111,26 @@ console.log('\n  [escopo local do Claude Code: projects[<raiz>].mcpServers]');
   check('escopo local de outro projeto não conta', smartToolPresent({ home, cwd: path.join(WORK, 'outro') }) === false);
   cfgOf(root.replace(/\\/g, '/'), { files: { command: 'x' } });
   check('escopo local sem o Smart Tool: ausente', smartToolPresent({ home, cwd: root }) === false);
+
+  // Registro feito para uma pasta ACIMA do repositório não vale para o projeto: a subida para na raiz (.git).
+  const pai = fs.mkdtempSync(path.join(WORK, 'pai-'));
+  const repo = path.join(pai, 'repo');
+  fs.mkdirSync(path.join(repo, '.git'), { recursive: true });
+  fs.mkdirSync(path.join(repo, 'src'));
+  cfgOf(pai.replace(/\\/g, '/'), ST);
+  check('servidor de escopo local de uma pasta acima do repositório não vale', smartToolPresent({ home, cwd: path.join(repo, 'src') }) === false);
+  cfgOf(repo.replace(/\\/g, '/'), ST);
+  check('servidor registrado na raiz do repositório vale em subpasta', smartToolPresent({ home, cwd: path.join(repo, 'src') }) === true);
+}
+
+console.log('\n  [a medição do mcp-cost segue sem enxergar .mcp.json nem o escopo local]');
+{
+  const MC = require('../lib/mcp-cost.cjs');
+  const home = fs.mkdtempSync(path.join(WORK, 'home-med-'));
+  const proj = projWith('.mcp.json');
+  fs.writeFileSync(path.join(home, ['.claude', 'json'].join('.')), JSON.stringify({ mcpServers: {}, projects: { [proj.replace(/\\/g, '/')]: { mcpServers: ST } } }));
+  check('discover sem detection não lista o .mcp.json do projeto nem o escopo local (nada novo para a sondagem subir)', MC.discover({ home, cwd: proj }).length === 0);
+  check('discover com detection lista os dois', MC.discover({ home, cwd: proj, detection: true }).length >= 1);
 }
 
 console.log('\n  [daemon: a config muda entre chamadas e o veredito acompanha]');
@@ -170,6 +190,9 @@ console.log('\n  [dupRead de PDF aponta pages]');
   check('releitura idêntica de PDF: manda reler com pages, não offset/limit', dupPdf && /pages/.test(dupPdf.additionalContext) && !/offset\/limit/.test(dupPdf.additionalContext), dupPdf && dupPdf.additionalContext);
   const dupTxt = run2(txt);
   check('releitura idêntica de texto segue com offset/limit', dupTxt && /offset\/limit/.test(dupTxt.additionalContext));
+  const docx = path.join(root, 'a.docx'); fs.writeFileSync(docx, 'x');
+  const dupDocx = run2(docx);
+  check('releitura idêntica de Office: linhas não se aplicam, sem offset/limit', dupDocx && /não se aplicam/.test(dupDocx.additionalContext) && !/offset\/limit/.test(dupDocx.additionalContext), dupDocx && dupDocx.additionalContext);
 }
 
 console.log('\n  [bigResult de PDF e Office]');
@@ -179,7 +202,8 @@ console.log('\n  [bigResult de PDF e Office]');
   const post = (file, target) => PR.postProcess({ name: 'Read', input: { file_path: file }, result: big, root: WORK, cfg, target });
   fs.rmSync(HOST_CONFIG, { force: true });
   check('sem Smart Tool, PDF: só pages', !/read_document/.test(post(PDF, 'claude').additionalContext) && /pages/.test(post(PDF, 'claude').additionalContext));
-  check('sem Smart Tool, docx: dica genérica de linhas, sem read_document', !/read_document/.test(post(DOCX, 'claude').additionalContext));
+  const docxSem = post(DOCX, 'claude').additionalContext;
+  check('sem Smart Tool, docx: diz que linhas não se aplicam, sem read_document nem faixa de linhas', /lines do not apply/.test(docxSem) && !/read_document/.test(docxSem) && !/line range/.test(docxSem), docxSem);
   withSmartTool();
   const pdfClaude = post(PDF, 'claude').additionalContext;
   check('com Smart Tool, PDF no Claude Code: pages + read_document com ToolSearch', /pages/.test(pdfClaude) && /read_document/.test(pdfClaude) && /ToolSearch/.test(pdfClaude), pdfClaude);
