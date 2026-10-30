@@ -16,6 +16,20 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   redirecionado e o token-guard não depende do Smart Tool. O daemon passa a incluir esses arquivos na
   chave do cache de veredito: instalar ou remover o Smart Tool vale na chamada seguinte.
 
+### Corrigido
+- **Chave do cache do daemon inclui o estado do arquivo lido.** O veredito de leitura depende do tamanho
+  do alvo; o arquivo que passou pequeno seguia liberado depois de crescer, e o que sumiu seguia barrado.
+  A chave agora leva tamanho e data do alvo.
+- **`dupRead` de PDF manda reler com `pages`**, não com `offset`/`limit` (que não recortam PDF no Read).
+- **`bigResult` de PDF e de Office** cita o `read_document` quando o Smart Tool está instalado; Office
+  deixa de receber a dica de "faixa de linhas".
+- **Detecção do Smart Tool completa:** a lista de arquivos de config vem de um lugar só (`mcp-cost`
+  `configFiles`) e serve à descoberta e à chave do cache; inclui `.mcp.json`, `.vscode/mcp.json` e
+  `.cursor/mcp.json` do projeto e o escopo local do Claude Code (`projects[<raiz>].mcpServers` no config
+  do usuário, subindo a árvore). O inventário do `mcp-cost` passa a ver esses mesmos servidores.
+- **Texto por IDE:** a carga por `ToolSearch` só aparece no Claude Code; nos demais a dica cita só o
+  `read_document`. A decisão agora recebe o IDE de quem chama.
+
 ## [2.14.1] — 2026-10-30
 
 ### Corrigido

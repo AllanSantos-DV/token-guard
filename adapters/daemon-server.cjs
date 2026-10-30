@@ -104,6 +104,23 @@ function ruleSetHash(root) {
   return crypto.createHash('sha256').update(h).digest('hex').slice(0, 16);
 }
 
+/**
+ * Estado em disco dos arquivos que a chamada nomeia. O veredito de leitura depende do tamanho do
+ * alvo (e de ele existir): sem isto, o arquivo que passou pequeno seguiria liberado depois de crescer.
+ */
+function targetState(root, payload) {
+  try {
+    const input = P.toolInput(payload || {});
+    const paths = [P.inputPath(input), ...P.inputPaths(input)].filter((p) => typeof p === 'string' && p);
+    let out = '';
+    for (const p of paths) {
+      const abs = path.isAbsolute(p) ? p : path.resolve(root, p);
+      try { const st = fs.statSync(abs); out += `${abs}:${st.size}:${st.mtimeMs};`; } catch { out += `${abs}:-;`; }
+    }
+    return out;
+  } catch { return ''; }
+}
+
 /** IDE de quem pediu: o que o cliente declarou, senão o que o envelope entrega. */
 function targetOf(params, payload) {
   return (params && typeof params.target === 'string' && params.target) || P.harnessOf(payload);
@@ -151,7 +168,7 @@ function dispatchPostprocess(params) {
       kind, rule, target, tool: name, detail: P.inputPath(input || {}) || P.inputCommand(input || {}) || P.inputPattern(input || {}),
       tokens: chars > 0 ? chars / cfg.charsPerToken : 0,
     });
-    let trimmed = postProcess({ name, input, result, root, cfg });
+    let trimmed = postProcess({ name, input, result, root, cfg, target });
     if (trimmed) {
       // Só conta como poupado o que o harness aplica de fato (replaced); o resto só ganhou uma cópia em disco.
       const kept = typeof trimmed.modifiedResult === 'string' ? trimmed.modifiedResult.length : JSON.stringify(trimmed.modifiedResult || '').length;
@@ -223,7 +240,7 @@ function routeMessage(msg, ctx) {
     const root = typeof params.root === 'string' && params.root ? params.root : process.cwd();
     const hash = ruleSetHash(root);
     const target = targetOf(params, params.payload);
-    const key = `${root}\u0000${hash}\u0000${target}\u0000${JSON.stringify(params.payload || {})}`;
+    const key = `${root}\u0000${hash}\u0000${target}\u0000${targetState(root, params.payload)}\u0000${JSON.stringify(params.payload || {})}`;
     const cached = ctx.cache.get(key);
     if (cached !== undefined) {
       ctx.hits++;

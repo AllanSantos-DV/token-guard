@@ -197,7 +197,7 @@ O agente lê isso, corrige e segue. Não há intervenção humana no meio.
 | Regra | Barra | Libera |
 |---|---|---|
 | **broadScan** | `glob "**/*"` sem escopo; busca em modo conteúdo sem teto nem filtro | `**/*.java`, `src/**`, `paths:["src"]`, `head_limit`, modo `files_with_matches` |
-| **blindRead** | Ler arquivo > 50 KB sem faixa de linhas (binário recebe a inspeção pelo formato: `file`, `unzip -l`…) | Qualquer leitura com `view_range` / `offset+limit` (PDF: `pages`); arquivos pequenos; imagem raster |
+| **blindRead** | Ler arquivo > 50 KB sem faixa de linhas (binário recebe a inspeção pelo formato: `file`, `unzip -l`…; PDF e Office, com o Smart Tool instalado, recebem também a sugestão do `read_document`) | Qualquer leitura com `view_range` / `offset+limit` (PDF: `pages`); arquivos pequenos; imagem raster |
 | **noisePath** | Caminhos em `node_modules`, `target`, `dist`, `.git`, `venv`, `.mcp-memory`… | Qualquer caminho na `allowlist`; o `Read` de captura (imagem ou PDF) em pasta de saída (`tmp`, `logs`, `.cache`, `.playwright-mcp`…) |
 | **shellDump** | `Get-ChildItem -Recurse`, `ls -R`, `dir /s`, `find .`, `tree`, `grep -r` sem limite | Os mesmos comandos com filtro (`-name`) ou teto (`\| head -50`, `\| Select-Object -First 50`) |
 

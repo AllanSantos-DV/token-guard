@@ -32,7 +32,18 @@ agente planeja  Grep "**/*"  ──►  harness dispara o evento pré-execução
    `~/.token-guard`). `TOKEN_GUARD=off` no ambiente vence tudo.
 3. **Regras.** Cada regra julga uma coisa só: escopo da busca (`broadScan`), leitura
    grande sem faixa (`blindRead`), caminho de build/dependência ou de saída (`noisePath`) ou dump
-   de árvore pelo shell (`shellDump`). Com `.token-guard/repo-stats.json` (gravado por
+   de árvore pelo shell (`shellDump`). A leitura grande tem um caso por tipo: PDF pede `pages`
+   (no Read do Claude Code, `offset`/`limit` não recortam PDF), notebook pede busca e extração
+   de células, binário pede inspeção pelo formato. Nos PDFs e nos `.docx`/`.pptx`/`.xlsx` a
+   recusa acrescenta, **só se o Smart Tool estiver instalado**, a sugestão do `read_document`
+   dele (`info_only=true` para páginas e tokens, depois `range`). Instalado = servidor MCP de
+   nome `smart-tool` num destes arquivos: config do usuário do Claude Code (topo ou escopo local
+   do projeto), `.mcp.json`, `.vscode/mcp.json` e `.cursor/mcp.json` do projeto,
+   `~/.codex/config.toml`, `~/.cursor/mcp.json`. Só leitura de arquivo; qualquer falha na
+   detecção vale como ausente e a mensagem sai sem a sugestão. O texto muda por IDE (a carga
+   por `ToolSearch` só aparece no Claude Code) e o `Read` nativo nunca é redirecionado. A
+   leitura repetida de PDF (`dupRead`) e a saída grande (`bigResult`) seguem a mesma regra.
+   Com `.token-guard/repo-stats.json` (gravado por
    `token-guard audit`), repositórios com menos de 400 arquivos ficam livres dos guards
    de varredura.
 4. **Veredito.** Sempre `deny` (nunca `ask`: o usuário sempre confirma, então perguntar não
