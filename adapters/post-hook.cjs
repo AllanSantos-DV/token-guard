@@ -36,7 +36,7 @@ async function main() {
     const cfg = CFG.load(root, 'claude');
     // Guard desligado (global ou só para o Claude Code): nem corta, nem registra, nem sugere.
     if (cfg.mode !== 'off') {
-      trimmed = postProcess({ name, input: inp, result, root, cfg });
+      trimmed = postProcess({ name, input: inp, result, root, cfg, target: 'claude' });
       // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o
       // daemon serviu este postprocess, ele já fez isso (dispatchPostprocess).
       if (!trimmed && sid && isRead(name)) {

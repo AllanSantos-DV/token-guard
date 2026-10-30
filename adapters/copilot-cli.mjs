@@ -186,6 +186,7 @@ const session = await joinSession({
           result: input?.toolResult,
           root,
           cfg,
+          target: "copilot",
         });
         if (!out) return null;
         trimmed += 1;
