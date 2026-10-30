@@ -6,7 +6,7 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [2.14.1] — 2026-10-30
 
 ### Corrigido
-- **Leitura de arquivo por MCP entra na família `read`** (U1): `read_text_file`, `read_media_file` e `read_multiple_files` (servidor de filesystem) passam a ser vistos pelo `blindRead`, pelo `dupRead` e pela rajada do scout, não só pelo `noisePath`. `head`/`tail` do `read_text_file` contam como faixa.
+- **Leitura de arquivo por MCP entra na família `read`** (U1): `read_text_file`, `read_media_file` e `read_multiple_files` (servidor de filesystem) passam a ser vistos pelo `blindRead`, pelo `dupRead` e pela rajada do scout, não só pelo `noisePath`. `head`/`tail` do `read_text_file` contam como faixa; `read_multiple_files` é julgado arquivo a arquivo (`paths`) e o alias `read_file` com prefixo de servidor MCP também entra.
 - **PDF só com `offset`/`limit` é barrado** (U2): no `Read` a faixa do PDF é `pages`; `offset`/`limit` não recortam nada.
 - **Hook de comando do Copilot CLI** (camelCase, `toolArgs` em string JSON): `harnessOf` o reconhecia como Claude Code, aplicando o modo e o registro do IDE errado, e `toolArgs` string virava entrada vazia.
 - Tray no macOS e no Linux (A40): decidido como escopo, só Windows por ora.
