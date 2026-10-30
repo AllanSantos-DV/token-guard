@@ -31,7 +31,7 @@ agente planeja  Grep "**/*"  ──►  harness dispara o evento pré-execução
    Se não houver nenhuma, valem os globais (`~/.copilot`, `~/.claude`, `~/.cursor`,
    `~/.token-guard`). `TOKEN_GUARD=off` no ambiente vence tudo.
 3. **Regras.** Cada regra julga uma coisa só: escopo da busca (`broadScan`), leitura
-   grande sem faixa (`blindRead`), caminho de build/dependência (`noisePath`) ou dump
+   grande sem faixa (`blindRead`), caminho de build/dependência ou de saída (`noisePath`) ou dump
    de árvore pelo shell (`shellDump`). Com `.token-guard/repo-stats.json` (gravado por
    `token-guard audit`), repositórios com menos de 400 arquivos ficam livres dos guards
    de varredura.

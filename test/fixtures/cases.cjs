@@ -16,7 +16,8 @@ const BIG_PNG = path.join(TMP, 'dashboard.png');
 const BIG_SVG = path.join(TMP, 'diagram.svg');
 const BIG_PDF = path.join(TMP, 'manual.pdf');
 const BIG_NB = path.join(TMP, 'analise.ipynb');
-for (const f of [BIG_PNG, BIG_SVG, BIG_PDF, BIG_NB]) fs.writeFileSync(f, 'x'.repeat(120000), 'utf8');
+const BIG_ZIP = path.join(TMP, 'pacote.zip');
+for (const f of [BIG_PNG, BIG_SVG, BIG_PDF, BIG_NB, BIG_ZIP]) fs.writeFileSync(f, 'x'.repeat(120000), 'utf8');
 
 fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
 fs.writeFileSync(
@@ -105,6 +106,16 @@ const CASES = [
   ['allow', 'ler o integral salvo pelo bigResult',        claude('Read', { file_path: path.join(TMP, '.token-guard', 'results', '1790-tool-ab12.txt'), limit: 50 }), null],
   ['allow', 'grep no integral salvo pelo bigResult',      claude('Grep', { pattern: 'FAIL', path: path.join(TMP, '.token-guard', 'results', '1790-shell-cd34.txt') }), null],
   ['deny', 'outro arquivo de .token-guard segue ruído',   claude('Read', { file_path: path.join(TMP, '.token-guard', 'sessions', 'abc.json') }), 'noisePath'],
+  // Captura em pasta de saída é feita para ser vista: o Read entrega imagem/PDF renderizado, não texto de log.
+  ['allow', 'captura PNG em tmp/ é lida como imagem',      claude('Read', { file_path: path.join(TMP, 'tmp', 'shots', 'tela.png') }), null],
+  ['allow', 'captura do Playwright em .playwright-mcp/',   claude('Read', { file_path: path.join(TMP, '.playwright-mcp', 'page.jpeg') }), null],
+  ['allow', 'captura em tmp/ lida por ferramenta MCP de arquivo', claude('mcp__mcp-gateway__files__read_media_file', { path: path.join(TMP, 'tmp', 'shots', 'tela.png') }), null],
+  ['allow', 'PDF em logs/ é lido pelo harness, não é log',claude('Read', { file_path: path.join(TMP, 'logs', 'relatorio.pdf') }), null],
+  ['deny', 'log de texto em tmp/ segue ruído',             claude('Read', { file_path: path.join(TMP, 'tmp', 'run.log') }), 'noisePath'],
+  ['deny', 'busca dentro de tmp/ segue ruído',             claude('Grep', { pattern: 'x', path: path.join(TMP, 'tmp', 'shots', 'tela.png') }), 'noisePath'],
+  ['deny', 'imagem em node_modules segue ruído',           claude('Read', { file_path: path.join(TMP, 'node_modules', 'pkg', 'logo.png') }), 'noisePath'],
+  ['deny', 'binário grande sem faixa é barrado',           claude('Read', { file_path: BIG_ZIP }), 'blindRead'],
+  ['deny', 'binário em tmp/ segue ruído',                 claude('Read', { file_path: path.join(TMP, 'tmp', 'bundle.zip') }), 'noisePath'],
   ['allow', 'pipeline do PowerShell continuado na linha seguinte', vscode('powershell', { command: "Get-ChildItem \"$env:USERPROFILE\\.claude\" -File -Recurse -ErrorAction SilentlyContinue |\n    Where-Object { $_.Name -like '*.json' } |\n    Select-Object -First 20 FullName" }), null],
   ['allow', 'gci -Recurse -Depth 2 tem teto',             vscode('powershell', { command: 'Get-ChildItem $appData -Recurse -Depth 2 -ErrorAction SilentlyContinue' }), null],
   ['allow', '"tree" dentro de código entre aspas não é comando', claude('Bash', { command: "node -e \"const d = load();\nconst o = {\n  tree: d.raw && d.raw.tree,\n};\nconsole.log(o)\"" }), null],
@@ -167,4 +178,4 @@ function cleanup() {
   BOOT.restore();
 }
 
-module.exports = { CASES, TMP, BIG, SMALL, OUTSIDE, FOLD_CASE, BIG_PDF, BIG_NB, cleanup };
+module.exports = { CASES, TMP, BIG, SMALL, OUTSIDE, FOLD_CASE, BIG_PDF, BIG_NB, BIG_ZIP, cleanup };

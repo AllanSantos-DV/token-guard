@@ -61,6 +61,12 @@ console.log('\n  [bigResult]');
 }
 
 {
+  const r = PR.postProcess({ name: 'Read', input: { file_path: path.join(TMP, 'manual.pdf') }, result: 'x'.repeat(5000), root: TMP, cfg: cfg() });
+  check('leitura de PDF recebe dica de páginas, não de faixa de linhas',
+    /pages/.test(r.additionalContext) && !/line range/.test(r.additionalContext), r && r.additionalContext);
+}
+
+{
   check('resultado pequeno passa intacto',
     PR.postProcess({ name: 'View', input: {}, result: 'curto', root: TMP, cfg: cfg() }) === null);
   check('null/undefined passa intacto',
