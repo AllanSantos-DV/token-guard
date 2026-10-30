@@ -11,25 +11,20 @@ _Nenhum item técnico aberto._
 
 Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD-tela-setup-bandeja.md, seção 8): pausar/retomar no menu do ícone; regras diferentes por IDE; modo "só avisar".
 
-### Decisão do dono — mudam o uso (lente irmã da 2.13.3)
+## Fechado na release 2.14.1 (2026-10-30)
 
-| # | Item | O que muda para quem usa |
-|---|------|--------------------------|
-| U1 | Ferramentas MCP de leitura de arquivo (`read_media_file`, `read_text_file`, `read_multiple_files`) fora da família `read`: `blindRead`, `dupRead` e a rajada do scout não as veem (só o `noisePath` passou a reconhecê-las na 2.13.3) | leituras grandes por MCP passariam a ser barradas sem faixa e releituras viram ponteiro |
-| A40 | Ícone da bandeja no macOS e no Linux (hoje só o Windows; a tela abre por `token-guard setup`). Não é defeito: é escopo, e não há como testar sem essas plataformas | exigiria helper nativo por plataforma e alguém que o use |
-| U2 | `blindRead` aceita `offset`/`limit` como faixa num PDF, embora no `Read` a faixa do PDF seja `pages` (`lib/payload.cjs`) | PDF grande pedido só com `offset`/`limit` passaria a ser barrado |
+Decisões tomadas pelo orquestrador (Jarvis) a pedido do dono; nenhuma muda o uso de quem já usa o produto.
 
-### Negócio — apresentação do produto (padrão `vxk-apresentacao-produto`)
-
-Origem: auditoria do Pages de 2026-10-30 contra o padrão dos outros produtos do dono. Nada disto foi
-construído; são itens de produto, não defeitos do pacote.
-
-| # | Item | O que falta |
-|---|------|-------------|
-| N1 | Vídeo de apresentação | Nenhum vídeo no Pages. Padrão: Motion (`motion-apresentacao`) com a voz do Vox Engine, sem versão/beta, manifesto `<nome>.voz.json` ao lado do mp4 (origem, voz, versão do motor) e áudio medido; `.web.mp4` com capa como primeiro bloco do Início, sem tocar sozinho com som |
-| N2 | Botão Apresentar | Ausente. Padrão: no cabeçalho de toda página, cenas com áudio local gerado pelo Vox Engine (sem `speechSynthesis`), controles e teclado, `prefers-reduced-motion` respeitado |
-| N3 | Três caminhos na primeira tela | Hoje são dois botões (Instalar, Código-fonte). Padrão: assistir, ver exemplo e instalar acima da dobra |
-| N4 | Páginas por pergunta | Hoje é página única com âncoras. Padrão: Início, Para que serve, Como funciona, Exemplos, Vídeos e explicações, Instalar, com navegação fixa por assunto |
+| # | Item | Resolução |
+|---|------|-----------|
+| U1 | `read_media_file`, `read_text_file`, `read_multiple_files` (MCP de filesystem) fora da família `read` | entram em `FAM.read` (`lib/rules.cjs`); `MCP_FILE_READ` removido; `blindRead`, `dupRead` e a rajada do scout os veem; `head`/`tail` contam como faixa; casos em `test/fixtures/cases.cjs`. `dupRead` só registra resultado em formato string ou `file.content`: o resultado MCP (lista de blocos) segue sem stub, por desenho |
+| U2 | `blindRead` aceitava `offset`/`limit` como faixa num PDF | a faixa do PDF é só `pages` não vazio; caso de deny com `BIG_PDF` e `offset`/`limit` |
+| A40 | Ícone da bandeja no macOS e no Linux | **Decidido (Jarvis, 2026-10-30): só Windows por enquanto.** É escopo, não defeito; a tela abre por `token-guard setup` em qualquer sistema. Sai dos itens técnicos |
+| — | `harnessOf` tratava o hook de comando do Copilot CLI (camelCase) como Claude Code, e `toolArgs` em string JSON virava entrada vazia | `harnessOf` reconhece `toolName` sem `tool_name` como Copilot; `toolInput` lê `toolArgs` string JSON; `test/harness-of.test.cjs` |
+| N1 | Vídeo de apresentação | `video/token-guard.web.mp4` (Motion `motion-apresentacao`, voz local do Vox Engine, 59 s, legenda, capa), com `token-guard.voz.json` ao lado; primeiro bloco do Início, sem tocar sozinho |
+| N2 | Botão Apresentar | no cabeçalho de toda página; 7 cenas com áudio local do Vox Engine (`audio/`), controles, teclado (setas, espaço, Esc), `prefers-reduced-motion` respeitado, sem `speechSynthesis` |
+| N3 | Três caminhos na primeira tela | Assistir, Ver exemplo e Instalar acima da dobra |
+| N4 | Páginas por pergunta | Início, Para que serve, Como funciona, Exemplos, Vídeos e explicações e Instalar, com navegação fixa no cabeçalho |
 
 ## Fechado na release 2.13.3 (2026-10-30)
 
