@@ -20,13 +20,16 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - **Chave do cache do daemon inclui o estado do arquivo lido.** O veredito de leitura depende do tamanho
   do alvo; o arquivo que passou pequeno seguia liberado depois de crescer, e o que sumiu seguia barrado.
   A chave agora leva tamanho e data do alvo.
-- **`dupRead` de PDF manda reler com `pages`**, não com `offset`/`limit` (que não recortam PDF no Read).
+- **`dupRead` de PDF manda reler com `pages`**, não com `offset`/`limit` (que não recortam PDF no Read);
+  em Office, diz que linhas não se aplicam.
 - **`bigResult` de PDF e de Office** cita o `read_document` quando o Smart Tool está instalado; Office
-  deixa de receber a dica de "faixa de linhas".
+  deixa de receber a dica de "faixa de linhas" (com ou sem o Smart Tool).
+- A chave do cache do daemon passa a incluir também `lib/mcp-cost.cjs` (a detecção mora lá).
 - **Detecção do Smart Tool completa:** a lista de arquivos de config vem de um lugar só (`mcp-cost`
   `configFiles`) e serve à descoberta e à chave do cache; inclui `.mcp.json`, `.vscode/mcp.json` e
   `.cursor/mcp.json` do projeto e o escopo local do Claude Code (`projects[<raiz>].mcpServers` no config
-  do usuário, subindo a árvore). O inventário do `mcp-cost` passa a ver esses mesmos servidores.
+  do usuário, do cwd até a raiz do repositório). O `.mcp.json` e o escopo local entram só na detecção
+  (`detection: true`): a medição do `mcp-cost`, que sobe os servidores, não os enxerga.
 - **Texto por IDE:** a carga por `ToolSearch` só aparece no Claude Code; nos demais a dica cita só o
   `read_document`. A decisão agora recebe o IDE de quem chama.
 

@@ -78,7 +78,7 @@ function defaultLockPath(endpointOverride) {
 
 function ruleSetHash(root) {
   let h = '';
-  for (const rel of ['lib/config.cjs', 'lib/rules.cjs']) {
+  for (const rel of ['lib/config.cjs', 'lib/rules.cjs', 'lib/mcp-cost.cjs']) {
     try { h += fs.readFileSync(path.join(__dirname, '..', rel)); } catch { /* noop */ }
   }
   // A config global (`~/.claude|.copilot|.cursor|.token-guard/`) e a config de
