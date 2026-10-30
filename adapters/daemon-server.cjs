@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { decide } = require('../lib/decide.cjs');
+const RULES = require('../lib/rules.cjs');
 const { parseStream, writeFrame } = require('../lib/ipc-frame.cjs');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
@@ -92,6 +93,14 @@ function ruleSetHash(root) {
   for (const p of stateFiles) {
     try { h += fs.readFileSync(p); } catch { /* noop */ }
   }
+  // A dica de documento depende de o Smart Tool estar registrado como servidor MCP: instalar ou
+  // remover o Smart Tool com o daemon de pé tem de valer na próxima chamada (stat, não conteúdo:
+  // o config do harness pode ter megabytes).
+  try {
+    for (const p of RULES.smartToolConfigFiles(root)) {
+      try { const st = fs.statSync(p); h += `${p}:${st.mtimeMs}:${st.size};`; } catch { /* ausente */ }
+    }
+  } catch { /* noop */ }
   return crypto.createHash('sha256').update(h).digest('hex').slice(0, 16);
 }
 

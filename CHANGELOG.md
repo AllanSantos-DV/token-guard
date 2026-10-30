@@ -3,6 +3,19 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.15.0] — 2026-10-30
+
+### Adicionado
+- **O bloqueio de PDF grande sugere o `read_document` do Smart Tool, só quando ele está instalado.** A
+  recusa do `blindRead` para PDF (e para `.docx`, `.pptx`, `.xlsx`) acrescenta, em EN e PT-BR, o caminho
+  barato: carregar a ferramenta (`ToolSearch`, `select:mcp__smart-tool__read_document`), ver páginas e
+  tokens estimados com `info_only=true` e ler só `range='1-5'`. Detecção por fato, só leitura de
+  arquivo: servidor MCP chamado `smart-tool` no `~/.claude.json` ou `.mcp.json` do projeto (Claude Code)
+  ou `[mcp_servers.smart-tool]` no `~/.codex/config.toml` (Codex) — o mesmo nome que forma o id citado.
+  Sem o Smart Tool (ou com a detecção falhando) a mensagem é idêntica à de antes. O `Read` nativo não é
+  redirecionado e o token-guard não depende do Smart Tool. O daemon passa a incluir esses arquivos na
+  chave do cache de veredito: instalar ou remover o Smart Tool vale na chamada seguinte.
+
 ## [2.14.1] — 2026-10-30
 
 ### Corrigido
