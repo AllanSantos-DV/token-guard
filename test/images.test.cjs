@@ -62,6 +62,9 @@ for (const [ext, [magic, mime]] of Object.entries(MAGIC)) {
       'Read (bloco image/source)': { tool_name: 'Read', tool_response: [{ type: 'image', source: { type: 'base64', media_type: mime, data: b64 } }] },
       'MCP (image/data)': { tool_name: 'mcp__x__screenshot', tool_response: { content: [{ type: 'image', data: b64, mimeType: mime }] } },
       'MCP (texto + image)': { tool_name: 'mcp__x__screenshot', tool_response: { content: [{ type: 'text', text: 'ok' }, { type: 'image', data: b64, mimeType: mime }] } },
+      // Binário MCP que não é imagem (spec 2025-06-18): áudio e recurso embutido com blob.
+      'MCP (audio/data)': { tool_name: 'mcp__x__record', tool_response: { content: [{ type: 'audio', data: b64, mimeType: 'audio/wav' }] } },
+      'MCP (resource/blob)': { tool_name: 'mcp__x__fetch', tool_response: { content: [{ type: 'resource', resource: { uri: 'file:///x.pdf', mimeType: 'application/pdf', blob: b64 } }] } },
     };
     for (const [shape, extra] of Object.entries(shapes)) {
       const post = hook('post-hook.cjs', { hook_event_name: 'PostToolUse', tool_input: { file_path: file }, ...extra });

@@ -22,7 +22,7 @@ Escape hatch por ambiente (vence tudo): `TOKEN_GUARD=off` (ou `0`, `false`) desl
 | `mode` | `"block"` \| `"off"` | `block`: nega e injeta a reescrita · `off`: desliga. `"warn"` (aposentado) vale `block`. |
 | `charsPerToken` | número, `4` | Razão caracteres→token usada nas estimativas da auditoria e do mcp-cost. 4 é a média para código/texto latino. |
 | `contextWindow` | número, `200000` | Janela de referência dos relatórios ("janelas de contexto"). |
-| `rules.noisePath` | boolean, `true` | Barra leitura dentro de diretórios de build/dependência. |
+| `rules.noisePath` | boolean, `true` | Barra leitura dentro de diretórios de build/dependência e de saída (`tmp`, `logs`, `.cache`…); o `Read` de imagem ou PDF numa pasta de saída passa (é captura feita para ser vista). |
 | `rules.blindRead` | boolean, `true` | Barra leitura de arquivo grande sem faixa de linhas. |
 | `rules.broadScan` | boolean, `true` | Barra glob sem escopo e grep conteúdo sem teto nem filtro. |
 | `rules.shellDump` | boolean, `true` | Barra comando de shell que despeja árvore. |

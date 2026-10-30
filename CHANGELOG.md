@@ -3,6 +3,16 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.13.3] — 2026-10-30
+
+### Corrigido
+- **Captura em pasta de saída era barrada como log (A36).** O `noisePath` tratava `tmp/`, `logs/`, `.cache/` e `.playwright-mcp/` como pasta de log e recusava o `Read` de uma captura PNG ensinando `tail`/`grep` no binário. O `Read` de imagem raster ou PDF numa pasta de saída passa: o harness entrega imagem/páginas, não texto. Vale também para as ferramentas de leitura de servidor MCP de arquivos (`read_media_file`, `read_text_file`, `read_multiple_files`). Busca, shell e imagem em `node_modules`/`dist` seguem barrados.
+- **Dica de texto para arquivo binário.** Binário numa pasta de saída recebe a dica de artefato (achar a fonte que o gera), não `tail`/`grep`; binário grande sem faixa recebe do `blindRead` a inspeção pelo formato (`file`, `unzip -l`, `tar -tf`, `sqlite3 .tables`) em vez de `grep`/`sed`. A lista de binários cobre também Office, imagem moderna, compactados, mídia e modelos.
+- **Binário de resposta MCP medido como texto.** O `bigResult` tirava da medida só o base64 de imagem; áudio (`{type:"audio",data}`) e recurso binário embutido (`blob`) eram contados como texto e, acima do limite, trocados por um preview. Agora ficam fora da medida e passam intactos.
+- A dica do `bigResult` para leitura de PDF fala em `pages`, não em faixa de linhas.
+
+Testes: `test/fixtures/cases.cjs` (selftest e paridades), `test/refusal-teaches.test.cjs`, `test/images.test.cjs`, `test/postresult.test.cjs` — todos falham sem a correção.
+
 ## [2.13.2] — 2026-10-30
 
 ### Corrigido

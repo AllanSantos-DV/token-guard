@@ -17,7 +17,7 @@ require('./bootstrap.cjs');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { CASES, TMP, BIG, cleanup } = require('./fixtures/cases.cjs');
+const { CASES, TMP, BIG, BIG_ZIP, cleanup } = require('./fixtures/cases.cjs');
 const { decide } = require('../lib/decide.cjs');
 const CFG = require('../lib/config.cjs');
 
@@ -66,6 +66,20 @@ for (const [label, payload] of verdicts) {
   check(`${label}: não manda pedir confirmação ao usuário`, !/confirm|you approve|se você confirmar/i.test(en), en.slice(0, 200));
 }
 check('as quatro regras de recusa foram exercitadas', ['noisePath', 'blindRead', 'broadScan', 'shellDump'].every((r) => seen.has(r)), [...seen]);
+
+console.log('\n  [binário em pasta de saída: a dica não manda ler como texto]');
+{
+  const v = decide(claude('Read', { file_path: path.join(TMP, 'tmp', 'bundle.zip') }));
+  const reason = english(v && v.reason);
+  check('binário em tmp/: nega sem sugerir tail/grep/Get-Content no binário',
+    v && v.decision === 'deny' && !/\btail\b|\bgrep\b|Get-Content/.test(reason), reason);
+  const office = english((decide(claude('Read', { file_path: path.join(TMP, 'logs', 'relatorio.xlsx') })) || {}).reason);
+  check('planilha em logs/: a dica não manda tail/grep no binário', !/\btail\b|\bgrep\b|Get-Content/.test(office), office);
+  const big = decide(claude('Read', { file_path: BIG_ZIP }));
+  const bigReason = english(big && big.reason);
+  check('binário grande sem faixa: blindRead não manda grep/sed/Get-Content no binário',
+    big && big.rule === 'blindRead' && !/\bgrep\b|\bsed\b|Get-Content/.test(bigReason) && EXECUTABLE.test(bigReason), bigReason);
+}
 
 console.log('\n  [a correção sugerida passa pelo próprio guard]');
 {

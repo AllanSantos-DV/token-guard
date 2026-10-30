@@ -7,9 +7,14 @@
 
 ## Aberto
 
-| # | Item | Origem · esforço |
-|---|------|------------------|
-| A36 | `noisePath` num caminho de imagem (ex.: `tmp/shots/x.png` lido pelo `Read`, que mostra a imagem) recusa ensinando `tail -n 100` e `grep "ERROR"` no PNG, um binário: a reescrita pronta não serve. A recusa precisa de dica própria para imagem/binário (como o blindRead já tem para PDF e notebook) e decidir se imagem sob `tmp/` deve mesmo ser barrada | verificação do Pages da 2.13.2 (2026-10-30) · S |
+_Nenhum item técnico aberto._
+
+### Decisão do dono — mudam o uso (lente irmã da 2.13.3)
+
+| # | Item | O que muda para quem usa |
+|---|------|--------------------------|
+| U1 | Ferramentas MCP de leitura de arquivo (`read_media_file`, `read_text_file`, `read_multiple_files`) fora da família `read`: `blindRead`, `dupRead` e a rajada do scout não as veem (só o `noisePath` passou a reconhecê-las na 2.13.3) | leituras grandes por MCP passariam a ser barradas sem faixa e releituras viram ponteiro |
+| U2 | `blindRead` aceita `offset`/`limit` como faixa num PDF, embora no `Read` a faixa do PDF seja `pages` (`lib/payload.cjs`) | PDF grande pedido só com `offset`/`limit` passaria a ser barrado |
 
 ### Negócio — apresentação do produto (padrão `vxk-apresentacao-produto`)
 
@@ -22,6 +27,15 @@ construído; são itens de produto, não defeitos do pacote.
 | N2 | Botão Apresentar | Ausente. Padrão: no cabeçalho de toda página, cenas com áudio local gerado pelo Vox Engine (sem `speechSynthesis`), controles e teclado, `prefers-reduced-motion` respeitado |
 | N3 | Três caminhos na primeira tela | Hoje são dois botões (Instalar, Código-fonte). Padrão: assistir, ver exemplo e instalar acima da dobra |
 | N4 | Páginas por pergunta | Hoje é página única com âncoras. Padrão: Início, Para que serve, Como funciona, Exemplos, Vídeos e explicações, Instalar, com navegação fixa por assunto |
+
+## Fechado na release 2.13.3 (2026-10-30)
+
+| # | Item | Resolução |
+|---|------|-----------|
+| A36 | `noisePath` recusava captura PNG em `tmp/` ensinando `tail`/`grep` no binário | `Read` de imagem/PDF em pasta de saída passa (também via MCP de arquivo); binário recebe dica de artefato; casos em `test/fixtures/cases.cjs` e `test/refusal-teaches.test.cjs` |
+| A37 | `blindRead` mandava `grep`/`sed` em binário grande | ramo próprio de binário (inspeção pelo formato); lista de binários ampliada |
+| A38 | Áudio e recurso binário (`blob`) de resposta MCP medidos como texto e trocados por preview | fora da medida; `test/images.test.cjs` |
+| A39 | Dica do `bigResult` para PDF falava em faixa de linhas | dica de `pages`; `test/postresult.test.cjs` |
 
 ## Fechado na release 2.13.2 (2026-10-30)
 
