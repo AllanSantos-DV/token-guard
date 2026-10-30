@@ -189,13 +189,14 @@ function writeJson(file, obj, base, label) {
 
 /** Arquivos que todo alvo precisa para rodar a decisão e os CLIs que o
  *  runtime instala junto (cli.cjs roteia para mcp-cost/contract — se não
- *  forem copiados, os comandos quebram na cópia instalada). */
+ *  forem copiados, os comandos quebram na cópia instalada). O selftest
+ *  (`cli.cjs test`) lê os casos de test/fixtures e o isolamento de test/bootstrap. */
 const RUNTIME_FILES = [
   'package.json', 'cli.cjs', 'token-guard.cjs', 'token-audit.cjs',
   'mcp-cost.cjs', 'cost.cjs', 'contract.cjs', 'contract.default.md',
-  'selftest.cjs', 'config.default.json', 'README.md',
+  'selftest.cjs', 'config.default.json', 'README.md', 'test/bootstrap.cjs',
 ];
-const RUNTIME_DIRS = ['lib', 'adapters'];
+const RUNTIME_DIRS = ['lib', 'adapters', 'test/fixtures'];
 
 function installRuntime(destDir, { extras = [], base } = {}) {
   ensureDir(destDir);
@@ -492,14 +493,14 @@ function installAutostartWindows(daemonScript) {
   const sidOk = runQuiet('setx', ['TOKEN_GUARD_SID', sid]);
   log(sidOk ? 'create' : 'skip', sidOk
     ? `TOKEN_GUARD_SID=${sid}  (setx — vale para sessoes novas apos reiniciar o Windows/logon)`
-    : 'TOKEN_GUARD_SID nao pode ser gravado (setx falhou) — daemon so sobe on-demand (F5), nunca fica quente');
+    : 'TOKEN_GUARD_SID nao pode ser gravado (setx falhou) — daemon so sobe sob demanda, no primeiro hook, nunca fica quente');
 
   const taskOk = registerLogonTask(DAEMON_TASK_NAME, launcher)
     || runQuiet('schtasks', ['/create', '/tn', DAEMON_TASK_NAME, '/tr', tr, '/sc', 'onlogon', '/rl', 'limited', '/f']);
   log(taskOk ? (existed ? 'update' : 'create') : 'skip',
     taskOk
       ? `Task Scheduler "${DAEMON_TASK_NAME}"  (ONLOGON, ${tr})`
-      : `Task Scheduler "${DAEMON_TASK_NAME}" nao pode ser registrada (schtasks falhou) — daemon so sobe on-demand (F5)`);
+      : `Task Scheduler "${DAEMON_TASK_NAME}" nao pode ser registrada (schtasks falhou) — daemon so sobe sob demanda, no primeiro hook`);
 
   // Daemon vivo = singleton sai com 0 na hora; caído = sobe. Custo: um processo oculto a cada 5 min.
   const watchExisted = taskExists(DAEMON_WATCH_TASK_NAME);
@@ -537,7 +538,7 @@ WantedBy=default.target
     runQuiet('systemctl', ['--user', 'enable', '--now', `${DAEMON_SERVICE_NAME}.service`]);
   if (!enabled) {
     notes.push('daemon   · systemctl --user indisponivel nesta sessao — rode manualmente: ' +
-      `systemctl --user enable --now ${DAEMON_SERVICE_NAME}.service (o daemon continua subindo on-demand via F5 ate la).`);
+      `systemctl --user enable --now ${DAEMON_SERVICE_NAME}.service (o daemon continua subindo sob demanda ate la).`);
   }
 }
 
@@ -578,7 +579,7 @@ function installAutostartLaunchd(daemonScript) {
   const loaded = runQuiet('launchctl', ['load', '-w', plistPath]);
   if (!loaded) {
     notes.push(`daemon   · launchctl indisponivel nesta sessao — rode manualmente: launchctl load -w ${plistPath} ` +
-      '(o daemon continua subindo on-demand via F5 ate la).');
+      '(o daemon continua subindo sob demanda ate la).');
   }
 }
 
@@ -802,7 +803,7 @@ function installClaude() {
   installDaemonAutostart(dir);
   notes.push('claude   · reinicie a sessao do Claude Code para carregar o hook.');
   notes.push('claude   · daemon-unico: reinicie o Windows/logon (ou abra sessao nova) para o ' +
-    'TOKEN_GUARD_SID valer e o daemon ficar quente entre chamadas; ate la, sobe on-demand (F5).');
+    'TOKEN_GUARD_SID valer e o daemon ficar quente entre chamadas; ate la, sobe sob demanda, no primeiro hook.');
 }
 
 /* ------------------------------------------------------------------ */
@@ -991,7 +992,7 @@ function installMcp() {
   notes.push('mcp      · ADVISORY: entrega as ferramentas ao agente, nao bloqueia a chamada.');
   notes.push('mcp      · cole o conteudo de ~/.token-guard/mcp.json na config MCP do seu IDE:');
   notes.push('mcp        VS Code  .vscode/mcp.json  ·  Cursor  ~/.cursor/mcp.json');
-  notes.push('mcp        Claude Desktop  claude_desktop_config.json  ·  Windsurf/Zed  ver docs/IDES.md');
+  notes.push('mcp        Claude Desktop  claude_desktop_config.json  ·  Windsurf/Zed  ver https://allansantos-dv.github.io/token-guard/#ides');
 }
 
 /* ------------------------------------------------------------------ */
@@ -1013,12 +1014,7 @@ function installRepo() {
   const guardDir = path.join(BASE, 'token-guard');
   ensureDir(guardDir);
 
-  for (const f of ['token-guard.cjs', 'token-audit.cjs', 'selftest.cjs', 'cli.cjs',
-                   'config.default.json', 'package.json']) {
-    copyFile(path.join(SRC, f), path.join(guardDir, f), DEST);
-  }
-  copyTree(path.join(SRC, 'lib'), path.join(guardDir, 'lib'), DEST);
-  copyTree(path.join(SRC, 'adapters'), path.join(guardDir, 'adapters'), DEST);
+  installRuntime(guardDir, { base: DEST });
 
   copyFile(path.join(SRC, 'agents', 'scout.agent.md'),
            path.join(BASE, 'agents', 'scout.agent.md'), DEST,
@@ -1148,8 +1144,14 @@ if (!DRY && targets.some((t) => t !== 'repo')) {
   require('./lib/auto-update.cjs').recordInstall({
     targets, commandHooks: COMMAND_HOOKS, version: require('./package.json').version,
   });
-  notes.push('update   · auto-update ligado: a cada início de sessão do Claude Code, versão nova é instalada ' +
-    'nestes mesmos alvos (desliga com TOKEN_GUARD_AUTO_UPDATE=off).');
+  // Só o SessionStart do hook http do Claude Code dispara o auto-update.
+  if (targets.includes('claude') && !COMMAND_HOOKS) {
+    notes.push('update   · auto-update ligado: a cada início de sessão do Claude Code, versão nova é instalada ' +
+      'nestes mesmos alvos (desliga com TOKEN_GUARD_AUTO_UPDATE=off).');
+  } else {
+    notes.push('update   · sem auto-update nestes alvos: para atualizar, rode ' +
+      require('./lib/auto-update.cjs').manualCommand('latest', 'all'));
+  }
 }
 
 if (skipped.length) {
@@ -1164,8 +1166,8 @@ console.log('  PROXIMOS PASSOS');
 console.log('');
 for (const n of notes) console.log(`    ${n}`);
 console.log('');
-console.log('    Confirme que os guards respondem aqui:  node selftest.cjs');
-console.log('    Meca o custo do repositorio:            node token-audit.cjs');
+console.log('    Confirme que os guards respondem aqui:  npx @allansantos-dev/token-guard test');
+console.log('    Meca o custo do repositorio:            npx @allansantos-dev/token-guard audit');
 console.log('');
 console.log('  A recusa traz o comando alternativo pronto; ninguem precisa aprovar nada no meio.');
 console.log('  Emergencia: TOKEN_GUARD=off desliga sem editar arquivo.');

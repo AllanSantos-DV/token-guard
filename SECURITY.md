@@ -23,7 +23,8 @@ faz com a sua máquina e os seus dados:
   ligado (abaixo), quando ele é o único caminho dos hooks. Verificação da ACL do pipe:
   `scripts/verify-daemon-security.ps1`.
 - **Hook http do Claude Code** (desde a 2.6.0, `init --target claude`): o daemon também
-  escuta em **TCP `127.0.0.1`** (nunca em outra interface), numa porta estável por usuário.
+  escuta em **TCP `127.0.0.1`** (nunca em outra interface), numa porta preferida estável por usuário, com reserva (a última registrada,
+  depois uma livre) gravada em `~/.token-guard/daemon-http.json`.
   Toda requisição precisa do header `X-Token-Guard` com o token de
   `~/.token-guard/daemon-http.token` (32 bytes aleatórios, gravado pelo instalador com
   permissão só do dono, copiado para o `~/.claude/settings.json`); sem ele, 401 e nada é
@@ -59,8 +60,8 @@ faz com a sua máquina e os seus dados:
   instalador e trava da última atualização automática.
 - Lock de singleton do daemon: `<socket>.lock` no POSIX,
   `%TEMP%/token-guard-locks/<pipe>.lock` no Windows — pid e versão de protocolo.
-- Autostart do daemon (só `--target claude`): tarefa agendada `TokenGuardDaemon` e a
-  variável de usuário `TOKEN_GUARD_SID` no Windows; unit `token-guard-daemon.service`
+- Autostart do daemon (só `--target claude`): tarefas agendadas `TokenGuardDaemon` (logon) e
+  `TokenGuardDaemonWatch` (vigia a cada 5 min) e a variável de usuário `TOKEN_GUARD_SID` no Windows; unit `token-guard-daemon.service`
   (systemd --user) no Linux; `com.token-guard.daemon.plist` (LaunchAgents) no macOS.
 - Nos alvos de máquina: runtime e config sob o seu perfil (`~/.copilot`, `~/.claude`,
   `~/.codex` — `config.toml` e `hooks.json` recebem só a entrada do token-guard —,

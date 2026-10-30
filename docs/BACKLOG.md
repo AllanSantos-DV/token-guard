@@ -9,6 +9,33 @@
 
 _Nenhum item técnico aberto._
 
+### Negócio — apresentação do produto (padrão `vxk-apresentacao-produto`)
+
+Origem: auditoria do Pages de 2026-10-30 contra o padrão dos outros produtos do dono. Nada disto foi
+construído; são itens de produto, não defeitos do pacote.
+
+| # | Item | O que falta |
+|---|------|-------------|
+| N1 | Vídeo de apresentação | Nenhum vídeo no Pages. Padrão: Motion (`motion-apresentacao`) com a voz do Vox Engine, sem versão/beta, manifesto `<nome>.voz.json` ao lado do mp4 (origem, voz, versão do motor) e áudio medido; `.web.mp4` com capa como primeiro bloco do Início, sem tocar sozinho com som |
+| N2 | Botão Apresentar | Ausente. Padrão: no cabeçalho de toda página, cenas com áudio local gerado pelo Vox Engine (sem `speechSynthesis`), controles e teclado, `prefers-reduced-motion` respeitado |
+| N3 | Três caminhos na primeira tela | Hoje são dois botões (Instalar, Código-fonte). Padrão: assistir, ver exemplo e instalar acima da dobra |
+| N4 | Páginas por pergunta | Hoje é página única com âncoras. Padrão: Início, Para que serve, Como funciona, Exemplos, Vídeos e explicações, Instalar, com navegação fixa por assunto |
+
+## Fechado na release 2.13.2 (2026-10-30)
+
+Lente da feature irmã sobre a 2.13.1 (aviso de versão linka o Pages): mesmos defeitos em textos vizinhos.
+
+| # | Item | Resolução |
+|---|------|-----------|
+| T1–T2 | Atualizar à mão: `init` sem `--target` (cai no alvo `repo`) e `npm i -g` (não toca as cópias instaladas) | `manualCommand` com os alvos registrados nos dois avisos; `test/auto-update.test.cjs` |
+| T3 | Nota de auto-update em alvos que não o disparam | só com `claude` no hook http; nos demais, o comando de atualizar |
+| T4–T5 | `cli.cjs test` quebrava nas cópias; cópia `repo` sem os scripts roteados | lista única de runtime com `test/fixtures` e `test/bootstrap.cjs`; `test/install.test.cjs` |
+| T6–T7 | `status` sem `bigResult`/`dupRead`/`scout` e sem o aviso do `warn` aposentado | `activeRules`/`modeLabel`; `test/daemon-status.test.cjs` |
+| T8 | MCP status "advisory" no Codex, onde bloqueia | texto corrigido |
+| T9 | `plugin.json` na 2.10.1 | acompanha o `package.json`, com teste |
+| T10–T11, D1–D8, D10 | Links para `docs/IDES.md`/README em texto humano, rótulo de fase no instalador, docs desatualizados | Pages no `--help`, instalador e `homepage`; docs conferidos contra o código. D9 (link interno de COMO-FUNCIONA para a seção de latência do README) fica: é link entre docs do repositório e resolve |
+| — | Pages ensinava `--mode warn` e citava números da 2.6 | conteúdo atualizado e publicado; roteiro de fases internas saiu do Pages |
+
 ## Fechado na release 2.13.0 (2026-10-26)
 
 | # | Item | Resolução |

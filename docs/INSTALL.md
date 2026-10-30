@@ -97,7 +97,7 @@ Tudo que o instalador cria, em um lugar só:
 
 1. Remova o registro e o runtime da tabela acima.
    No alvo `claude`, remova também o autostart do daemon:
-   - Windows: `schtasks /delete /tn TokenGuardDaemon /f` e `reg delete HKCU\Environment /v TOKEN_GUARD_SID /f`
+   - Windows: `schtasks /delete /tn TokenGuardDaemon /f`, `schtasks /delete /tn TokenGuardDaemonWatch /f` e `reg delete HKCU\Environment /v TOKEN_GUARD_SID /f`
    - Linux: `systemctl --user disable --now token-guard-daemon` e apague `~/.config/systemd/user/token-guard-daemon.service`
    - macOS: `launchctl unload -w ~/Library/LaunchAgents/com.token-guard.daemon.plist` e apague o arquivo
    No alvo `claude`, apague também `~/.claude/agents/scout.agent.md` se for o do token-guard (começa por `# Scout — reconhecimento com contexto descartável`); ele fica fora de `~/.claude/token-guard/`. No alvo `repo`, `.github/agents/scout.agent.md`.

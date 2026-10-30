@@ -3,6 +3,21 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.13.2] — 2026-10-30
+
+### Corrigido
+- **O comando de atualizar à mão atualizava o lugar errado.** O aviso do SessionStart mandava `npx …@X init` sem `--target`, que cai no alvo `repo` e copia `.github/` para a pasta atual. O `status`/`--version` mandava `npm i -g`, que não toca as cópias instaladas que os hooks usam. Os dois avisos agora dão `npx --yes @allansantos-dev/token-guard@X init --target <os alvos registrados>` (`manualCommand`, `lib/auto-update.cjs`). Teste em `test/auto-update.test.cjs`.
+- **O instalador prometia auto-update onde nada o dispara.** A nota só sai com o alvo `claude` no hook http (quem dispara é o `SessionStart`); nos demais alvos ela dá o comando de atualizar.
+- **`cli.cjs test` quebrava nas cópias instaladas** (faltavam `test/fixtures` e `test/bootstrap.cjs`), e a cópia do alvo `repo` não trazia `mcp-cost.cjs`, `contract.cjs`, `cost.cjs` nem `contract.default.md`, para os quais o `cli.cjs` roteia. Todos os alvos usam a mesma lista de runtime. Teste em `test/install.test.cjs`.
+- **Os próximos passos do instalador** apontavam `node selftest.cjs` e `node token-audit.cjs`, que não existem na pasta do usuário; agora `npx @allansantos-dev/token-guard test` e `audit`.
+- **`status` omitia `bigResult`, `dupRead` e `scout`**, ligados por padrão, e o `status` da CLI não explicava o `warn` aposentado. Uma fonte só para as duas listas (`activeRules`, `modeLabel` em `lib/config.cjs`). Teste em `test/daemon-status.test.cjs`.
+- **O `token_guard_status` do MCP se dizia só orientativo**, mas bloqueia no Codex (via `token_guard_hook`).
+- **`plugin.json` estava na 2.10.1**; acompanha o `package.json` (teste em `test/install.test.cjs`).
+- `--help` e o instalador apontam a cobertura por IDE para o Pages, não para `docs/IDES.md`; mensagens do instalador sem rótulo interno de fase; `homepage` do pacote no Pages.
+
+### Documentação
+- README, IDES: o dedupe de leitura já chega ao modelo no Claude Code. README: a checagem de versão também roda no SessionStart; o daemon não se encerra com o hook http; sem contagem fixa de suítes. COMO-FUNCIONA: o auto-update também usa a rede. TROUBLESHOOTING: o vigia religa o daemon em até ~5 min. INSTALL e SECURITY: a tarefa `TokenGuardDaemonWatch` na desinstalação e no inventário; porta do hook http é preferida, com reserva. Skill: o custo de schema MCP vale onde o harness carrega os schemas de início.
+
 ## [2.13.1] — 2026-10-27
 
 ### Corrigido

@@ -50,7 +50,7 @@ async function printUpdateNotice(prefix) {
     const localVersion = require('./package.json').version;
     const r = await UC.checkForUpdate({ localVersion, cacheFile: updateCacheFile() });
     if (r.checked && r.updateAvailable) {
-      console.log(`${prefix}v${r.latestVersion} disponível (você está na v${r.localVersion}) — npm i -g @allansantos-dev/token-guard — novidades: ${UC.SITE_URL}`);
+      console.log(`${prefix}v${r.latestVersion} disponível (você está na v${r.localVersion}) — atualize: ${require('./lib/auto-update.cjs').manualCommand(r.latestVersion, 'all')} — novidades: ${UC.SITE_URL}`);
     }
   } catch { /* aviso de update é best-effort, nunca pode quebrar status/--version */ }
 }
@@ -60,12 +60,12 @@ async function status(args) {
   const CFG = require('./lib/config.cjs');
   const cfg = CFG.load(root);
   const stats = CFG.repoStats(root);
-  const on = Object.entries(cfg.rules || {}).filter(([, v]) => v !== false).map(([k]) => k);
+  const on = CFG.activeRules(cfg);
 
   console.log('');
   console.log(`  token-guard · ${root}`);
   console.log('  ' + '─'.repeat(66));
-  console.log(`  modo:            ${cfg.mode}`);
+  console.log(`  modo:            ${CFG.modeLabel(cfg)}`);
   console.log(`  config:          ${cfg._source}`);
   console.log(`  regras ativas:   ${on.join(', ') || '(nenhuma)'}`);
   console.log(`  leitura s/faixa: acima de ${cfg.limits.readBytesWithoutRange} bytes`);
@@ -162,7 +162,7 @@ function help() {
   Depois reinicie a sessão do agente para carregar o hook.
   Emergência: TOKEN_GUARD=off desliga sem editar arquivo.
 
-  Cobertura real por IDE: docs/IDES.md
+  Cobertura real por IDE: https://allansantos-dv.github.io/token-guard/#ides
 `);
 }
 
@@ -180,7 +180,7 @@ if (cmd === 'status') {
       const UC = require('./lib/update-check.cjs');
       const r = await UC.checkForUpdate({ localVersion, cacheFile: updateCacheFile() });
       if (r.checked && r.updateAvailable) {
-        console.log(`${localVersion} (nova versão disponível: ${r.latestVersion} — npm i -g @allansantos-dev/token-guard — novidades: ${UC.SITE_URL})`);
+        console.log(`${localVersion} (nova versão disponível: ${r.latestVersion} — atualize: ${require('./lib/auto-update.cjs').manualCommand(r.latestVersion, 'all')} — novidades: ${UC.SITE_URL})`);
       } else {
         console.log(localVersion);
       }

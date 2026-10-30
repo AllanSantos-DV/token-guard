@@ -420,7 +420,7 @@ async function main() {
     check('F3a: cli status sai com código 0 (caminho positivo)', statusOn.status === 0, `status=${statusOn.status} stderr=${statusOn.stderr}`);
     check(
       'F3b: cli status imprime o texto exato do aviso de atualização',
-      statusOn.stdout.includes(`  atualização:     v9.9.9 disponível (você está na v${pkgVersion}) — npm i -g @allansantos-dev/token-guard`),
+      statusOn.stdout.includes(`  atualização:     v9.9.9 disponível (você está na v${pkgVersion}) — atualize: npx --yes @allansantos-dev/token-guard@9.9.9 init --target all — novidades: ${UC.SITE_URL}`),
       JSON.stringify(statusOn.stdout)
     );
 
@@ -432,7 +432,7 @@ async function main() {
     check('F3c: cli --version sai com código 0 (caminho positivo)', versionOn.status === 0, `status=${versionOn.status} stderr=${versionOn.stderr}`);
     check(
       'F3d: cli --version imprime o texto exato do aviso de atualização',
-      versionOn.stdout.trim() === `${pkgVersion} (nova versão disponível: 9.9.9 — npm i -g @allansantos-dev/token-guard — novidades: ${UC.SITE_URL})`,
+      versionOn.stdout.trim() === `${pkgVersion} (nova versão disponível: 9.9.9 — atualize: npx --yes @allansantos-dev/token-guard@9.9.9 init --target all — novidades: ${UC.SITE_URL})`,
       JSON.stringify(versionOn.stdout)
     );
 
