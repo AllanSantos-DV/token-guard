@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Para que serve · token-guard</title>
+<meta name="description" content="Kit IDE-agnóstico que mede o custo real do seu repositório em tokens e barra as chamadas que estouram a janela — devolvendo sempre a alternativa barata. Zero dependências.">
+<meta property="og:title" content="token-guard — a janela de contexto do seu agente não é lixeira">
+<meta property="og:description" content="Mede o custo real do repositório em tokens e barra as chamadas caras, devolvendo a alternativa barata. Copilot, Claude Code, Codex, Cursor e MCP. Zero dependências.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://allansantos-dv.github.io/token-guard/para-que-serve.html">
+<meta property="og:image" content="https://allansantos-dv.github.io/token-guard/video/token-guard.poster.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F4F5EF">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23171A1F'/%3E%3Crect x='6' y='8' width='20' height='4' fill='%23C2402A'/%3E%3Crect x='6' y='15' width='13' height='4' fill='%23F4F5EF'/%3E%3Crect x='6' y='22' width='7' height='4' fill='%231E7F4F'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <a class="wordmark" href="index.html"><span>&#9646;</span>token-guard</a>
+  <nav aria-label="Assuntos">
+    <a href="index.html">Início</a>
+    <a href="para-que-serve.html" aria-current="page">Para que serve</a>
+    <a href="como-funciona.html">Como funciona</a>
+    <a href="exemplos.html">Exemplos</a>
+    <a href="videos.html">Vídeos e explicações</a>
+    <a href="instalar.html">Instalar</a>
+  </nav>
+  <div class="hdr-actions">
+    <button class="present-btn" id="present-btn" type="button" aria-haspopup="dialog">&#9654; Apresentar</button>
+    <a class="mono" style="font-size:13px" href="https://www.npmjs.com/package/@allansantos-dev/token-guard">npm</a>
+    <a class="mono" style="font-size:13px" href="https://github.com/AllanSantos-DV/token-guard">GitHub &#8599;</a>
+  </div>
+</header>
+<main>
+
+<section id="problema">
+  <div class="eyebrow">o problema, em um n&uacute;mero</div>
+  <div class="problem-grid">
+    <div>
+      <div class="big-num">26,7M<small>&nbsp;caracteres</small></div>
+      <p>
+        &Eacute; quanto custa <strong>s&oacute; a lista dos nomes dos arquivos</strong> de um monorepo
+        de 215 mil &mdash; antes do agente ler uma linha de c&oacute;digo. A janela &eacute; fixa;
+        o reposit&oacute;rio n&atilde;o. Por isso <strong>a sele&ccedil;&atilde;o do que entra &eacute; a arquitetura</strong>,
+        e &eacute; exatamente ela que este kit governa.
+      </p>
+    </div>
+    <div class="term">
+<span class="p">$</span> node token-audit.cjs /monorepo
+
+<span class="dim">215.112 arquivos &middot; varridos em 3,2s</span>
+
+CAMADA             ARQUIVOS   VOLUME   JANELAS
+Tudo em disco       215.112    8,4 GB   <span class="hot">10.512</span>
+Sem ru&iacute;do           48.203    1,9 GB   <span class="hot">2.380</span>
+S&oacute; c&oacute;digo-fonte     31.877    1,1 GB   <span class="hot">1.375</span>
+<span class="hot">S&oacute; a lista de caminhos        26,7 MB      33</span>
+
+GANHO IMEDIATO &mdash; descartando build/deps:
+&minus;166.909 arquivos (&minus;77%) &middot; custo: nenhum. &Eacute; configura&ccedil;&atilde;o.
+    </div>
+  </div>
+</section>
+
+<section id="regras">
+  <div class="eyebrow">o que entra na conta</div>
+  <h2>Cinco regras. Cada bloqueio ensina.</h2>
+  <div class="rules">
+    <div class="card">
+      <h3><code>broadScan</code></h3>
+      <p>Varredura sem escopo devolve a lista de caminhos de todo o repo. O custo n&atilde;o &eacute; a busca &mdash; &eacute; a sa&iacute;da.</p>
+      <div class="ex">
+        <span class="no">&#10007; glob "**/*"</span><br>
+        <span class="yes">&#10003; glob "**/*.java"</span><br>
+        <span class="yes">&#10003; glob com paths=["src/main"]</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><code>blindRead</code></h3>
+      <p>Ler um arquivo grande inteiro para usar 20 linhas. Acima de 50KB, pe&ccedil;a a faixa (num PDF, as p&aacute;ginas).</p>
+      <div class="ex">
+        <span class="no">&#10007; Read arquivo de 200KB sem faixa</span><br>
+        <span class="yes">&#10003; Read com view_range [40, 90]</span><br>
+        <span class="yes">&#10003; arquivo pequeno inteiro</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><code>noisePath</code></h3>
+      <p>node_modules, target, dist, .git s&atilde;o artefato: leia a fonte que os produz, nunca o artefato.</p>
+      <div class="ex">
+        <span class="no">&#10007; Read node_modules/pkg/index.js</span><br>
+        <span class="yes">&#10003; allowlist para o caso leg&iacute;timo</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><code>shellDump</code></h3>
+      <p>O shell &eacute; a porta dos fundos: um comando despeja a &aacute;rvore inteira e cada linha &eacute; faturada.</p>
+      <div class="ex">
+        <span class="no">&#10007; Get-ChildItem -Recurse / ls -R / rg --files</span><br>
+        <span class="yes">&#10003; "| Select-Object -First 50"</span><br>
+        <span class="yes">&#10003; grep -rn TODO src/ (escopado)</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3><code>bigResult</code> <small style="color:var(--ink-soft)">(p&oacute;s-execu&ccedil;&atilde;o)</small></h3>
+      <p>Resultado leg&iacute;timo que se revela gigante? Vira stub com preview; a vers&atilde;o integral vai para o disco e a dica junto.</p>
+      <div class="ex">
+        <span class="no">&#10007; 200KB de matches na janela</span><br>
+        <span class="yes">&#10003; preview + .token-guard/results/ + "refa&ccedil;a com head_limit"</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">princ&iacute;pios inegoci&aacute;veis</div>
+  <div class="principles">
+    <div class="pr"><b>Nunca um deny cego</b><p>Todo bloqueio devolve a alternativa barata, pronta para reexecutar. Um guard que s&oacute; diz "n&atilde;o" transfere o problema para a pessoa.</p></div>
+    <div class="pr"><b>Fail-open, sempre</b><p>Regra quebrada, payload hostil, config corrompida: tudo resulta em liberar. Um guard de economia jamais derruba a sess&atilde;o que deveria baratear.</p></div>
+    <div class="pr"><b>Zero depend&ecirc;ncias</b><p>S&oacute; Node stdlib &mdash; para rodar dentro de harness empacotado e em m&aacute;quina corporativa sem npm install.</p></div>
+    <div class="pr"><b>Declara o pr&oacute;prio custo</b><p>Lat&ecirc;ncia medida e reproduz&iacute;vel por bench; economia com premissas declaradas e limita&ccedil;&otilde;es honestas na documenta&ccedil;&atilde;o.</p></div>
+  </div>
+  <div class="next-links"><a class="btn primary" href="como-funciona.html">Como funciona &rarr;</a><a class="btn" href="exemplos.html">Ver exemplo</a></div>
+</section>
+</main>
+<footer>
+  <span>token-guard &middot; MIT &middot; Allan Santos &middot; <a href="https://github.com/AllanSantos-DV/token-guard/releases">releases</a></span>
+  <span>
+    <a href="https://github.com/AllanSantos-DV/token-guard">github</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/blob/main/README.md">readme</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/tree/main/docs">docs</a>
+  </span>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

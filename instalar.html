@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instalar · token-guard</title>
+<meta name="description" content="Kit IDE-agnóstico que mede o custo real do seu repositório em tokens e barra as chamadas que estouram a janela — devolvendo sempre a alternativa barata. Zero dependências.">
+<meta property="og:title" content="token-guard — a janela de contexto do seu agente não é lixeira">
+<meta property="og:description" content="Mede o custo real do repositório em tokens e barra as chamadas caras, devolvendo a alternativa barata. Copilot, Claude Code, Codex, Cursor e MCP. Zero dependências.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://allansantos-dv.github.io/token-guard/instalar.html">
+<meta property="og:image" content="https://allansantos-dv.github.io/token-guard/video/token-guard.poster.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F4F5EF">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23171A1F'/%3E%3Crect x='6' y='8' width='20' height='4' fill='%23C2402A'/%3E%3Crect x='6' y='15' width='13' height='4' fill='%23F4F5EF'/%3E%3Crect x='6' y='22' width='7' height='4' fill='%231E7F4F'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <a class="wordmark" href="index.html"><span>&#9646;</span>token-guard</a>
+  <nav aria-label="Assuntos">
+    <a href="index.html">Início</a>
+    <a href="para-que-serve.html">Para que serve</a>
+    <a href="como-funciona.html">Como funciona</a>
+    <a href="exemplos.html">Exemplos</a>
+    <a href="videos.html">Vídeos e explicações</a>
+    <a href="instalar.html" aria-current="page">Instalar</a>
+  </nav>
+  <div class="hdr-actions">
+    <button class="present-btn" id="present-btn" type="button" aria-haspopup="dialog">&#9654; Apresentar</button>
+    <a class="mono" style="font-size:13px" href="https://www.npmjs.com/package/@allansantos-dev/token-guard">npm</a>
+    <a class="mono" style="font-size:13px" href="https://github.com/AllanSantos-DV/token-guard">GitHub &#8599;</a>
+  </div>
+</header>
+<main>
+
+<section id="install">
+  <div class="eyebrow">instala&ccedil;&atilde;o</div>
+  <h2>Tr&ecirc;s comandos. Sem npm install.</h2>
+  <div class="inst">
+    <div class="cmd"><span class="n">01</span><code id="c1">npx @allansantos-dev/token-guard audit</code><button class="copy" data-c="npx @allansantos-dev/token-guard audit">copiar</button></div>
+    <div class="cmd"><span class="n">02</span><code id="c2">npx @allansantos-dev/token-guard init --target all</code><button class="copy" data-c="npx @allansantos-dev/token-guard init --target all">copiar</button></div>
+    <div class="cmd"><span class="n">03</span><code id="c3">npx @allansantos-dev/token-guard test</code><button class="copy" data-c="npx @allansantos-dev/token-guard test">copiar</button></div>
+  </div>
+  <p class="src">Alvos: copilot &middot; claude &middot; codex &middot; cursor &middot; mcp &middot; repo (viaja no git). Emerg&ecirc;ncia: TOKEN_GUARD=off.</p>
+  <p class="src">Depois, <code>npx @allansantos-dev/token-guard setup</code> abre a tela de configura&ccedil;&otilde;es.</p>
+  <div class="next-links"><a class="btn" href="como-funciona.html">Como funciona</a><a class="btn" href="https://github.com/AllanSantos-DV/token-guard">C&oacute;digo-fonte</a></div>
+</section>
+</main>
+<footer>
+  <span>token-guard &middot; MIT &middot; Allan Santos &middot; <a href="https://github.com/AllanSantos-DV/token-guard/releases">releases</a></span>
+  <span>
+    <a href="https://github.com/AllanSantos-DV/token-guard">github</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/blob/main/README.md">readme</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/tree/main/docs">docs</a>
+  </span>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

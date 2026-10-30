@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exemplos · token-guard</title>
+<meta name="description" content="Kit IDE-agnóstico que mede o custo real do seu repositório em tokens e barra as chamadas que estouram a janela — devolvendo sempre a alternativa barata. Zero dependências.">
+<meta property="og:title" content="token-guard — a janela de contexto do seu agente não é lixeira">
+<meta property="og:description" content="Mede o custo real do repositório em tokens e barra as chamadas caras, devolvendo a alternativa barata. Copilot, Claude Code, Codex, Cursor e MCP. Zero dependências.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://allansantos-dv.github.io/token-guard/exemplos.html">
+<meta property="og:image" content="https://allansantos-dv.github.io/token-guard/video/token-guard.poster.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F4F5EF">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23171A1F'/%3E%3Crect x='6' y='8' width='20' height='4' fill='%23C2402A'/%3E%3Crect x='6' y='15' width='13' height='4' fill='%23F4F5EF'/%3E%3Crect x='6' y='22' width='7' height='4' fill='%231E7F4F'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <a class="wordmark" href="index.html"><span>&#9646;</span>token-guard</a>
+  <nav aria-label="Assuntos">
+    <a href="index.html">Início</a>
+    <a href="para-que-serve.html">Para que serve</a>
+    <a href="como-funciona.html">Como funciona</a>
+    <a href="exemplos.html" aria-current="page">Exemplos</a>
+    <a href="videos.html">Vídeos e explicações</a>
+    <a href="instalar.html">Instalar</a>
+  </nav>
+  <div class="hdr-actions">
+    <button class="present-btn" id="present-btn" type="button" aria-haspopup="dialog">&#9654; Apresentar</button>
+    <a class="mono" style="font-size:13px" href="https://www.npmjs.com/package/@allansantos-dev/token-guard">npm</a>
+    <a class="mono" style="font-size:13px" href="https://github.com/AllanSantos-DV/token-guard">GitHub &#8599;</a>
+  </div>
+</header>
+<main>
+
+<section class="hero" style="grid-template-columns:minmax(260px,38%) 1fr">
+  <div>
+    <div class="eyebrow">exemplo ao vivo</div>
+    <h2>Dispare uma chamada de agente e veja o veredito.</h2>
+    <p class="lead">Os vereditos s&atilde;o os do n&uacute;cleo de decis&atilde;o: as mesmas regras que rodam no seu harness.</p>
+  </div>
+  <div class="meter-card" aria-label="Demonstra&ccedil;&atilde;o interativa do guard">
+    <div class="meter-head">
+      <b>medidor de janela</b>
+      <span>janela de refer&ecirc;ncia: 200k tokens</span>
+    </div>
+    <div class="window" id="window" aria-hidden="true"></div>
+    <div class="triggers" role="group" aria-label="Dispare uma chamada t&iacute;pica de agente">
+      <button class="trigger" data-i="0">glob "**/*"</button>
+      <button class="trigger" data-i="1">Read arquivo de 200KB</button>
+      <button class="trigger" data-i="2">Read node_modules/x.js</button>
+      <button class="trigger" data-i="3">ls -R /</button>
+      <button class="trigger" data-i="4">grep com head_limit</button>
+    </div>
+    <div class="verdict" id="verdict"><span class="tag" style="background:#565B54">AGUARDANDO</span>
+Dispare uma chamada t&iacute;pica de agente e veja o veredito.</div>
+  </div>
+</section>
+
+<section id="numeros">
+  <div class="eyebrow">medido, n&atilde;o prometido</div>
+  <h2>A economia tem n&uacute;mero pr&oacute;prio.</h2>
+  <div class="stats">
+    <div class="stat"><b>~2,7M tok</b><span>economia l&iacute;quida estimada no replay de 371 sess&otilde;es REAIS (75.445 chamadas hist&oacute;ricas, out/2026)</span></div>
+    <div class="stat"><b>85&ndash;205k tok</b><span>por sess&atilde;o na simula&ccedil;&atilde;o param&eacute;trica (repo de 215 mil arquivos), conforme o agente aprende r&aacute;pido ou repete o erro. S&oacute; deixa de compensar se ~94% dos bloqueios forem falsos positivos</span></div>
+    <div class="stat"><b>190</b><span>chamadas barradas no mesmo replay (blindRead 161 &middot; broadScan 15 &middot; shellDump 9 &middot; noisePath 5), cada uma devolvida com a reescrita barata</span></div>
+    <div class="stat"><b>1,4 ms</b><span>por chamada no hook http do Claude Code, contra 108,8 ms do hook de comando (medianas) &mdash; o custo era nascer um Node, n&atilde;o o guard. Plugin Copilot: 0,2&ndash;0,6 ms</span></div>
+  </div>
+  <p class="src">Fontes: bench/replay-transcripts.cjs (replay real) &middot; bench/savings.cjs (simula&ccedil;&atilde;o com premissas declaradas) &middot; bench/latency.cjs (me&ccedil;a na sua m&aacute;quina). Limita&ccedil;&otilde;es declaradas na documenta&ccedil;&atilde;o.</p>
+  <div class="next-links"><a class="btn primary" href="instalar.html">Instalar &rarr;</a><a class="btn" href="videos.html">Ver o v&iacute;deo</a></div>
+</section>
+</main>
+<footer>
+  <span>token-guard &middot; MIT &middot; Allan Santos &middot; <a href="https://github.com/AllanSantos-DV/token-guard/releases">releases</a></span>
+  <span>
+    <a href="https://github.com/AllanSantos-DV/token-guard">github</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/blob/main/README.md">readme</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/tree/main/docs">docs</a>
+  </span>
+</footer>
+<script src="meter.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

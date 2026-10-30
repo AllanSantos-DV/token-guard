@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Como funciona · token-guard</title>
+<meta name="description" content="Kit IDE-agnóstico que mede o custo real do seu repositório em tokens e barra as chamadas que estouram a janela — devolvendo sempre a alternativa barata. Zero dependências.">
+<meta property="og:title" content="token-guard — a janela de contexto do seu agente não é lixeira">
+<meta property="og:description" content="Mede o custo real do repositório em tokens e barra as chamadas caras, devolvendo a alternativa barata. Copilot, Claude Code, Codex, Cursor e MCP. Zero dependências.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://allansantos-dv.github.io/token-guard/como-funciona.html">
+<meta property="og:image" content="https://allansantos-dv.github.io/token-guard/video/token-guard.poster.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F4F5EF">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23171A1F'/%3E%3Crect x='6' y='8' width='20' height='4' fill='%23C2402A'/%3E%3Crect x='6' y='15' width='13' height='4' fill='%23F4F5EF'/%3E%3Crect x='6' y='22' width='7' height='4' fill='%231E7F4F'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <a class="wordmark" href="index.html"><span>&#9646;</span>token-guard</a>
+  <nav aria-label="Assuntos">
+    <a href="index.html">Início</a>
+    <a href="para-que-serve.html">Para que serve</a>
+    <a href="como-funciona.html" aria-current="page">Como funciona</a>
+    <a href="exemplos.html">Exemplos</a>
+    <a href="videos.html">Vídeos e explicações</a>
+    <a href="instalar.html">Instalar</a>
+  </nav>
+  <div class="hdr-actions">
+    <button class="present-btn" id="present-btn" type="button" aria-haspopup="dialog">&#9654; Apresentar</button>
+    <a class="mono" style="font-size:13px" href="https://www.npmjs.com/package/@allansantos-dev/token-guard">npm</a>
+    <a class="mono" style="font-size:13px" href="https://github.com/AllanSantos-DV/token-guard">GitHub &#8599;</a>
+  </div>
+</header>
+<main>
+
+<section id="ides">
+  <div class="eyebrow">cobertura real por ide</div>
+  <h2>Onde bloqueia, onde orienta. Sem maquiagem.</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Harness</th><th>Mecanismo</th><th>Bloqueia?</th><th>Cobre</th></tr></thead>
+    <tbody>
+      <tr><td>Copilot CLI / App</td><td>extens&atilde;o in-process</td><td class="yes">sim</td><td>4 regras + bigResult real</td></tr>
+      <tr><td>Claude Code</td><td>hook http no daemon &mdash; sem processo por chamada (PreToolUse + PostToolUse + UserPromptSubmit) + SessionStart</td><td class="yes">sim</td><td>4 regras + contrato injetado + bigResult* + releitura id&ecirc;ntica vira ponteiro<br><small style="color:var(--ink-soft)">*substitui&ccedil;&atilde;o real no Claude Code &ge; 2.1.121</small></td></tr>
+      <tr><td>Codex CLI</td><td>hook <code>mcp_tool</code> &rarr; servidor MCP do token-guard, sem processo por chamada</td><td class="yes">sim<br><small style="color:var(--ink-soft)">ap&oacute;s aprovar em /hooks</small></td><td>shellDump (o agente l&ecirc; arquivos pelo shell)</td></tr>
+      <tr><td>Cursor (IDE recente)</td><td>preToolUse gen&eacute;rico + eventos nomeados</td><td class="yes">sim</td><td>todas as 4 regras</td></tr>
+      <tr><td>VS Code / Windsurf / Zed / JetBrains</td><td>MCP server</td><td class="no">orienta</td><td>token_audit &middot; token_guard_check &middot; mcp-cost</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="tela">
+  <div class="eyebrow">configura&ccedil;&atilde;o sem JSON</div>
+  <h2>Uma tela para decidir o que ele faz.</h2>
+  <p class="src">Rode <code>npx @allansantos-dev/token-guard setup</code>. No Windows, um &iacute;cone na bandeja mostra o estado e abre a mesma tela com um clique.</p>
+  <div class="rules">
+    <div class="card">
+      <h3>Global ou por IDE</h3>
+      <p>Ligue ou desligue o bloqueio em tudo, ou s&oacute; em um IDE: Claude Code, Codex, Cursor, Copilot, MCP. Os outros continuam protegidos.</p>
+    </div>
+    <div class="card">
+      <h3>O que cada regra faz</h3>
+      <p>Cada regra vem explicada em portugu&ecirc;s, com um exemplo do que o agente tentou e do que o token-guard fez, e uma chave para ligar ou desligar.</p>
+    </div>
+    <div class="card">
+      <h3>O que j&aacute; foi poupado</h3>
+      <p>V&ecirc; ao vivo o que foi barrado e quantos tokens foram poupados. S&oacute; conta o que foi medido: um bloqueio conta como bloqueio, sem n&uacute;mero inventado.</p>
+    </div>
+  </div>
+  <p><img src="tela-setup.png" alt="Tela de configura&ccedil;&otilde;es do token-guard: bloqueio geral, um cart&atilde;o por IDE e as regras" style="max-width:100%;border:1.5px solid var(--ink);margin-top:22px"></p>
+  <div class="next-links"><a class="btn primary" href="instalar.html">Instalar &rarr;</a><a class="btn" href="https://github.com/AllanSantos-DV/token-guard/blob/main/docs/COMO-FUNCIONA.md">Documenta&ccedil;&atilde;o completa</a></div>
+</section>
+</main>
+<footer>
+  <span>token-guard &middot; MIT &middot; Allan Santos &middot; <a href="https://github.com/AllanSantos-DV/token-guard/releases">releases</a></span>
+  <span>
+    <a href="https://github.com/AllanSantos-DV/token-guard">github</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/blob/main/README.md">readme</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/AllanSantos-DV/token-guard/tree/main/docs">docs</a>
+  </span>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

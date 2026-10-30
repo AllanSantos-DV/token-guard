@@ -1,0 +1,81 @@
+WEBVTT
+
+1
+00:00:00.450 --> 00:00:03.117
+A janela de contexto do seu agente não é lixeira.
+
+2
+00:00:03.117 --> 00:00:05.735
+O token guard mede o custo real do repositório em
+
+3
+00:00:05.735 --> 00:00:08.445
+tokens e barra a chamada que estoura a janela.
+
+4
+00:00:09.450 --> 00:00:11.695
+Busca sem escopo, arquivo gigante lido
+
+5
+00:00:11.695 --> 00:00:14.059
+inteiro, pasta de dependências na janela.
+
+6
+00:00:14.059 --> 00:00:16.955
+Cada linha é faturada e relida a cada chamada.
+
+7
+00:00:17.950 --> 00:00:20.517
+Quando barra, o token guard devolve a alternativa
+
+8
+00:00:20.517 --> 00:00:23.587
+barata, pronta para reexecutar. Nunca um não sem saída.
+
+9
+00:00:24.450 --> 00:00:26.382
+Uma tela de configurações liga ou
+
+10
+00:00:26.382 --> 00:00:28.431
+desliga o bloqueio em tudo, ou só em
+
+11
+00:00:28.431 --> 00:00:30.840
+um IDE, e mostra o que já foi poupado.
+
+12
+00:00:31.950 --> 00:00:35.011
+Funciona no Claude Code, no Copilot, no Codex,
+
+13
+00:00:35.011 --> 00:00:38.015
+no Cursor e, por MCP, nos demais editores.
+
+14
+00:00:38.950 --> 00:00:41.208
+No replay de trezentas e setenta e uma
+
+15
+00:00:41.208 --> 00:00:43.472
+sessões reais, cento e noventa chamadas
+
+16
+00:00:43.472 --> 00:00:45.907
+caras foram barradas. No Claude Code, cada
+
+17
+00:00:45.907 --> 00:00:48.704
+decisão leva um vírgula quatro milissegundo.
+
+18
+00:00:49.450 --> 00:00:51.984
+Token guard. Zero dependências, e se algo
+
+19
+00:00:51.984 --> 00:00:54.527
+falha, ele libera. Instale com npx, arroba
+
+20
+00:00:54.527 --> 00:00:57.320
+allan santos dev, barra token guard, init.
