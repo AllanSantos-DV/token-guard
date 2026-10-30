@@ -7,7 +7,9 @@
 
 ## Aberto
 
-_Nenhum item técnico aberto._
+| # | Item | Origem · esforço |
+|---|------|------------------|
+| A36 | `noisePath` num caminho de imagem (ex.: `tmp/shots/x.png` lido pelo `Read`, que mostra a imagem) recusa ensinando `tail -n 100` e `grep "ERROR"` no PNG, um binário: a reescrita pronta não serve. A recusa precisa de dica própria para imagem/binário (como o blindRead já tem para PDF e notebook) e decidir se imagem sob `tmp/` deve mesmo ser barrada | verificação do Pages da 2.13.2 (2026-10-30) · S |
 
 ### Negócio — apresentação do produto (padrão `vxk-apresentacao-produto`)
 
