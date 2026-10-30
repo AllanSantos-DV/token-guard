@@ -9,11 +9,14 @@
 
 _Nenhum item técnico aberto._
 
+Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD-tela-setup-bandeja.md, seção 8): pausar/retomar no menu do ícone; regras diferentes por IDE; modo "só avisar".
+
 ### Decisão do dono — mudam o uso (lente irmã da 2.13.3)
 
 | # | Item | O que muda para quem usa |
 |---|------|--------------------------|
 | U1 | Ferramentas MCP de leitura de arquivo (`read_media_file`, `read_text_file`, `read_multiple_files`) fora da família `read`: `blindRead`, `dupRead` e a rajada do scout não as veem (só o `noisePath` passou a reconhecê-las na 2.13.3) | leituras grandes por MCP passariam a ser barradas sem faixa e releituras viram ponteiro |
+| A40 | Ícone da bandeja no macOS e no Linux (hoje só o Windows; a tela abre por `token-guard setup`). Não é defeito: é escopo, e não há como testar sem essas plataformas | exigiria helper nativo por plataforma e alguém que o use |
 | U2 | `blindRead` aceita `offset`/`limit` como faixa num PDF, embora no `Read` a faixa do PDF seja `pages` (`lib/payload.cjs`) | PDF grande pedido só com `offset`/`limit` passaria a ser barrado |
 
 ### Negócio — apresentação do produto (padrão `vxk-apresentacao-produto`)

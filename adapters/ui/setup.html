@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="tg-csrf" content="__CSRF__">
+<title>token-guard · configurações</title>
+<style nonce="__NONCE__">
+:root {
+  color-scheme: light dark;
+  --bg: #f5f4ef; --card: #ffffff; --ink: #1c2226; --muted: #5d6870; --line: #dedbd2;
+  --on: #1f8a57; --on-bg: #e3f3ea; --partial: #a86d0a; --partial-bg: #fbf0d9;
+  --off: #b83a3a; --off-bg: #f8e2e2; --down: #6b727a; --down-bg: #e9eaec;
+  --accent: #1f8a57; --focus: #1b5fd1;
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181b; --card: #1c2226; --ink: #e8ecee; --muted: #9aa5ad; --line: #2f383e;
+    --on: #46c486; --on-bg: #15301f; --partial: #e7b24a; --partial-bg: #35290f;
+    --off: #ef7777; --off-bg: #3a1d1d; --down: #98a0a8; --down-bg: #262c30;
+    --accent: #46c486; --focus: #7aa7ff;
+  }
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; font: 16px/1.5 var(--font); color: var(--ink); }
+main { max-width: 920px; margin: 0 auto; padding: 28px 20px 64px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+h1, h2, h3, p { margin: 0; }
+header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+.logo { width: 44px; height: 44px; flex: none; }
+.logo path { fill: var(--down); transition: fill .25s; }
+body[data-state="on"] .logo path { fill: var(--on); }
+body[data-state="partial"] .logo path { fill: var(--partial); }
+body[data-state="off"] .logo path { fill: var(--off); }
+h1 { font-size: 26px; letter-spacing: -.01em; }
+.sub { color: var(--muted); font-size: 14px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; padding: 6px 14px; border-radius: 999px; background: var(--down-bg); color: var(--down); margin-left: auto; }
+.pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+body[data-state="on"] .pill { background: var(--on-bg); color: var(--on); }
+body[data-state="partial"] .pill { background: var(--partial-bg); color: var(--partial); }
+body[data-state="off"] .pill { background: var(--off-bg); color: var(--off); }
+.lead { color: var(--muted); margin: 6px 0 22px; max-width: 62ch; }
+section { margin-top: 30px; }
+h2 { font-size: 19px; margin-bottom: 4px; }
+.hint { color: var(--muted); font-size: 14px; margin-bottom: 14px; max-width: 70ch; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+.mt { margin-top: 12px; }
+.banner { display: none; border-radius: 12px; padding: 12px 16px; margin: 12px 0; font-weight: 600; }
+.banner.show { display: block; }
+.banner.err { background: var(--off-bg); color: var(--off); }
+.banner.warn { background: var(--partial-bg); color: var(--partial); }
+
+/* chave liga/desliga */
+.switch { position: relative; flex: none; width: 52px; height: 30px; border-radius: 999px; border: 0; padding: 0; background: #b4bbc0; cursor: pointer; transition: background .2s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.switch[aria-checked="true"] { background: var(--on); }
+.switch[aria-checked="true"]::after { transform: translateX(22px); }
+.switch[disabled] { opacity: .5; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch::after, .logo path { transition: none; } }
+
+.master { display: flex; align-items: center; gap: 18px; }
+.master h2 { margin: 0; }
+.master .txt { flex: 1; }
+.master .switch { width: 64px; height: 36px; }
+.master .switch::after { width: 30px; height: 30px; }
+.master .switch[aria-checked="true"]::after { transform: translateX(28px); }
+
+/* por IDE */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.ide h3 { font-size: 16px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ide .cov { color: var(--muted); font-size: 13.5px; margin: 6px 0 12px; min-height: 40px; }
+.badge { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--on-bg); color: var(--on); white-space: nowrap; }
+.badge.off { background: var(--off-bg); color: var(--off); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { flex: 1; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 13.5px; padding: 8px 6px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 600; }
+.seg button[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* regras */
+.rule { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: start; }
+.rule + .rule { margin-top: 12px; }
+.rule .head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rule h3 { font-size: 16.5px; }
+.chip { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.rule p { color: var(--ink); }
+.rule .why { color: var(--muted); font-size: 14px; }
+details { margin-top: 4px; }
+summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 14px; width: fit-content; }
+.ex { margin-top: 8px; background: var(--bg); border-radius: 10px; padding: 10px 14px; font-size: 14px; }
+.ex code { font-family: var(--mono); font-size: 13px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+.ex div + div { margin-top: 6px; }
+.ex b { font-weight: 700; }
+
+/* resultados */
+.nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.num .v { font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+.num .l { color: var(--muted); font-size: 14px; }
+.num .s { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+.bars { margin-top: 14px; display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: 170px 1fr 120px; gap: 10px; align-items: center; font-size: 14px; }
+.bar .track { height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--accent); border-radius: 999px; width: 0; transition: width .3s; }
+.bar .n { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+ul.log { list-style: none; margin: 12px 0 0; padding: 0; }
+ul.log li { display: grid; grid-template-columns: 62px 110px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+ul.log .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+ul.log .d { color: var(--muted); font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.empty { color: var(--muted); padding: 12px 0 2px; }
+.prefs { display: flex; align-items: center; gap: 14px; }
+.prefs .txt { flex: 1; }
+footer { margin-top: 36px; color: var(--muted); font-size: 13.5px; }
+footer code { font-family: var(--mono); font-size: 12.5px; }
+@media (max-width: 560px) { .bar { grid-template-columns: 1fr; } ul.log li { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body data-state="down">
+<main>
+  <header>
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 28 6.5V16L16 30 4 16V6.5Z"/></svg>
+    <div>
+      <h1>token-guard</h1>
+      <div class="sub" id="meta">conectando ao daemon…</div>
+    </div>
+    <span class="pill" id="pill" role="status">Conectando…</span>
+  </header>
+  <p class="lead">Aqui você escolhe o que o token-guard faz: quais chamadas ele barra, em quais IDEs, e vê o que já foi barrado e poupado. As mudanças valem na hora, sem reiniciar nada.</p>
+
+  <div class="banner err" id="err" role="alert"></div>
+  <div class="banner warn" id="warn" role="status"></div>
+
+  <div class="card master">
+    <div class="txt">
+      <h2 id="master-title">Bloqueio geral</h2>
+      <p class="sub" id="master-sub"></p>
+    </div>
+    <button class="switch" id="master" role="switch" aria-checked="false" aria-labelledby="master-title" disabled></button>
+  </div>
+
+  <section aria-labelledby="ide-h">
+    <h2 id="ide-h">Onde o bloqueio vale</h2>
+    <p class="hint">Por padrão cada IDE segue o bloqueio geral. Se um IDE atrapalha, desligue só ele; os outros continuam protegidos.</p>
+    <div class="grid" id="ides"></div>
+  </section>
+
+  <section aria-labelledby="rules-h">
+    <h2 id="rules-h">O que o token-guard faz</h2>
+    <p class="hint">Cada item é um jeito de poupar espaço na conversa do agente. Toda vez que ele barra algo, mostra ao agente o caminho mais barato; nunca pergunta a você.</p>
+    <div id="rules"></div>
+  </section>
+
+  <section aria-labelledby="done-h">
+    <h2 id="done-h">O que já foi barrado e poupado</h2>
+    <p class="hint">Números medidos aqui, neste computador. Barrar conta chamadas que não rodaram; “poupado” só conta o que foi medido (um texto cortado ou uma leitura repetida), estimado em 4 caracteres por token.</p>
+    <div class="nums" id="nums"></div>
+    <div class="card mt" id="byrule-card">
+      <h3>Por regra</h3>
+      <div class="bars" id="byrule"></div>
+    </div>
+    <div class="card mt">
+      <h3>Últimos acontecimentos</h3>
+      <ul class="log" id="log"></ul>
+      <p class="empty" id="log-empty">Nada ainda. Quando o token-guard barrar ou poupar algo, aparece aqui na hora.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="pref-h">
+    <h2 id="pref-h">Preferências</h2>
+    <div class="card prefs">
+      <div class="txt">
+        <h3 id="tray-title">Ícone na bandeja</h3>
+        <p class="sub" id="tray-sub">Mostra se o token-guard está protegendo e abre esta tela com um clique. Só no Windows.</p>
+      </div>
+      <button class="switch" id="tray" role="switch" aria-checked="false" aria-labelledby="tray-title" disabled></button>
+    </div>
+  </section>
+
+  <footer>
+    <p id="foot"></p>
+    <p>Um repositório com <code>token-guard.config.json</code> próprio manda nele mesmo. Para desligar tudo de emergência, sem abrir esta tela: variável de ambiente <code>TOKEN_GUARD=off</code>.</p>
+  </footer>
+</main>
+
+<script nonce="__NONCE__">
+(function () {
+  'use strict';
+  var csrf = document.querySelector('meta[name="tg-csrf"]').content;
+  var $ = function (id) { return document.getElementById(id); };
+  var built = false;
+  var last = null;
+  var ruleEls = {}, ideEls = {};
+
+  function h(tag, attrs, kids) {
+    var el = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === 'text') el.textContent = attrs[k];
+      else if (k === 'class') el.className = attrs[k];
+      else el.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) el.appendChild(c); });
+    return el;
+  }
+  function num(n) { return Number(n || 0).toLocaleString('pt-BR'); }
+  function clock(t) { return new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
+  function dur(ms) {
+    var m = Math.floor(ms / 60000);
+    if (m < 1) return 'agora há pouco';
+    if (m < 60) return m + ' min';
+    var hh = Math.floor(m / 60);
+    return hh < 48 ? hh + ' h' : Math.floor(hh / 24) + ' dias';
+  }
+
+  function showErr(msg) { var e = $('err'); e.textContent = msg || ''; e.classList.toggle('show', Boolean(msg)); }
+
+  function save(patch) {
+    showErr('');
+    return fetch('/token-guard/ui/api/config', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-tg-csrf': csrf },
+      body: JSON.stringify(patch)
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok && j.ok, j: j }; }); })
+      .then(function (r) {
+        if (!r.ok) { showErr('Não foi possível salvar: ' + (r.j && r.j.error ? r.j.error : 'erro desconhecido')); return; }
+        render(r.j.snapshot);
+      })
+      .catch(function (e) { showErr('Sem resposta do daemon ao salvar: ' + e.message); });
+  }
+
+  function build(s) {
+    var rules = $('rules');
+    s.catalog.rules.forEach(function (r) {
+      var sw = h('button', { class: 'switch', role: 'switch', 'aria-checked': 'false', 'aria-labelledby': 'rt-' + r.id });
+      sw.addEventListener('click', function () {
+        var patch = { rules: {} }; patch.rules[r.id] = sw.getAttribute('aria-checked') !== 'true'; save(patch);
+      });
+      var title = h('h3', { id: 'rt-' + r.id, text: r.title });
+      var chip = h('span', { class: 'chip', text: { barra: 'Barra', enxuga: 'Enxuga', sugere: 'Sugere' }[r.kind] + ' · ' + (r.phase === 'antes' ? 'antes de rodar' : 'depois de rodar') });
+      var ex = h('details', {}, [
+        h('summary', { text: 'Ver um exemplo' }),
+        h('div', { class: 'ex' }, [
+          h('div', {}, [h('b', { text: 'O agente tentou: ' }), h('code', { text: r.example.tried })]),
+          h('div', {}, [h('b', { text: 'O token-guard: ' }), document.createTextNode(r.example.does)])
+        ])
+      ]);
+      var card = h('div', { class: 'card rule' }, [
+        sw,
+        h('div', {}, [h('div', { class: 'head' }, [title, chip]), h('p', { text: r.what }), h('p', { class: 'why', text: r.why }), ex])
+      ]);
+      rules.appendChild(card);
+      ruleEls[r.id] = sw;
+    });
+    var ides = $('ides');
+    s.catalog.targets.forEach(function (t) {
+      var badge = h('span', { class: 'badge', text: '' });
+      var btns = [['Seguir o geral', null], ['Ligado', 'block'], ['Desligado', 'off']].map(function (o) {
+        var b = h('button', { 'aria-pressed': 'false', text: o[0] });
+        b.addEventListener('click', function () { var p = { targets: {} }; p.targets[t.id] = o[1]; save(p); });
+        return { b: b, v: o[1] };
+      });
+      var seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Modo em ' + t.title }, btns.map(function (x) { return x.b; }));
+      ides.appendChild(h('div', { class: 'card ide' }, [h('h3', {}, [h('span', { text: t.title }), badge]), h('p', { class: 'cov', text: t.coverage }), seg]));
+      ideEls[t.id] = { badge: badge, btns: btns };
+    });
+    $('master').addEventListener('click', function () {
+      var on = $('master').getAttribute('aria-checked') === 'true';
+      save({ mode: on ? 'off' : 'block' });
+    });
+    $('tray').addEventListener('click', function () {
+      save({ ui: { tray: $('tray').getAttribute('aria-checked') !== 'true' } });
+    });
+    built = true;
+  }
+
+  function render(s) {
+    last = s;
+    if (!built) build(s);
+    document.body.setAttribute('data-state', s.state);
+    $('pill').textContent = s.stateLabel;
+    $('meta').textContent = 'daemon v' + s.version + ' · porta ' + s.port + ' · de pé há ' + dur(s.uptimeMs);
+
+    var c = s.config;
+    var master = $('master');
+    var globalOn = c.mode !== 'off';
+    master.disabled = c.envOff;
+    master.setAttribute('aria-checked', String(globalOn));
+    $('master-sub').textContent = c.envOff
+      ? 'Desligado pela variável de ambiente TOKEN_GUARD=off. Remova a variável para voltar a controlar por aqui.'
+      : (globalOn ? 'Ligado: o token-guard barra as chamadas que enchem a conversa à toa.' : 'Desligado: nenhuma chamada é barrada em nenhum IDE.');
+    showWarn(c.fileError);
+
+    Object.keys(ruleEls).forEach(function (id) {
+      ruleEls[id].setAttribute('aria-checked', String(Boolean(c.rules[id])));
+      ruleEls[id].disabled = !globalOn;
+    });
+    Object.keys(ideEls).forEach(function (id) {
+      var mode = c.targets[id] || null;
+      var effOn = globalOn && mode !== 'off';
+      var e = ideEls[id];
+      e.badge.textContent = effOn ? 'Valendo' : 'Desligado';
+      e.badge.className = 'badge' + (effOn ? '' : ' off');
+      e.btns.forEach(function (x) { x.b.setAttribute('aria-pressed', String(x.v === mode)); x.b.disabled = !globalOn; });
+    });
+    $('tray').setAttribute('aria-checked', String(c.tray));
+    $('tray').disabled = s.platform !== 'win32';
+    if (s.platform !== 'win32') $('tray-sub').textContent = 'O ícone da bandeja só existe no Windows. Aqui, abra esta tela com token-guard setup.';
+    $('foot').textContent = 'Suas escolhas ficam em ' + c.file + '.';
+
+    renderStats(s);
+  }
+
+  function showWarn(msg) { var w = $('warn'); w.textContent = msg ? 'Atenção: ' + msg : ''; w.classList.toggle('show', Boolean(msg)); }
+
+  function renderStats(s) {
+    var st = s.stats;
+    var nums = $('nums');
+    nums.textContent = '';
+    function card(v, l, sub) { return h('div', { class: 'card num' }, [h('div', { class: 'v', text: v }), h('div', { class: 'l', text: l }), sub ? h('div', { class: 's', text: sub }) : null]); }
+    nums.appendChild(card(num(st.today.blocks), 'barrados hoje', 'chamadas que não rodaram'));
+    nums.appendChild(card('~' + num(st.today.tokensSaved), 'tokens poupados hoje', 'cortes e leituras repetidas'));
+    var since = st.since ? 'desde ' + new Date(st.since).toLocaleDateString('pt-BR') : 'ainda sem registros';
+    nums.appendChild(card(num(st.total.blocks), 'barrados no total', since));
+    nums.appendChild(card('~' + num(st.total.tokensSaved), 'tokens poupados no total', since));
+
+    var br = $('byrule');
+    br.textContent = '';
+    var titles = {};
+    s.catalog.rules.forEach(function (r) { titles[r.id] = r.title; });
+    var max = 1;
+    Object.keys(st.byRule).forEach(function (k) { max = Math.max(max, st.byRule[k].count); });
+    var keys = Object.keys(st.byRule).sort(function (a, b) { return st.byRule[b].count - st.byRule[a].count; });
+    $('byrule-card').style.display = keys.length ? '' : 'none';
+    keys.forEach(function (k) {
+      var r = st.byRule[k];
+      var fill = h('div', { class: 'fill' });
+      fill.style.width = Math.max(3, Math.round(r.count / max * 100)) + '%';
+      br.appendChild(h('div', { class: 'bar' }, [
+        h('span', { text: titles[k] || k }),
+        h('div', { class: 'track' }, [fill]),
+        h('span', { class: 'n', text: num(r.count) + (r.tokens ? ' · ~' + num(r.tokens) + ' tok' : '') })
+      ]));
+    });
+
+    var log = $('log');
+    log.textContent = '';
+    var ides = {};
+    s.catalog.targets.forEach(function (t) { ides[t.id] = t.title; });
+    st.recent.forEach(function (e) {
+      var what = e.kind === 'deny' ? 'Barrou ' + (e.tool || 'uma chamada')
+        : e.kind === 'trim' ? 'Cortou o resultado de ' + (e.tool || 'uma ferramenta') + (e.tokens ? ' (~' + num(e.tokens) + ' tokens)' : '')
+        : e.kind === 'dup' ? 'Trocou uma leitura repetida' + (e.tokens ? ' (~' + num(e.tokens) + ' tokens)' : '')
+        : 'Sugeriu o scout';
+      log.appendChild(h('li', {}, [
+        h('span', { class: 't', text: clock(e.t) }),
+        h('span', { text: ides[e.target] || e.target || '?' }),
+        h('span', {}, [document.createTextNode(what + ' · ' + (titles[e.rule] || e.rule)), e.detail ? h('div', { class: 'd', text: e.detail }) : null])
+      ]));
+    });
+    $('log-empty').style.display = st.recent.length ? 'none' : '';
+  }
+
+  function connect() {
+    var es = new EventSource('/token-guard/ui/stream');
+    es.addEventListener('snapshot', function (ev) { showErr(''); render(JSON.parse(ev.data)); });
+    es.onerror = function () {
+      document.body.setAttribute('data-state', 'down');
+      $('pill').textContent = 'Sem conexão';
+      showErr('Sem conexão com o daemon. Se ele reiniciou, feche esta aba e abra de novo pelo ícone da bandeja ou por `token-guard setup`.');
+    };
+  }
+  connect();
+})();
+</script>
+</body>
+</html>

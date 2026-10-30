@@ -16,7 +16,7 @@ const CT = require('../lib/contract.cjs');
 
 /** Texto do bloco `subagente` para a raiz; '' quando o guard está off ou o contrato não o define. */
 function subagentContext(root) {
-  if (CFG.load(root).mode === 'off') return '';
+  if (CFG.load(root, 'claude').mode === 'off') return '';
   return CT.subagentText(CT.load(root));
 }
 

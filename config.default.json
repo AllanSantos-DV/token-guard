@@ -9,6 +9,9 @@
   "charsPerToken": 4,
   "contextWindow": 200000,
 
+  "$comment_targets": "Modo por IDE: {\"claude\": \"off\"} desliga só ali (claude, codex, cursor, copilot, mcp). Ausente = segue o mode acima. 'token-guard setup' abre a tela que edita isto.",
+  "targets": {},
+
   "$comment_rules": "Desligue individualmente qualquer regra que não faça sentido no seu contexto.",
   "rules": {
     "noisePath": true,

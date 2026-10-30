@@ -31,6 +31,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const { decide } = require("../lib/decide.cjs");
 const CFG = require("../lib/config.cjs");
+const EV = require("../lib/events.cjs");
 const AUDIT = require("../lib/audit.cjs");
 const CT = require("../lib/contract.cjs");
 const { postProcess } = require("../lib/postresult.cjs");
@@ -71,7 +72,7 @@ const session = await joinSession({
         }
         // In-process: dentro de um harness empacotado, process.execPath é o binário
         // do harness — não o Node — então subprocesso não seria confiável aqui.
-        const cfg = CFG.load(root);
+        const cfg = CFG.load(root, "copilot");
         const result = AUDIT.scan(root, cfg, { top: 10 });
         AUDIT.writeCache(root, result);
 
@@ -101,7 +102,7 @@ const session = await joinSession({
         },
       },
       handler: async (args) => {
-        const { cfg, lines } = CFG.statusSummary(args?.path || process.cwd());
+        const { cfg, lines } = CFG.statusSummary(args?.path || process.cwd(), "copilot");
         lines.push("", `barrado nesta sessão: ${blocked}`);
         for (const [rule, n] of Object.entries(byRule)) lines.push(`  ${rule}: ${n}`);
         lines.push(`resultados truncados (bigResult): ${trimmed}`);
@@ -120,8 +121,9 @@ const session = await joinSession({
      */
     onPreToolUse: async (input) => {
       try {
-        const verdict = decide(input);
+        const verdict = decide(input, { target: "copilot" });
         if (!verdict) return;
+        EV.recordDeny(verdict, "copilot", input);
         blocked += 1;
         byRule[verdict.rule] = (byRule[verdict.rule] || 0) + 1;
         return {
@@ -143,7 +145,7 @@ const session = await joinSession({
     onUserPromptSubmitted: async (_input, invocation) => {
       try {
         const root = process.cwd();
-        const cfg = CFG.load(root);
+        const cfg = CFG.load(root, "copilot");
         if (cfg.mode === "off") return null;
         const contract = CT.load(root);
         if (!contract.order.length) return null;
@@ -171,7 +173,9 @@ const session = await joinSession({
     onPostToolUse: async (input, invocation) => {
       try {
         const root = input?.workingDirectory || process.cwd();
-        const cfg = CFG.load(root);
+        const cfg = CFG.load(root, "copilot");
+        // Guard desligado (global ou só no Copilot): nem corta, nem registra.
+        if (cfg.mode === "off") return null;
 
         // Evidência para o contrato (gatilhos codigo/teste/docs).
         CT.noteTouched(root, invocation?.sessionId || "plugin", input?.toolArgs);
@@ -197,7 +201,7 @@ const session = await joinSession({
 });
 
 try {
-  const cfg = CFG.load(process.cwd());
+  const cfg = CFG.load(process.cwd(), "copilot");
   if (cfg.mode !== "off") {
     await session.log(`token-guard ativo (modo: ${cfg.mode})`, { ephemeral: true });
   }

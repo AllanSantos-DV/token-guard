@@ -34,6 +34,7 @@
 
 const P = require('../lib/payload.cjs');
 const { decide } = require('../lib/decide.cjs');
+const EV = require('../lib/events.cjs');
 
 /** 'deny' corta a chamada e o motivo volta ao agente; nunca emitimos 'ask' (confirmação do usuário). */
 const ALLOW = { permission: 'allow' };
@@ -100,7 +101,10 @@ async function main() {
   let verdict = null;
   try {
     const canonical = toCanonical(payload);
-    if (canonical) verdict = decide(canonical);
+    if (canonical) {
+      verdict = decide(canonical, { target: 'cursor' });
+      EV.recordDeny(verdict, 'cursor', canonical);
+    }
   } catch {
     return respond(ALLOW); // fail-open, sempre
   }

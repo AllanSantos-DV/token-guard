@@ -93,6 +93,17 @@ O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem gu
   `TokenGuardDaemonWatch` no Windows, `StartInterval` no macOS, `Restart=on-failure` no
   Linux); até lá o hook http falha aberto.
 
+## A tela de setup não abre ou o ícone não aparece
+
+- `token-guard setup --no-open` imprime a URL (vale 60 s, uma vez). Se ele disser que o daemon não subiu o http, rode `token-guard status`.
+- "bilhete inválido ou vencido": abra de novo pelo ícone ou por `token-guard setup`; cada bilhete serve uma vez.
+- Tela com "Sem conexão": o daemon reiniciou; feche a aba e abra de novo.
+- O ícone só existe no Windows e nasce com o daemon (também com `ui.tray` ligado e sem `TOKEN_GUARD_TRAY=off`). No Windows 11 ele costuma
+  ficar no menu de ícones ocultos (seta ao lado do relógio); arraste para a barra se quiser. Cinza = daemon fora do ar; ele volta sozinho
+  (vigia a cada ~5 min) ou clicando no ícone.
+- Escolheu "Desligado" para um IDE e ele continua barrando? Um `token-guard.config.json` do repositório pode estar mandando; `token-guard status` mostra a origem da config.
+- Variável de ambiente `TOKEN_GUARD=off` desliga tudo e a tela avisa; remova a variável para voltar a controlar por ela.
+
 ## Codex: o hook não dispara
 
 - Hook novo do Codex fica desativado até ser aprovado em `/hooks`.

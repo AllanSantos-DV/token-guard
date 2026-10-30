@@ -14,6 +14,10 @@ const { dedupe, isRead } = require('../lib/dupread.cjs');
 const SCOUT = require('../lib/scout.cjs');
 const { windowKey } = require('../lib/claude-hooks.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
+const P = require('../lib/payload.cjs');
+const EV = require('../lib/events.cjs');
+const TRAY = require('../lib/tray.cjs');
+const UI = require('./daemon-ui.cjs');
 const DL = require('../lib/daemon-lifecycle.cjs');
 const DH = require('./daemon-http.cjs');
 
@@ -91,10 +95,15 @@ function ruleSetHash(root) {
   return crypto.createHash('sha256').update(h).digest('hex').slice(0, 16);
 }
 
+/** IDE de quem pediu: o que o cliente declarou, senão o que o envelope entrega. */
+function targetOf(params, payload) {
+  return (params && typeof params.target === 'string' && params.target) || P.harnessOf(payload);
+}
+
 function dispatch(params) {
   const payload = params && params.payload ? params.payload : {};
   try {
-    const verdict = decide(payload);
+    const verdict = decide(payload, { target: targetOf(params, payload) });
     return { ok: true, verdict };
   } catch {
     return { ok: true, verdict: null };
@@ -106,7 +115,7 @@ function dispatchContract(params) {
   const root = params && params.root;
   const sessionId = params && params.sessionId;
   try {
-    const cfg = CFG.load(root);
+    const cfg = CFG.load(root, (params && params.target) || 'claude');
     if (cfg.mode === 'off') return { ok: true, triggers: [], text: '' };
     const contract = CT.load(root);
     if (!contract.order.length) return { ok: true, triggers: [], text: '' };
@@ -122,15 +131,32 @@ function dispatchContract(params) {
 /** Replica post-hook.cjs — evidência do contrato + bigResult + dupRead, cfg carregado quente no daemon. */
 function dispatchPostprocess(params) {
   const { name, input, result, root, sessionId, agentId } = params || {};
+  const target = (params && params.target) || 'claude';
   try {
     CT.noteTouched(root, sessionId, input);
-    const cfg = CFG.load(root);
+    const cfg = CFG.load(root, target);
+    // Guard desligado (global ou só para este IDE): nem corta, nem registra, nem sugere.
+    if (cfg.mode === 'off') return { ok: true, trimmed: null };
     const win = windowKey(sessionId, agentId);
+    const note = (kind, rule, chars) => EV.record({
+      kind, rule, target, tool: name, detail: P.inputPath(input || {}) || P.inputCommand(input || {}) || P.inputPattern(input || {}),
+      tokens: chars > 0 ? chars / cfg.charsPerToken : 0,
+    });
     let trimmed = postProcess({ name, input, result, root, cfg });
-    if (!trimmed && sessionId && isRead(name)) {
-      try { trimmed = dedupe({ name, input, result, root, sessionId: win, cfg }); } catch { /* evidência */ }
+    if (trimmed) {
+      // Só conta como poupado o que o harness aplica de fato (replaced); o resto só ganhou uma cópia em disco.
+      const kept = typeof trimmed.modifiedResult === 'string' ? trimmed.modifiedResult.length : JSON.stringify(trimmed.modifiedResult || '').length;
+      note('trim', 'bigResult', trimmed.replaced ? trimmed.originalChars - kept : 0);
     }
+    if (!trimmed && sessionId && isRead(name)) {
+      try {
+        trimmed = dedupe({ name, input, result, root, sessionId: win, cfg });
+        if (trimmed) note('dup', 'dupRead', trimmed.savedChars);
+      } catch { /* evidência */ }
+    }
+    const before = trimmed;
     trimmed = SCOUT.withBurst(trimmed, { name, input, root, sessionId: win, cfg });
+    if (trimmed !== before) note('scout', 'scout', 0);
     return { ok: true, trimmed };
   } catch {
     return { ok: true, trimmed: null };
@@ -187,16 +213,19 @@ function routeMessage(msg, ctx) {
     const params = msg.params || {};
     const root = typeof params.root === 'string' && params.root ? params.root : process.cwd();
     const hash = ruleSetHash(root);
-    const key = `${root}\u0000${hash}\u0000${JSON.stringify(params.payload || {})}`;
+    const target = targetOf(params, params.payload);
+    const key = `${root}\u0000${hash}\u0000${target}\u0000${JSON.stringify(params.payload || {})}`;
     const cached = ctx.cache.get(key);
     if (cached !== undefined) {
       ctx.hits++;
+      EV.recordDeny(cached, target, params.payload);
       return { id: msg.id, result: { ok: true, verdict: cached, cached: true } };
     }
     const out = dispatch(params);
     if (out.ok) {
       ctx.cache.set(key, out.verdict);
       ctx.misses++;
+      EV.recordDeny(out.verdict, target, params.payload);
     }
     return { id: msg.id, result: out };
   }
@@ -433,15 +462,23 @@ function start(endpointOverride) {
     // conexão recusada é fail-open). Então a ociosidade só vale sem HTTP.
     const token = DH.readToken();
     if (token) {
+      EV.trim();
+      let httpPort = 0;
+      const ui = UI.create({
+        token, version: PACKAGE_VERSION, getPort: () => httpPort,
+        onSaved: (patch) => { if (patch && patch.ui && patch.ui.tray) TRAY.ensure(); },
+      });
       const httpServer = DH.createHttpServer({
         token,
         handle: (msg) => handleMessage(msg, server.ctx),
         onActivity: () => { server.ctx.lastActivity = Date.now(); },
+        ui,
       });
       // Porta dinâmica: preferida → última registrada → livre. Onde subiu vai
       // para ~/.token-guard/daemon-http.json e para o settings.json do Claude
       // Code — a URL nunca fica presa no endpoint de um daemon anterior.
       DH.listenFirstFree(httpServer, DH.candidatePorts()).then((port) => {
+        httpPort = port;
         process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${port}\n`);
         try {
           DH.writeJsonAtomic(DH.endpointPath(), { port, url: `http://127.0.0.1:${port}/token-guard`, pid: process.pid, version: PACKAGE_VERSION });
@@ -451,6 +488,9 @@ function start(endpointOverride) {
         const sync = DH.syncClaudeSettings(port);
         if (!sync.ok) process.stderr.write(`token-guard daemon: settings.json do Claude Code NÃO reapontado para a porta ${port}: ${sync.error}\n`);
         else if (sync.changed) process.stderr.write(`token-guard daemon: ${sync.changed} hook(s) http do Claude Code reapontado(s) para a porta ${port}\n`);
+        // Ícone na bandeja: nasce com o daemon (uma instância por usuário; o próprio script se trava).
+        const tray = TRAY.ensure();
+        if (!tray.started && tray.reason) process.stderr.write(`token-guard daemon: ícone da bandeja não iniciado (${tray.reason})\n`);
       }, (err) => {
         // Fail-loud: sem HTTP, o hook do Claude Code cai em conexão recusada
         // (fail-open). Registra o motivo para o SessionStart avisar o usuário.
@@ -460,7 +500,7 @@ function start(endpointOverride) {
         process.stderr.write(`token-guard daemon: hook http DESLIGADO — ${why}\n`);
         try { DH.writeJsonAtomic(DH.endpointPath(), { ...(DH.readEndpoint() || {}), error: why, pid: process.pid, version: PACKAGE_VERSION }); } catch { /* o stderr acima já registrou */ }
       });
-      server.once('close', () => httpServer.close());
+      server.once('close', () => { ui.close(); httpServer.close(); });
     }
     scheduleIdleShutdown(server, lockFile, token ? 0 : IDLE_TIMEOUT_MS);
   };

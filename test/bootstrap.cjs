@@ -15,6 +15,7 @@
  *      hook spawnado pelo teste alcança o daemon que já estava de pé, carregado
  *      com a config real. Defesa: `TOKEN_GUARD_SID` próprio por processo de
  *      teste (daemon dedicado) + idle curto, pra ele não sobreviver à rodada.
+ *   4. Ícone da bandeja: TOKEN_GUARD_TRAY=off, para nenhum daemon de teste subir o helper do Windows.
  *   3. `TOKEN_GUARD` no shell do dev, que desliga ou afrouxa o guard inteiro.
  *      Defesa: remover do ambiente; quem testa escape hatch passa a var no
  *      env do spawn, caso a caso.
@@ -34,6 +35,7 @@ const SAVED = {
   TOKEN_GUARD: process.env.TOKEN_GUARD,
   TOKEN_GUARD_SID: process.env.TOKEN_GUARD_SID,
   TOKEN_GUARD_DAEMON_IDLE_MS: process.env.TOKEN_GUARD_DAEMON_IDLE_MS,
+  TOKEN_GUARD_TRAY: process.env.TOKEN_GUARD_TRAY,
 };
 
 process.env.HOME = ISOLATED_HOME;
@@ -41,6 +43,8 @@ process.env.USERPROFILE = ISOLATED_HOME;
 delete process.env.TOKEN_GUARD;
 process.env.TOKEN_GUARD_SID = `tg-test-${process.pid}`;
 process.env.TOKEN_GUARD_DAEMON_IDLE_MS = SAVED.TOKEN_GUARD_DAEMON_IDLE_MS || '15000';
+// 4. Ícone da bandeja: a suíte nunca abre janela nem ícone; o teste do tray usa seams, nunca o helper real.
+process.env.TOKEN_GUARD_TRAY = 'off';
 
 try { require('../lib/config.cjs').clearMemo(); } catch { /* config ainda não carregada */ }
 

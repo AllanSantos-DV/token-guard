@@ -282,6 +282,8 @@ console.log('\n  [codex] ponte mcp_tool -> servidor MCP do token-guard');
   check('instalação codex sai 0', r.status === 0, r.stderr || r.stdout);
   const server = path.join(codexHome, 'token-guard', 'adapters', 'mcp-server.cjs');
   check('runtime copiado para ~/.codex/token-guard', fs.existsSync(server), server);
+  check('runtime traz a tela de setup e o ícone da bandeja (setup.html, tray.ps1, run-daemon.cmd)',
+    ['ui/setup.html', 'tray.ps1', 'run-daemon.cmd'].every((f) => fs.existsSync(path.join(codexHome, 'token-guard', 'adapters', f))));
   const cfg = fs.readFileSync(cfgPath, 'utf8');
   check('config.toml: o que já existia fica intacto (byte a byte, CRLF incluso)', cfg.startsWith(cfgBefore), JSON.stringify(cfg.slice(0, 160)));
   check('config.toml: tabela [mcp_servers.token-guard] apontando para o servidor MCP instalado',

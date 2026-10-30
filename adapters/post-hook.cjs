@@ -33,14 +33,17 @@ async function main() {
   if (!viaDaemon.ok) CT.noteTouched(root, sid, inp);
   let trimmed = viaDaemon.ok ? viaDaemon.result.trimmed : null;
   if (!viaDaemon.ok) {
-    const cfg = CFG.load(root);
-    trimmed = postProcess({ name, input: inp, result, root, cfg });
-    // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o
-    // daemon serviu este postprocess, ele já fez isso (dispatchPostprocess).
-    if (!trimmed && sid && isRead(name)) {
-      try { trimmed = dedupe({ name, input: inp, result, root, sessionId: win, cfg }); } catch { /* evidência */ }
+    const cfg = CFG.load(root, 'claude');
+    // Guard desligado (global ou só para o Claude Code): nem corta, nem registra, nem sugere.
+    if (cfg.mode !== 'off') {
+      trimmed = postProcess({ name, input: inp, result, root, cfg });
+      // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o
+      // daemon serviu este postprocess, ele já fez isso (dispatchPostprocess).
+      if (!trimmed && sid && isRead(name)) {
+        try { trimmed = dedupe({ name, input: inp, result, root, sessionId: win, cfg }); } catch { /* evidência */ }
+      }
+      trimmed = SCOUT.withBurst(trimmed, { name, input: inp, root, sessionId: win, cfg });
     }
-    trimmed = SCOUT.withBurst(trimmed, { name, input: inp, root, sessionId: win, cfg });
   }
   if (trimmed) process.stdout.write(JSON.stringify(H.postEnvelope(trimmed)));
 }

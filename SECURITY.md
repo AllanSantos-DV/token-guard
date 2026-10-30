@@ -30,6 +30,11 @@ faz com a sua máquina e os seus dados:
   permissão só do dono, copiado para o `~/.claude/settings.json`); sem ele, 401 e nada é
   decidido. Sem o arquivo de token, a porta nem abre. Qualquer processo local pode tentar
   conectar — o token é o que separa. `--command-hooks` dispensa a porta.
+- **Tela de setup e ícone da bandeja** (desde a 2.14.0): o mesmo servidor http serve `/token-guard/ui*` e `/token-guard/stream`. A tela
+  só abre com um bilhete de uso único (60 s) pedido com o token do dono; vira cookie `HttpOnly; SameSite=Strict`. Escrita exige o cookie
+  e um token anti-CSRF; `Host` precisa ser o loopback desta porta; CSP com nonce, sem recurso externo. No Windows o daemon sobe um
+  helper PowerShell (`adapters/tray.ps1`) oculto, que lê o estado por esse http com o token do dono. `token-guard setup` cria o token
+  (`~/.token-guard/daemon-http.token`, só do dono) se a instalação ainda não tem.
 - `npx @allansantos-dev/token-guard audit` só varre o disco em leitura.
 
 ## O que lê
@@ -51,7 +56,11 @@ faz com a sua máquina e os seus dados:
   mostrou (inclusive segredo que um comando tenha impresso).
 - `~/.token-guard/update-check.json` — `{ latestVersion, checkedAt }` da checagem de
   versão descrita abaixo.
-- `~/.token-guard/daemon-http.token` — token do hook http (só com `--target claude`).
+- `~/.token-guard/daemon-http.token` — token do hook http e da tela (gravado com `--target claude` ou por `token-guard setup`).
+- `~/.token-guard/events.jsonl` — um evento por bloqueio ou poupança (quando, IDE, regra, ferramenta, e o caminho ou comando
+  limitado a 120 caracteres, tokens poupados quando medidos). Fica só na máquina; aparado acima de 2 MB. Pode conter um comando
+  que a ferramenta tentou rodar.
+- `~/.token-guard/token-guard.config.json` — o que a tela de setup grava (`mode`, `targets`, `rules`, `ui.tray`).
 - `~/.token-guard/daemon-http.json` — `{ port, url, pid, version }` de onde o hook http
   subiu (ou `error`, se não subiu). O daemon reescreve, só quando a porta muda, as URLs
   dos hooks http do token-guard em `~/.claude/settings.json` — nenhuma outra entrada.

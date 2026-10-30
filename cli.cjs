@@ -6,6 +6,7 @@
  *   npx @allansantos-dev/token-guard init [caminho] [--mode block|off] [--dry-run] [--global]
  *   npx @allansantos-dev/token-guard audit [caminho] [--md|--json] [--top N]
  *   npx @allansantos-dev/token-guard status [caminho]
+ *   npx @allansantos-dev/token-guard setup [--no-open]
  *   npx @allansantos-dev/token-guard contract [caminho]
  *   npx @allansantos-dev/token-guard test
  *
@@ -68,6 +69,8 @@ async function status(args) {
   console.log(`  modo:            ${CFG.modeLabel(cfg)}`);
   console.log(`  config:          ${cfg._source}`);
   console.log(`  regras ativas:   ${on.join(', ') || '(nenhuma)'}`);
+  const perTarget = Object.entries(cfg.targets || {});
+  if (perTarget.length) console.log(`  modo por IDE:    ${perTarget.map(([t, m]) => `${t} ${m}`).join(', ')} (os demais seguem o geral)`);
   console.log(`  leitura s/faixa: acima de ${cfg.limits.readBytesWithoutRange} bytes`);
   console.log(`  guarda varredura: a partir de ${cfg.limits.minRepoFilesForScanGuard} arquivos`);
   console.log(stats
@@ -92,6 +95,24 @@ async function status(args) {
   }
   await printUpdateNotice('  atualização:     ');
   console.log('');
+}
+
+/** Abre a tela de setup (servida pelo daemon). --no-open só imprime a URL de uso único. */
+async function setup(args) {
+  const UL = require('./lib/ui-launch.cjs');
+  const r = await UL.prepare();
+  for (const n of r.notes) console.log(`  ${n}`);
+  if (!r.ok) {
+    console.error(`token-guard setup: ${r.error}`);
+    return 1;
+  }
+  if (args.includes('--no-open')) {
+    console.log(`  tela de setup (vale 60 s, uma vez): ${r.url}`);
+  } else {
+    UL.openBrowser(r.url);
+    console.log('  tela de setup aberta no navegador. Se ele não abriu, rode de novo com --no-open e cole a URL.');
+  }
+  return 0;
 }
 
 function help() {
@@ -122,6 +143,12 @@ function help() {
                           --no-cache    não grava o cache de calibração
 
     status [caminho]      Mostra a configuração ativa.
+
+    setup                 Abre a tela de configurações no navegador: escolha o que
+                          o token-guard barra, em quais IDEs, e veja o que ele já
+                          barrou e poupou. Sobe o daemon se preciso.
+                          --no-open     só imprime a URL (vale 60 s, uma vez)
+                          No Windows o ícone da bandeja abre a mesma tela.
 
     mcp                   Sobe o MCP server (stdio). Use no campo "command"
                           da configuração MCP do seu IDE.
@@ -173,6 +200,8 @@ if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
 
 if (cmd === 'status') {
   status(rest).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+} else if (cmd === 'setup') {
+  setup(rest).then((code) => process.exit(code)).catch((e) => { console.error(e); process.exit(1); });
 } else if (cmd === '--version' || cmd === '-v' || cmd === 'version') {
   const localVersion = require('./package.json').version;
   (async () => {

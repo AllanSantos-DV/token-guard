@@ -51,6 +51,7 @@ e é exatamente ela que este kit governa.
 | `lib/mcp-cost.cjs` | A medição do preâmbulo MCP: o tamanho do schema dos servidores declarados (o Claude Code adia esse custo por padrão) — com recomendações acionáveis por servidor e ferramenta. |
 | `lib/contract.cjs` | O contrato de saída: regras por gatilho de evidência, injetadas 1×/sessão via UserPromptSubmit ([docs](docs/CONTRACT.md)). |
 | `lib/postresult.cjs` | A regra `bigResult`: resultado de ferramenta gigante vira stub + versão integral em disco + alternativa barata. |
+| `lib/config-edit.cjs`, `lib/events.cjs`, `lib/catalog.cjs` | A tela de setup: escrita validada da config, registro do que foi barrado e poupado, e as regras em linguagem de gente. |
 | `lib/dupread.cjs` | Dedupe de leitura: a releitura idêntica (≥ 2000 caracteres) na mesma janela vira um ponteiro para a leitura anterior; no Claude Code substitui o resultado. |
 | `lib/claude-hooks.cjs` | O envelope do Claude Code, comum ao hook http e ao de comando — os dois caminhos montam a mesma resposta. |
 | `lib/ipc-frame.cjs` | Framing por prefixo de tamanho — o transporte que liga hook e daemon. |
@@ -157,6 +158,17 @@ Tudo isso é versionado. **Quem clonar o repositório herda a economia** — nã
 máquina para configurar, nem passo manual de onboarding.
 
 ---
+
+## A tela de configurações
+
+`npx @allansantos-dev/token-guard setup` abre, no navegador, uma tela em português para escolher o que o token-guard faz, sem editar JSON:
+
+- **ligar ou desligar o bloqueio** em geral, ou **só em um IDE** (Claude Code, Codex, Cursor, Copilot, MCP);
+- **ligar ou desligar cada regra**, com o que ela faz, por que e um exemplo;
+- ver **o que já foi barrado e poupado**, ao vivo.
+
+No Windows, um ícone na bandeja mostra o estado (verde protegendo, âmbar em parte, vermelho desligado, cinza daemon fora) e abre a mesma tela com um clique.
+A tela e o ícone vêm do próprio daemon, por http local; as escolhas vão para a mesma config que o CLI e os hooks já leem ([desenho](docs/SDD-tela-setup-bandeja.md)).
 
 ## A regra de ouro: nunca um deny cego
 
@@ -565,6 +577,7 @@ Cursor, Codex e MCP o consumo é manual (`--subagente` no prompt do scout). Deta
 | [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md) | O caminho de uma chamada de ferramenta, de ponta a ponta, em cada harness |
 | [docs/INSTALL.md](docs/INSTALL.md) | Instalação, desinstalação completa, repositórios de cliente |
 | [docs/IDES.md](docs/IDES.md) | Cobertura real por IDE/harness, sem maquiagem |
+| [docs/SDD-tela-setup-bandeja.md](docs/SDD-tela-setup-bandeja.md) | A tela de setup e o ícone da bandeja: desenho, segurança e testes |
 | [docs/CONFIG.md](docs/CONFIG.md) | Referência de toda chave de config + estado em disco |
 | [docs/CONTRACT.md](docs/CONTRACT.md) | O contrato de saída, mecanismo e status |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Guard silencioso, config ignorada, diagnósticos |
