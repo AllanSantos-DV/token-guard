@@ -31,13 +31,17 @@ const P = require('../lib/payload.cjs');
 const { decide } = require('../lib/decide.cjs');
 const { tryDaemon } = require('../lib/daemon-client.cjs');
 const H = require('../lib/claude-hooks.cjs');
+const EV = require('../lib/events.cjs');
 
 async function main() {
   const payload = await P.readPayload();
   const root = P.cwd(payload);
 
-  const viaDaemon = await tryDaemon('check', { root, payload });
-  const verdict = viaDaemon.ok ? viaDaemon.result.verdict : decide(payload);
+  const target = P.harnessOf(payload);
+  const viaDaemon = await tryDaemon('check', { root, payload, target });
+  // Com o daemon, ele já registrou o evento; sem ele, registra aqui (a tela enxerga os dois caminhos).
+  const verdict = viaDaemon.ok ? viaDaemon.result.verdict : decide(payload, { target });
+  if (!viaDaemon.ok) EV.recordDeny(verdict, target, payload);
   const out = H.preEnvelope(verdict);
   if (out) process.stdout.write(JSON.stringify(out));
 }

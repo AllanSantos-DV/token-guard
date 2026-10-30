@@ -78,6 +78,12 @@ já carregada:
 
 Ele não guarda conversa nenhuma, só o cache de veredito.
 
+### A porta de entrada humana
+
+O mesmo servidor http do daemon serve a **tela de setup** (`/token-guard/ui`) e o fluxo do **ícone da bandeja** (`/token-guard/stream`).
+Cada bloqueio (de qualquer IDE, com ou sem daemon) e cada poupança medida pelo daemon (corte do `bigResult`, stub do `dupRead`) viram um evento (`~/.token-guard/events.jsonl`) empurrado por SSE para a tela e para o ícone; a tela
+grava o modo global, o modo por IDE e as regras na mesma config que o CLI e os hooks leem. Desenho em [SDD-tela-setup-bandeja.md](SDD-tela-setup-bandeja.md).
+
 ## 4. Depois da ferramenta: o resultado
 
 O evento pós-execução (`PostToolUse` no Claude Code, `onPostToolUse` no Copilot) faz

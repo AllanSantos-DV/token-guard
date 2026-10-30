@@ -29,6 +29,7 @@ const path = require('path');
 const readline = require('readline');
 
 const CFG = require('../lib/config.cjs');
+const EV = require('../lib/events.cjs');
 const AUDIT = require('../lib/audit.cjs');
 const { decide } = require('../lib/decide.cjs');
 const H = require('../lib/claude-hooks.cjs');
@@ -82,7 +83,7 @@ const TOOLS = [
       },
     },
     handler: (args) => {
-      const { cfg, lines } = CFG.statusSummary(args?.path || process.cwd());
+      const { cfg, lines } = CFG.statusSummary(args?.path || process.cwd(), 'mcp');
       lines.splice(1, 0, 'transporte: MCP (bloqueia onde o harness chama token_guard_hook, como o Codex; nos demais, orienta)');
       lines.push('', `chamadas avaliadas nesta sessão: ${checked}`);
       for (const [rule, n] of Object.entries(byRule)) lines.push(`  ${rule}: ${n}`);
@@ -110,7 +111,8 @@ const TOOLS = [
     handler: (args) => {
       const root = args?.path ? path.resolve(args.path) : process.cwd();
       checked += 1;
-      const verdict = decide({ toolName: args?.tool, toolInput: args?.input || {}, cwd: root });
+      const verdict = decide({ toolName: args?.tool, toolInput: args?.input || {}, cwd: root }, { target: 'mcp' });
+      EV.recordDeny(verdict, 'mcp', { toolName: args?.tool, toolInput: args?.input || {} });
       if (!verdict) return { text: `OK — \`${args?.tool}\` com esses argumentos não desperdiça contexto. Pode executar.` };
       byRule[verdict.rule] = (byRule[verdict.rule] || 0) + 1;
       return {
@@ -140,7 +142,9 @@ TOOLS.push({
     required: ['tool_name'],
   },
   handler: (args) => {
-    const verdict = decide({ tool_name: args?.tool_name, tool_input: args?.tool_input || {}, cwd: args?.cwd || process.cwd() });
+    const hookPayload = { tool_name: args?.tool_name, tool_input: args?.tool_input || {}, cwd: args?.cwd || process.cwd() };
+    const verdict = decide(hookPayload, { target: 'codex' });
+    EV.recordDeny(verdict, 'codex', hookPayload);
     checked += 1;
     if (verdict) byRule[verdict.rule] = (byRule[verdict.rule] || 0) + 1;
     const out = H.preEnvelope(verdict) || {};

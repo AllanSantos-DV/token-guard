@@ -12,6 +12,11 @@ completa, outros parcialmente, outros não expõem.
 
 O núcleo (`lib/`) é o mesmo em todos. O que muda é o quanto dele consegue rodar.
 
+## Modo por IDE
+
+Cada linha da matriz abaixo tem um alvo (`claude`, `codex`, `cursor`, `copilot`, `mcp`) que pode ser desligado sozinho em `targets` (ou pela tela,
+`token-guard setup`), sem tocar nos outros. Desligar um IDE vale para o bloqueio e para o corte/aviso pós-execução.
+
 ## Matriz
 
 | IDE / Harness | Alvo | Mecanismo | Bloqueia? | Regras que disparam |

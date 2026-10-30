@@ -3,6 +3,25 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.14.0] — 2026-10-30
+
+### Adicionado
+- **Tela de setup** (`token-guard setup`): página em português servida pelo daemon, por http local. Liga e desliga o bloqueio geral, o bloqueio por IDE e cada regra, mostra o que cada regra faz com um exemplo e o que já foi barrado e poupado, ao vivo (SSE; sem consulta em laço). Entrada por bilhete de uso único e cookie de sessão; escrita com token anti-CSRF; Host restrito ao loopback; CSP com nonce.
+- **Ícone na bandeja do Windows**: helper PowerShell 5.1 (`NotifyIcon`), sem dependência, que nasce com o daemon. Verde protegendo, âmbar em parte, vermelho desligado, cinza daemon fora (cada estado com um desenho próprio, não só cor); clique abre a tela. Desligável por `ui.tray` ou pela tela; nunca sobe nos testes (`TOKEN_GUARD_TRAY=off`).
+- **Modo por IDE** (`targets` na config): `{"claude":"off"}` desliga só o Claude Code; `claude`, `codex`, `cursor`, `copilot` e `mcp`. `decide(payload, {target})` e `CFG.load(root, target)` aplicam o modo do IDE; a chave do cache de vereditos do daemon inclui o IDE.
+- **Registro do que foi barrado e poupado** (`~/.token-guard/events.jsonl`): tokens só onde são medidos (corte do `bigResult`, stub do `dupRead`); um bloqueio entra na contagem sem tokens inventados.
+- `token-guard status` lista o modo por IDE quando algum foge do geral.
+
+### Corrigido
+- **A extensão do Copilot cortava resultado com o guard desligado** (global ou `targets.copilot`): `onPostToolUse` não olhava o modo.
+- **Guard desligado ainda cortava resultado.** Com `mode: "off"` ou `TOKEN_GUARD=off`, o pós-processamento (`bigResult`, `dupRead`, `scout`) seguia ativo no daemon e no post-hook. Agora desligado é desligado, para o geral e para o modo por IDE.
+
+### Notas
+- `setup` cria o token local do daemon quando a instalação ainda não tem (instalação sem o alvo `claude`) e reinicia um daemon que estava de pé sem o http da tela. Daemon com token não se encerra por ociosidade, como já era com o alvo `claude`.
+- Sem ícone fora do Windows; a tela abre por `token-guard setup` (BACKLOG A40).
+
+Testes novos: `test/targets.test.cjs`, `test/setup-ui.test.cjs`, `test/tray.test.cjs`.
+
 ## [2.13.3] — 2026-10-30
 
 ### Corrigido

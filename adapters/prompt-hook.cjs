@@ -26,7 +26,7 @@ const CW = require('../lib/ctxwatch.cjs');
 
 /** Caminho local (sem daemon) — leitura+decisão idêntica ao RPC `contract`. */
 function decideLocal(root, sessionId, state) {
-  const cfg = CFG.load(root);
+  const cfg = CFG.load(root, 'claude');
   if (cfg.mode === 'off') return { triggers: [], text: '' };
 
   const contract = CT.load(root);

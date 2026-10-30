@@ -171,16 +171,26 @@ function answer(kind, payload, handle) {
 }
 
 /**
- * @param {{token:string, handle:(msg:object)=>object, onActivity?:()=>void}} opts
+ * @param {{token:string, handle:(msg:object)=>object, onActivity?:()=>void, ui?:{handle:Function}}} opts
  *        handle = handleMessage do daemon, já ligado ao contexto dele.
+ *        ui = tela de setup (adapters/daemon-ui.cjs): atende /token-guard/ui* e /token-guard/stream
+ *        com a própria autenticação (bilhete+cookie; token do dono para o ícone).
  */
-function createHttpServer({ token, handle, onActivity }) {
+function createHttpServer({ token, handle, onActivity, ui }) {
   return http.createServer((req, res) => {
     const send = (status, body) => {
       res.writeHead(status, { 'content-type': 'application/json' });
       res.end(body);
     };
     const route = String(req.url || '').split('?')[0];
+    try {
+      if (ui && ui.handle(req, res, route)) return;
+    } catch (err) {
+      // A tela nunca derruba o daemon que carrega os hooks de todo mundo (fail-open).
+      if (!res.headersSent) return send(500, JSON.stringify({ error: `tela: ${err && err.message}` }));
+      res.end();
+      return;
+    }
     const kind = ROUTES[route];
     const health = req.method === 'GET' && route === HEALTH;
     if (!health && (req.method !== 'POST' || !kind)) return send(404, '{"error":"rota desconhecida"}');
