@@ -36,9 +36,12 @@ const SAVED = {
   TOKEN_GUARD_SID: process.env.TOKEN_GUARD_SID,
   TOKEN_GUARD_DAEMON_IDLE_MS: process.env.TOKEN_GUARD_DAEMON_IDLE_MS,
   TOKEN_GUARD_TRAY: process.env.TOKEN_GUARD_TRAY,
+  npm_config_cache: process.env.npm_config_cache,
 };
 
 process.env.HOME = ISOLATED_HOME;
+// O auto-update poda _npx/ do cache do npm: a suíte nunca aponta para o cache real do usuário.
+process.env.npm_config_cache = path.join(ISOLATED_HOME, 'npm-cache');
 process.env.USERPROFILE = ISOLATED_HOME;
 delete process.env.TOKEN_GUARD;
 process.env.TOKEN_GUARD_SID = `tg-test-${process.pid}`;

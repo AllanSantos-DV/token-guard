@@ -3,6 +3,14 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Corrigido
+- **O auto-update não acumula mais versões antigas no disco.** Cada `npx --yes ...@X.Y.Z` deixa uma pasta
+  própria em `_npx/` do cache do npm, que o npm nunca limpa. Depois de um auto-update bem-sucedido, o
+  token-guard remove as pastas `_npx` das outras versões dele (mantém a nova). Só toca pasta cujo único
+  pacote pedido é o token-guard, e instalação que falhou não apaga nada.
+
 ## [2.15.0] — 2026-10-30
 
 ### Adicionado

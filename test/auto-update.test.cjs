@@ -87,6 +87,43 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   r = await AU.run({ checkForUpdate: newer, now: () => Date.now() + 25 * 3600 * 1000, runInstaller: () => ({ status: 0 }) });
   check('passadas 24 h → tenta de novo', r.status === 'ok', r);
 
+  // poda do cache do npx: atualizar não acumula versões antigas
+  const cacheDir = process.env.npm_config_cache;
+  const mkNpx = (hash, packages, version, depName = '@allansantos-dev/token-guard') => {
+    const base = path.join(cacheDir, '_npx', hash);
+    fs.mkdirSync(path.join(base, 'node_modules', ...depName.split('/')), { recursive: true });
+    fs.writeFileSync(path.join(base, 'package.json'), JSON.stringify({ _npx: { packages } }));
+    fs.writeFileSync(path.join(base, 'node_modules', ...depName.split('/'), 'package.json'), JSON.stringify({ name: depName, version }));
+    return base;
+  };
+  const PK = '@allansantos-dev/token-guard';
+  const oldA = mkNpx('aaa', [`${PK}@2.14.1`], '2.14.1');
+  const oldB = mkNpx('bbb', [`${PK}@2.15.0`], '2.15.0');
+  const cur = mkNpx('ccc', [`${PK}@${NEXT}`], NEXT);
+  const other = mkNpx('ddd', ['@allansantos-dev/smart-tool@0.9.1'], '0.9.1', '@allansantos-dev/smart-tool');
+  const shared = mkNpx('eee', [`${PK}@2.0.0`, 'cowsay@1.0.0'], '2.0.0');
+  const gone = AU.pruneOldNpxVersions(NEXT, cacheDir);
+  check('poda remove as versões antigas do token-guard', !fs.existsSync(oldA) && !fs.existsSync(oldB) && gone.length === 2, gone);
+  check('poda mantém a versão atual', fs.existsSync(cur));
+  check('poda nunca toca cache de outro pacote nem pasta compartilhada', fs.existsSync(other) && fs.existsSync(shared));
+  check('sem pasta _npx → nada a podar, sem erro', AU.pruneOldNpxVersions(NEXT, path.join(cacheDir, 'nao-existe')).length === 0);
+
+  // run(): poda só depois de instalar com sucesso
+  const oldC = mkNpx('fff', [`${PK}@2.15.0`], '2.15.0');
+  fs.rmSync(AU.resultPath(), { force: true });
+  let pruned = null;
+  r = await AU.run({ checkForUpdate: newer, runInstaller: () => ({ status: 1, stderr: 'npm ERR!' }), pruneOldVersions: (v) => { pruned = v; } });
+  check('instalação que falhou não poda nada', r.status === 'failed' && pruned === null, { r, pruned });
+  fs.rmSync(AU.resultPath(), { force: true });
+  r = await AU.run({ checkForUpdate: newer, runInstaller: () => ({ status: 0 }), pruneOldVersions: (v) => { pruned = v; } });
+  check('instalação ok poda mantendo a versão nova', r.status === 'ok' && pruned === NEXT, { r, pruned });
+  fs.rmSync(AU.resultPath(), { force: true });
+  r = await AU.run({ checkForUpdate: newer, runInstaller: () => ({ status: 0 }) });
+  check('poda real no run(): remove a antiga, guarda a atual', r.status === 'ok' && !fs.existsSync(oldC) && fs.existsSync(cur), r);
+  fs.rmSync(AU.resultPath(), { force: true });
+  r = await AU.run({ checkForUpdate: newer, runInstaller: () => ({ status: 0 }), pruneOldVersions: () => { throw new Error('boom'); } });
+  check('erro na poda não derruba a atualização', r.status === 'ok', r);
+
   // concorrência
   fs.rmSync(AU.resultPath(), { force: true });
   fs.writeFileSync(AU.lockPath(), '1');
