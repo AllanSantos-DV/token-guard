@@ -32,6 +32,9 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   Limite aceito: se o daemon reiniciar entre o envio e o reenvio, a chave se perde e o bloqueio pode contar
   duas vezes; e se o daemon morrer com o pedido já no socket e sem processá-lo, o bloqueio não é gravado
   (janelas estreitas, só afetam o contador da tela; o veredito vale sempre).
+- O `postprocess` também não é reenviado depois do bring-up quando o envio saiu e só a resposta se perdeu
+  (antes, só o primeiro envio era protegido). Os contadores `hits`/`misses` de `stats` contam pedidos, não
+  reenvios do mesmo pedido.
 - A poda do `_cacache` mantém a linha do índice quando o conteúdo do tarball não pôde ser removido e não
   reescreve um bucket que o npm alterou durante a poda.
 

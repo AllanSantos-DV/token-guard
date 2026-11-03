@@ -142,6 +142,13 @@ async function rpc(endpoint, msg) {
     await rpc(endpoint, { id: 23, method: 'check', params: { root: TMP, payload: denyPayload } });
     await rpc(endpoint, { id: 24, method: 'check', params: { root: TMP, payload: denyPayload } });
     check('cliente sem requestKey conta cada chamada, como antes', denies() === before + 4, `${denies() - before} eventos`);
+    // Os contadores de `stats` contam pedidos, não reenvios.
+    const stat = async (id) => (await rpc(endpoint, { id, method: 'stats' })).result;
+    const s0 = await stat(30);
+    await rpc(endpoint, { id: 31, method: 'check', requestKey: 'k-stats', params: { root: TMP, payload: denyPayload } });
+    await rpc(endpoint, { id: 32, method: 'check', requestKey: 'k-stats', params: { root: TMP, payload: denyPayload } });
+    const s1 = await stat(33);
+    check('reenvio com a mesma requestKey conta uma só vez em hits/misses', (s1.hits + s1.misses) - (s0.hits + s0.misses) === 1, JSON.stringify({ s0, s1 }));
   } finally {
     server.close();
     if (typeof endpoint === 'string' && !endpoint.startsWith('\\\\')) {

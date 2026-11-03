@@ -11,9 +11,21 @@ Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 
 | # | Item | Esforço |
 |---|------|---------|
-| B5 | Aviso, na sessão seguinte, de que existe uma instalação global antiga do token-guard (`npm i -g`) que o auto-update não gere (ele só reinstala os alvos de `install-state.json`). **Decidido (Jarvis, 03/11): o aviso é feature nova visível ao usuário e espera o dono; a parte técnica (a cópia global velha nesta máquina) está corrigida** | S |
+| B5 | **Decidido (Jarvis, 03/11):** o aviso, na sessão seguinte, de que existe uma instalação global antiga do token-guard (`npm i -g`) que o auto-update não gere é feature nova visível ao usuário e espera o dono. **Item de negócio, nada técnico aberto:** a parte técnica (a cópia global velha nesta máquina, trazida à versão candidata) está corrigida | S |
 
 Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD-tela-setup-bandeja.md, seção 8): pausar/retomar no menu do ícone; regras diferentes por IDE; modo "só avisar".
+
+## Candidatos da lente irmã (pós-2.15.1)
+
+Nenhum bloqueia a release; nenhum é item técnico em aberto. Os dois quase de graça foram feitos na 2.15.1 (ver CHANGELOG). Os demais ficam aqui, com o motivo de não entrarem agora.
+
+| # | Candidato | Ganho | Esforço e reuso | Por que fica |
+|---|-----------|-------|-----------------|--------------|
+| L1 | Reenvio de `postprocess` que devolve a mesma resposta guardada por `requestKey` | o `dupRead` e a rajada do scout valeriam também quando a resposta se perdeu (hoje `post-hook.cjs` só corta o resultado grande) | M: o daemon guardaria chave → resposta, não só a chave; reusa `firstDelivery`/`SEEN_MAX` (`adapters/daemon-server.cjs`) e o ramo `lost` de `adapters/post-hook.cjs` | contraria a decisão de "no máximo uma vez" da 2.15.1 e muda o que o usuário vê: decisão de produto |
+| L2 | Poda do cache do npm fora de uma atualização (intervalo de 24 h) | máquinas que atualizaram antes da 2.15.1 e pedidos manuais `npx pacote@X` deixam de acumular pastas e tarballs até a próxima atualização | S/M: `REAL_DEPS.pruneOldVersions` e `npmCacheDir` (`lib/auto-update.cjs`), padrão `shouldAttempt` para o intervalo; `pruneOldCacache` lê todo bucket e custa em cache grande | rodar a cada sessão tem custo de varredura medido só por estimativa: precisa de medição antes |
+| L3 | `trim()` do `events.jsonl` sem perder o append concorrente | uma linha gravada entre a leitura e o rename da poda deixa de sumir da contagem da tela | M: renomear antes de ler ou lock; reusa `trim`/`record`/`eventsPath` (`lib/events.cjs`) | defeito lido no código, não reproduzido; janela estreita |
+| L4 | `cursor-hook.cjs` passar pelo daemon como o `hook-cmd.cjs` | cache de veredito e proteção de reenvio por `requestKey` também no Cursor | M: copiar o bloco `tryDaemon('check')` de `adapters/hook-cmd.cjs` com `target` cursor; reusa `targetOf` (`adapters/daemon-server.cjs`); o payload canônico precisa ser validado | ganho de latência não medido; o processo `node` sobe por chamada de qualquer jeito |
+| L5 | `token_guard_check` (MCP) não gravar `deny` para consulta que não bloqueia | a contagem de bloqueios da tela deixa de incluir consultas do agente | S: usar um kind consultivo ou não registrar em `adapters/mcp-server.cjs`; reusa `EV.recordDeny`/`KINDS` (`lib/events.cjs`) | muda o número que o usuário vê na tela: decisão do dono |
 
 ## Fechado na release 2.15.1
 

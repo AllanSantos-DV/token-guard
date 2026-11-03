@@ -294,6 +294,22 @@ async function testAtMostOnceAfterSend() {
   if (process.platform !== 'win32') try { fs.rmSync(endpoint, { force: true }); } catch { /* melhor esforço */ }
 }
 
+async function testAtMostOnceStopsInBringUpLoop() {
+  console.log('\n  [atMostOnce também para o reenvio depois do bring-up]');
+  let sends = 0;
+  const client = createClient({
+    spawnFn: () => {}, sleepFn: () => Promise.resolve(), bootTimeoutMs: 100, maxSpawnAttempts: 3,
+    connectFn: async (method) => {
+      if (method === 'hello') return { ok: true, result: {} };
+      sends += 1;
+      return sends === 1 ? { ok: false } : { ok: false, sent: true };
+    },
+  });
+  const res = await client.tryDaemon('postprocess', {}, { atMostOnce: true });
+  check('primeiro envio falha sem sair, o do bring-up sai e se perde: ok:false com sent:true', res.ok === false && res.sent === true, JSON.stringify(res));
+  check('o pedido chegou ao daemon no máximo uma vez depois que algum envio saiu', sends === 2, `envios: ${sends}`);
+}
+
 async function testPostHookKeepsBigResultAfterLostReply() {
   console.log('\n  [post-hook: resposta do daemon perdida depois do envio]');
   const { spawn } = require('child_process');
@@ -379,6 +395,7 @@ async function testSentPropagatesAndFrameMeasure() {
 
 async function main() {
   await testAtMostOnceAfterSend();
+  await testAtMostOnceStopsInBringUpLoop();
   await testSentPropagatesAndFrameMeasure();
   await testResendKeepsRequestKey();
   await testPostHookKeepsBigResultAfterLostReply();

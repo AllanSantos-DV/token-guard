@@ -260,15 +260,13 @@ function routeMessage(msg, ctx) {
     const first = firstDelivery(ctx, msg.requestKey);
     const cached = ctx.cache.get(key);
     if (cached !== undefined) {
-      ctx.hits++;
-      if (first) EV.recordDeny(cached, target, params.payload);
+      if (first) { ctx.hits++; EV.recordDeny(cached, target, params.payload); }
       return { id: msg.id, result: { ok: true, verdict: cached, cached: true } };
     }
     const out = dispatch(params);
     if (out.ok) {
       ctx.cache.set(key, out.verdict);
-      ctx.misses++;
-      if (first) EV.recordDeny(out.verdict, target, params.payload);
+      if (first) { ctx.misses++; EV.recordDeny(out.verdict, target, params.payload); }
     }
     return { id: msg.id, result: out };
   }
