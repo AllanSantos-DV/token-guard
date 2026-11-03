@@ -176,7 +176,7 @@ function answer(kind, payload, handle) {
  *        ui = tela de setup (adapters/daemon-ui.cjs): atende /token-guard/ui* e /token-guard/stream
  *        com a própria autenticação (bilhete+cookie; token do dono para o ícone).
  */
-function createHttpServer({ token, handle, onActivity, ui }) {
+function createHttpServer({ token, handle, onActivity, ui, version }) {
   return http.createServer((req, res) => {
     const send = (status, body) => {
       res.writeHead(status, { 'content-type': 'application/json' });
@@ -196,7 +196,8 @@ function createHttpServer({ token, handle, onActivity, ui }) {
     if (!health && (req.method !== 'POST' || !kind)) return send(404, '{"error":"rota desconhecida"}');
     if (!sameToken(req.headers['x-token-guard'], token)) return send(401, '{"error":"token ausente ou invalido"}');
     // Prova de que quem responde na porta é ESTE daemon (com o token do dono), não um forasteiro.
-    if (health) return send(200, JSON.stringify({ ok: true, pid: process.pid }));
+    // A versão deixa quem trocou os arquivos provar que o processo que responde é o novo, não o antigo.
+    if (health) return send(200, JSON.stringify({ ok: true, pid: process.pid, version: version || null }));
 
     const chunks = [];
     let size = 0;
@@ -221,8 +222,34 @@ function createHttpServer({ token, handle, onActivity, ui }) {
   });
 }
 
+/**
+ * Pergunta ao health da porta quem responde. Resolve `{pid, version}` (version null num daemon antigo,
+ * que não a informava) ou null se ninguém do token do dono atendeu.
+ */
+function probeHealth(port, token, timeoutMs = 500) {
+  return new Promise((resolve) => {
+    const req = http.request({
+      host: '127.0.0.1', port, path: HEALTH, method: 'GET', timeout: timeoutMs,
+      headers: { 'x-token-guard': token },
+    }, (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) return resolve(null);
+        try {
+          const j = JSON.parse(body);
+          resolve(j && j.ok ? { pid: j.pid, version: j.version || null } : null);
+        } catch { resolve(null); }
+      });
+    });
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+}
+
 module.exports = {
-  createHttpServer, httpPort, httpTokenPath, readToken,
+  probeHealth, createHttpServer, httpPort, httpTokenPath, readToken,
   fixedPort, defaultPort, candidatePorts, listenFirstFree,
   endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
 };

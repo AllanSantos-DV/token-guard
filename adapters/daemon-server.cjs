@@ -325,6 +325,7 @@ function scheduleIdleShutdown(server, lockFile, idleTimeoutMs, depsOverride) {
     if (deps.nowFn() - server.ctx.lastActivity < idleTimeoutMs) return;
     deps.clearIntervalFn(timer);
     process.stderr.write(`token-guard daemon ocioso por ${idleTimeoutMs}ms — encerrando.\n`);
+    DL.noteExitReason(`ocioso por ${idleTimeoutMs}ms`);
     deps.unlinkFn(lockFile);
     server.close(() => deps.exitFn(0));
   }, checkEveryMs);
@@ -467,6 +468,7 @@ function start(endpointOverride) {
   const server = createServer();
   server.ctx.requestShutdown = () => {
     process.stderr.write('token-guard daemon: shutdown solicitado (versão desatualizada) — encerrando.\n');
+    DL.noteExitReason('shutdown solicitado');
     try { fs.unlinkSync(lockFile); } catch { /* best-effort */ }
     server.close(() => process.exit(0));
   };
@@ -493,6 +495,7 @@ function start(endpointOverride) {
       try { fs.chmodSync(endpoint, 0o700); } catch { /* best-effort */ }
     }
     process.stderr.write(`token-guard daemon pronto em ${endpoint} (${PACKAGE_VERSION})\n`);
+    DL.recordStart({ version: PACKAGE_VERSION, endpoint, idleMs: IDLE_TIMEOUT_MS });
     // Escutando = somos o dono: o lock passa a apontar para nós (cobre o caso
     // em que acquireLock recusou por um pid reusado).
     DL.writeLockRecord(lockFile, { pid: process.pid, protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION });
@@ -511,6 +514,7 @@ function start(endpointOverride) {
       });
       const httpServer = DH.createHttpServer({
         token,
+        version: PACKAGE_VERSION,
         handle: (msg) => handleMessage(msg, server.ctx),
         onActivity: () => { server.ctx.lastActivity = Date.now(); },
         ui,

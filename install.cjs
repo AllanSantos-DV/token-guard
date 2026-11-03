@@ -1200,6 +1200,43 @@ if (!DRY && targets.some((t) => t !== 'repo')) {
   }
 }
 
+/**
+ * Troca o daemon pelo da versão instalada, ao fim da instalação: os arquivos já foram substituídos, e o
+ * processo antigo (código velho) só cairia quando um hook ou a tarefa de vigia desse por falta dele. Só
+ * com o alvo claude (único consumidor do daemon) e no mesmo seam do autostart. Falha é alta: um daemon
+ * que não responde o health na versão nova sai como erro, com o motivo.
+ * @returns {Promise<{ok:boolean, error?:string, result?:object}|null>} null = não se aplica
+ */
+async function swapDaemonStep() {
+  if (DRY || !targets.includes('claude')) return null;
+  // Seam de teste (test/bootstrap.cjs): a suíte não deixa daemon residente para trás; só o teste do swap a reabre.
+  if (process.env.TOKEN_GUARD_NO_DAEMON_SWAP === '1') return null;
+  if (targetPlatform() !== process.platform) return null;
+  const dir = path.join(HOME, '.claude', 'token-guard');
+  try {
+    const { swapDaemon } = require(path.join(dir, 'lib', 'daemon-client.cjs'));
+    const result = await swapDaemon({ daemonServerPath: path.join(dir, 'adapters', 'daemon-server.cjs') });
+    return result.ok ? { ok: true, result } : { ok: false, error: result.error };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+function printReport(swap) {
+if (swap) {
+  console.log('  [daemon]');
+  if (swap.ok) {
+    const r = swap.result;
+    console.log(`    ok      respondendo na versão ${r.version}${r.pid ? ` (pid ${r.pid}${r.port ? `, porta ${r.port}` : ''})` : ''}; ` +
+      `${r.oldPid ? `o antigo (pid ${r.oldPid}) saiu${r.killed ? ' por encerramento forçado' : ''}` : 'não havia daemon antigo'}; ` +
+      `fora do ar por ${r.gapMs} ms`);
+  } else {
+    console.log(`    FALHOU  ${swap.error}`);
+    console.error(`token-guard: DAEMON NAO SUBIU na versão instalada: ${swap.error}`);
+  }
+  console.log('');
+}
+
 if (skipped.length) {
   console.log('  PRESERVADO');
   for (const s of skipped) console.log(`    ${s}`);
@@ -1218,3 +1255,10 @@ console.log('');
 console.log('  A recusa traz o comando alternativo pronto; ninguem precisa aprovar nada no meio.');
 console.log('  Emergencia: TOKEN_GUARD=off desliga sem editar arquivo.');
 console.log('');
+
+}
+
+swapDaemonStep().then((swap) => {
+  if (swap && !swap.ok) process.exitCode = 1;
+  printReport(swap);
+});

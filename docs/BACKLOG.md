@@ -24,6 +24,13 @@ Nenhum é item técnico em aberto. L2, L3 e L4 foram feitos na 2.15.1 (tabela ab
 | L1 | Reenvio de `postprocess` devolvendo a mesma resposta guardada por `requestKey` | **Decidido (Jarvis, 03/11):** não feito. O contrato da 2.15.1 é entregar o `postprocess` no máximo uma vez por pedido; repetir uma resposta guardada mudaria o que o usuário vê |
 | L5 | `token_guard_check` (MCP) não gravar `deny` para consulta que não bloqueia | **Decidido (Jarvis, 03/11):** não feito agora. O check do MCP continua gravando como hoje e a contagem que o usuário vê não muda |
 
+## Fechado na release 2.16.1
+
+| # | Item | Resolução |
+|---|------|-----------|
+| B8 | **Daemon ficou ~7 min fora do ar após instalar a 2.16.0**: nada trocava o daemon no init/auto-update; o novo só subia pelo vigia | `swapDaemon` (lib/daemon-client.cjs) no fim do `init`; `daemon.log` de start/exit; `test/daemon-swap.test.cjs` (porta e home isolados). Pesquisa: docs/research/troca-do-daemon-no-windows-2026-11-03.md |
+| B9 | Lente irmã: `SessionStart` (`ensureDaemon`) deixa daemon de versão velha vivo se o instalador não rodou (ex.: `npm i -g` sem init) | **Anotado, não feito** (fora do escopo): usar `swapDaemon` quando o health informar versão diferente da do pacote |
+
 ## Fechado na release 2.16.0
 
 | # | Item | Resolução |

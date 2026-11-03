@@ -92,6 +92,9 @@ O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem gu
 - Daemon que cai **no meio** da sessão volta pelo vigia em até ~5 min (tarefa
   `TokenGuardDaemonWatch` no Windows, `StartInterval` no macOS, `Restart=on-failure` no
   Linux); até lá o hook http falha aberto.
+- Para saber **por que** o daemon caiu, leia `~/.token-guard/daemon.log` (uma linha JSON por `start`/`exit`, com
+  versão, código e motivo; `previous-unclean` marca um start cujo antecessor morreu sem registrar saída, ex.: kill forçado).
+  Instalar/atualizar troca o daemon na hora e o `init` falha em voz alta (exit 1) se o novo não responder na versão instalada.
 
 ## A tela de setup não abre ou o ícone não aparece
 

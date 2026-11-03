@@ -37,6 +37,7 @@ const SAVED = {
   TOKEN_GUARD_DAEMON_IDLE_MS: process.env.TOKEN_GUARD_DAEMON_IDLE_MS,
   TOKEN_GUARD_TRAY: process.env.TOKEN_GUARD_TRAY,
   TOKEN_GUARD_NO_AUTOSTART: process.env.TOKEN_GUARD_NO_AUTOSTART,
+  TOKEN_GUARD_NO_DAEMON_SWAP: process.env.TOKEN_GUARD_NO_DAEMON_SWAP,
   npm_config_cache: process.env.npm_config_cache,
 };
 
@@ -51,6 +52,8 @@ process.env.TOKEN_GUARD_DAEMON_IDLE_MS = SAVED.TOKEN_GUARD_DAEMON_IDLE_MS || '15
 process.env.TOKEN_GUARD_TRAY = 'off';
 // 5. Autostart do daemon: o instalador rodado por um teste nunca grava setx/tarefa agendada reais (apontariam para o home falso).
 process.env.TOKEN_GUARD_NO_AUTOSTART = '1';
+// 6. Troca do daemon ao fim do init: sem isto a suíte deixaria um daemon com HTTP (sem ociosidade) por instalação.
+process.env.TOKEN_GUARD_NO_DAEMON_SWAP = '1';
 
 try { require('../lib/config.cjs').clearMemo(); } catch { /* config ainda não carregada */ }
 

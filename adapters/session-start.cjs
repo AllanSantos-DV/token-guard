@@ -18,7 +18,6 @@
  * vai ao usuário — usado só para falha (fail-loud) e para relatar o update.
  */
 
-const http = require('http');
 const path = require('path');
 const { spawn } = require('child_process');
 const P = require('../lib/payload.cjs');
@@ -35,19 +34,8 @@ const ATTEMPTS = 6;
 const PAUSE_MS = 250;
 
 /** ESTE daemon (token do dono) responde no health da porta registrada. */
-function httpListening(port, token) {
-  return new Promise((resolve) => {
-    const req = http.request({
-      host: '127.0.0.1', port, path: DH.HEALTH, method: 'GET', timeout: 500,
-      headers: { 'x-token-guard': token },
-    }, (res) => {
-      res.resume();
-      resolve(res.statusCode === 200);
-    });
-    req.on('timeout', () => { req.destroy(); resolve(false); });
-    req.on('error', () => resolve(false));
-    req.end();
-  });
+async function httpListening(port, token) {
+  return Boolean(await DH.probeHealth(port, token));
 }
 
 /** Garante daemon atual (e HTTP de pé, se há token). Devolve o problema, ou null. */

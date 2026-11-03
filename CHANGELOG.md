@@ -5,6 +5,23 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.16.1] — 2026-11-03
+
+### Corrigido
+- **Instalar ou atualizar não deixa mais o daemon fora do ar por minutos.** Antes, o init trocava os arquivos e o
+  daemon novo só subia no próximo ciclo do vigia (até ~5 min), com todo hook http recebendo conexão recusada. Agora o
+  fim do `init` (e, portanto, do auto-update, que roda o init) encerra o daemon antigo com o `shutdown` dele, espera
+  ele largar a porta, sobe o novo e só aceita quando o health responde com a versão instalada e outro pid. Daemon
+  antigo que não sai no prazo é morto só pelo pid que o próprio daemon provou (health/stats). Sem resposta, o init
+  sai com código 1 e diz o motivo (`DAEMON NAO SUBIU na versão instalada: …`); o auto-update grava essa causa. A
+  janela que sobra é a de um daemon trocar pelo outro (medida: ~130 ms), pois o singleton do pipe impede dois ao mesmo tempo.
+- `connectOnce` do cliente do daemon podia ficar pendurado quando o outro lado fechava sem responder.
+
+### Adicionado
+- **`~/.token-guard/daemon.log`**: o daemon grava uma linha JSON ao subir (`start`: versão, endpoint) e ao sair
+  (`exit`: código e motivo — shutdown, ociosidade, sinal, exceção). Um start cujo pid anterior morreu sem `exit`
+  vira `previous-unclean` no start seguinte. O health do http passa a informar a `version`.
+
 ## [2.16.0] — 2026-11-03
 
 ### Corrigido
