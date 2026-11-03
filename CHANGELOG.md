@@ -5,7 +5,15 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
-## [2.16.4] — 2026-11-03
+## [2.16.5] — 2026-11-03
+
+### Corrigido
+- A 2.16.4 não chegou ao npm: o teste que fixa o hash do `adapters/tray.ps1` comparava os bytes do arquivo e o
+  checkout do Linux tem fim de linha diferente do do Windows. O hash agora é do conteúdo com fim de linha
+  normalizado. O conteúdo da 2.16.3 e da 2.16.4 sai nesta versão; as suítes passam num clone limpo do repositório
+  num container Linux.
+
+## [2.16.4] — 2026-11-03 (não publicada; saiu na 2.16.5)
 
 ### Corrigido
 - A 2.16.3 não chegou ao npm: o gate do workflow de publicação falhou no Linux (três suítes, uma delas por um

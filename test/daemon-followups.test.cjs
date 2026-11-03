@@ -276,9 +276,9 @@ function startStubOldDaemon() {
 
   // 10 · bandeja: o script é o mesmo que o ícone antigo roda; se mudar, a troca do ícone precisa existir
   {
-    const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'adapters', 'tray.ps1'))).digest('hex');
+    const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'adapters', 'tray.ps1'), 'latin1').replace(/\r\n/g, '\n'), 'latin1').digest('hex');
     check('adapters/tray.ps1 não mudou desde a 2.14.0 (mudou: implemente a troca do ícone antes de seguir)',
-      hash === '603acfc85eef9b660edae11b08b4e00a873bf1df0e30897f539c4b5b40021bb9', hash);
+      hash === '8e9bc5110dda53112cf303c77b78110128cf08a27ee28ff3db7f492166ceaa0a', hash);
   }
 
   // 11 · desinstalar: o passo do INSTALL.md que encerra o daemon funciona

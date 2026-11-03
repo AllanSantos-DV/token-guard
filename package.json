@@ -1,6 +1,6 @@
 {
   "name": "@allansantos-dev/token-guard",
-  "version": "2.16.4",
+  "version": "2.16.5",
   "publishConfig": {
     "access": "public"
   },
