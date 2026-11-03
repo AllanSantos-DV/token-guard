@@ -55,7 +55,7 @@ e é exatamente ela que este kit governa.
 | `lib/dupread.cjs` | Dedupe de leitura: a releitura idêntica (≥ 2000 caracteres) na mesma janela vira um ponteiro para a leitura anterior; no Claude Code substitui o resultado. |
 | `lib/claude-hooks.cjs` | O envelope do Claude Code, comum ao hook http e ao de comando — os dois caminhos montam a mesma resposta. |
 | `lib/ipc-frame.cjs` | Framing por prefixo de tamanho — o transporte que liga hook e daemon. |
-| `lib/daemon-client.cjs` | O cliente fino dos hooks: fala com o daemon, sobe um se não houver, desarma após 3 falhas e cai no caminho efêmero. |
+| `lib/daemon-client.cjs` | O cliente fino dos hooks: fala com o daemon, sobe um se não houver, desarma após 3 falhas e cai no caminho efêmero (o pós-execução entregue ao daemon não é reenviado). |
 | `lib/daemon-lifecycle.cjs` | Lock de singleton e handshake de versão, com todo primitivo de SO injetável. |
 | `lib/update-check.cjs` | O aviso de versão nova — a única consulta de rede do projeto ([detalhes](SECURITY.md)). |
 | `lib/auto-update.cjs` | Atualização automática: reinstala a versão nova nos mesmos alvos ([detalhes](SECURITY.md)). |
@@ -268,8 +268,9 @@ processo oculto e destacado (a sessão não espera) usa a mesma checagem acima e
 versão nova, roda `npx @allansantos-dev/token-guard@<nova> init --target <os mesmos>`:
 runtime, hooks e MCP saem atualizados juntos. O resultado aparece na tela no início da
 sessão seguinte — sucesso ou falha, com o log em `~/.token-guard/auto-update.log` e o
-comando para rodar à mão. Falha não é repetida na mesma versão antes de 24 h. Desligue
-com `TOKEN_GUARD_AUTO_UPDATE=off`.
+comando para rodar à mão. Falha não é repetida na mesma versão antes de 24 h. Depois de uma
+atualização bem-sucedida, o token-guard apaga do cache do `npx` (`_npx/`) as pastas das versões antigas dele.
+Desligue com `TOKEN_GUARD_AUTO_UPDATE=off`.
 
 Desde a 2.8.1, todo início de sessão também mostra na tela (`systemMessage`) quando há versão
 nova no npm — pelo cache da checagem, sem rede no hook. Com o auto-update desligado, o processo
@@ -542,7 +543,7 @@ Codex sem deslocar hooks já aprovados.
 
 **Daemon:** framing IPC, paridade byte a byte entre o caminho servido e o local (decisão,
 contrato e pós-execução), hook http com token, singleton sob corrida, tolerância a
-falha (o cliente desarma e decide localmente) e handshake de versão contra daemon velho.
+falha (o cliente desarma e decide localmente; o pós-execução, que muda estado, não é reenviado depois de entregue) e handshake de versão contra daemon velho.
 
 ---
 

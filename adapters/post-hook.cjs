@@ -28,21 +28,26 @@ async function main() {
   const { name, input: inp, result, root, sessionId: sid, agentId } = H.postArgs(payload);
   const win = H.windowKey(sid, agentId);
 
-  const viaDaemon = await tryDaemon('postprocess', { name, input: inp, result, root, sessionId: sid, agentId });
+  const viaDaemon = await tryDaemon('postprocess', { name, input: inp, result, root, sessionId: sid, agentId }, { atMostOnce: true });
+  // sent: o daemon pode ter registrado a leitura e só a resposta ter se perdido. Refazer aqui contaria
+  // duas vezes (evidência, dupRead, rajada do scout); o corte do resultado grande é idempotente e segue local.
+  const lost = !!viaDaemon.sent;
   // Evidência do contrato (gatilhos codigo/teste/docs) — o daemon já gravou se serviu.
-  if (!viaDaemon.ok) CT.noteTouched(root, sid, inp);
+  if (!viaDaemon.ok && !lost) CT.noteTouched(root, sid, inp);
   let trimmed = viaDaemon.ok ? viaDaemon.result.trimmed : null;
   if (!viaDaemon.ok) {
     const cfg = CFG.load(root, 'claude');
     // Guard desligado (global ou só para o Claude Code): nem corta, nem registra, nem sugere.
     if (cfg.mode !== 'off') {
       trimmed = postProcess({ name, input: inp, result, root, cfg, target: 'claude' });
-      // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o
-      // daemon serviu este postprocess, ele já fez isso (dispatchPostprocess).
-      if (!trimmed && sid && isRead(name)) {
-        try { trimmed = dedupe({ name, input: inp, result, root, sessionId: win, cfg }); } catch { /* evidência */ }
+      if (!lost) {
+        // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o
+        // daemon serviu este postprocess, ele já fez isso (dispatchPostprocess).
+        if (!trimmed && sid && isRead(name)) {
+          try { trimmed = dedupe({ name, input: inp, result, root, sessionId: win, cfg }); } catch { /* evidência */ }
+        }
+        trimmed = SCOUT.withBurst(trimmed, { name, input: inp, root, sessionId: win, cfg });
       }
-      trimmed = SCOUT.withBurst(trimmed, { name, input: inp, root, sessionId: win, cfg });
     }
   }
   if (trimmed) process.stdout.write(JSON.stringify(H.postEnvelope(trimmed)));

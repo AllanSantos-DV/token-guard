@@ -95,6 +95,15 @@ async function waitEndpoint(pred) {
   return DH.readEndpoint();
 }
 
+// O daemon grava o endpoint e só depois sincroniza o settings.json: espera a sincronia em vez de ler cedo.
+async function waitPorts(port) {
+  for (let i = 0; i < 60; i++) {
+    try { if (tgPorts().every((p) => p === port)) break; } catch { /* settings em escrita */ }
+    await sleep(100);
+  }
+  return tgPorts();
+}
+
 function startDaemon(sid, extraEnv) {
   return spawn(process.execPath, [DAEMON], { env: { ...process.env, TOKEN_GUARD_SID: sid, ...(extraEnv || {}) }, stdio: 'ignore' });
 }
@@ -168,7 +177,8 @@ async function stop(child) {
   let d = startDaemon(sid);
   let ep = await waitEndpoint((e) => e.pid === d.pid);
   check('preferida ocupada → sobe na última registrada', ep && ep.port === recorded && !ep.error, ep);
-  check('settings.json reapontado para a porta registrada', tgPorts().every((p) => p === recorded), tgPorts());
+  const p1 = await waitPorts(recorded);
+  check('settings.json reapontado para a porta registrada', p1.every((p) => p === recorded), p1);
   let res = await post(recorded, claudeDeny, token);
   check('hook http responde na porta nova', res.status === 200 && /"deny"/.test(res.body), res);
   await stop(d);
@@ -178,7 +188,8 @@ async function stop(child) {
   ep = await waitEndpoint((e) => e.pid === d.pid);
   const moved = ep && ep.port;
   check('daemon volta com a porta anterior ocupada → sobe em outra livre', moved && moved !== recorded && moved !== DH.defaultPort() && !ep.error, ep);
-  check('settings.json acompanha a porta nova (sessão aberta segue o daemon)', tgPorts().every((p) => p === moved), tgPorts());
+  const p2 = await waitPorts(moved);
+  check('settings.json acompanha a porta nova (sessão aberta segue o daemon)', p2.every((p) => p === moved), p2);
   res = await post(moved, claudeDeny, token);
   check('hook http responde depois da troca', res.status === 200 && /"deny"/.test(res.body), res);
 

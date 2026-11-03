@@ -101,6 +101,10 @@ baixa o pacote do npm e executa o instalador dele, com os seus privilégios de u
 Só entram versão semver e alvo conhecido no comando. O resultado é mostrado na sessão
 seguinte. Desligue com `TOKEN_GUARD_AUTO_UPDATE=off` (ou `TOKEN_GUARD_UPDATE_CHECK=off`).
 
+Depois de um auto-update bem-sucedido, o token-guard **apaga** do cache do npm (`<cache>/_npx/<hash>`) as pastas
+que o `npx` deixou para versões antigas dele. Só apaga pasta cujo único pacote pedido é o `@allansantos-dev/token-guard`
+e nunca a da versão recém-instalada; falha na instalação não apaga nada, e erro ao apagar é ignorado.
+
 ## O que NÃO existe
 
 - Telemetria, métricas de uso, "phone home" — a checagem de versão e o download do

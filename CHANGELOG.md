@@ -5,7 +5,14 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.15.1] — 2026-11-03
+
 ### Corrigido
+- **O pós-execução não é mais contado duas vezes.** O cliente do daemon espera 200 ms; se estourava depois de enviar
+  o `postprocess`, reenviava o pedido e o daemon registrava a leitura duas vezes (a leitura de subagente seguinte
+  podia então ser tratada como repetida, deixando o teste `dupread-subagent` instável). Agora o `postprocess` é
+  entregue no máximo uma vez: depois do envio o hook só aplica localmente o corte de resultado grande, que é
+  idempotente. Os demais métodos seguem com o reenvio de sempre.
 - **O auto-update não acumula mais versões antigas no disco.** Cada `npx --yes ...@X.Y.Z` deixa uma pasta
   própria em `_npx/` do cache do npm, que o npm nunca limpa. Depois de um auto-update bem-sucedido, o
   token-guard remove as pastas `_npx` das outras versões dele (mantém a nova). Só toca pasta cujo único

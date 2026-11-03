@@ -269,7 +269,64 @@ async function testOversizeSkipsDaemon() {
   check('payload grande não desarma o cliente', connectCalls.length > 0, JSON.stringify(res2));
 }
 
+async function testAtMostOnceAfterSend() {
+  console.log('\n  [pedido que muda estado não é refeito se o daemon pode já tê-lo processado]');
+
+  const endpoint = process.platform === 'win32'
+    ? `\\\\.\\pipe\\tg-amo-${process.pid}`
+    : path.join(os.tmpdir(), `tg-amo-${process.pid}.sock`);
+  let received = 0;
+  const server = net.createServer((sock) => { sock.on('data', () => { received += 1; }); sock.on('error', () => {}); });
+  await new Promise((resolve) => server.listen(endpoint, resolve));
+
+  const spawnCalls = [];
+  const client = createClient({ spawnFn: (p) => { spawnCalls.push(p); }, sleepFn: () => Promise.resolve(), bootTimeoutMs: 100, maxSpawnAttempts: 1 });
+  // O servidor recebe o pedido e nunca responde: o cliente estoura o timeout depois de enviar.
+  const res = await client.tryDaemon('postprocess', {}, { endpoint, timeoutMs: 80, atMostOnce: true });
+  check('timeout depois do envio devolve ok:false com sent:true', res.ok === false && res.sent === true, JSON.stringify(res));
+  check('o daemon recebeu o pedido exatamente uma vez (sem reenvio)', received === 1, `recebido ${received}x`);
+  check('sem bring-up nem desarme', spawnCalls.length === 0, `spawn ${spawnCalls.length}x`);
+
+  const res2 = await client.tryDaemon('check', {}, { endpoint, timeoutMs: 80 });
+  check('método sem atMostOnce segue com o reenvio de sempre (self-heal)', res2.ok === false && received >= 2, `recebido ${received}x`);
+
+  await new Promise((resolve) => server.close(resolve));
+  if (process.platform !== 'win32') try { fs.rmSync(endpoint, { force: true }); } catch { /* melhor esforço */ }
+}
+
+async function testPostHookKeepsBigResultAfterLostReply() {
+  console.log('\n  [post-hook: resposta do daemon perdida depois do envio]');
+  const { spawn } = require('child_process');
+  const sid = `tg-amo-hook-${process.pid}`;
+  const endpoint = process.platform === 'win32'
+    ? `\\\\.\\pipe\\token-guard-${sid}`
+    : path.join(process.env.XDG_RUNTIME_DIR || '/tmp', `token-guard-${sid}.sock`);
+  let received = 0;
+  const server = net.createServer((sock) => { sock.on('data', () => { received += 1; }); sock.on('error', () => {}); });
+  await new Promise((resolve) => server.listen(endpoint, resolve));
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-amo-hook-'));
+  const payload = JSON.stringify({ cwd: tmp, session_id: 's-amo', tool_name: 'Grep', tool_input: { pattern: 'TODO', output_mode: 'content' }, tool_response: 'match '.repeat(6000) });
+  const out = await new Promise((resolve) => {
+    const child = spawn(process.execPath, [path.join(__dirname, '..', 'adapters', 'post-hook.cjs')], {
+      env: { ...process.env, TOKEN_GUARD_SID: sid }, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true,
+    });
+    let buf = '';
+    child.stdout.on('data', (d) => { buf += d; });
+    child.on('close', () => resolve(buf));
+    child.stdin.end(payload);
+  });
+  check('o daemon recebeu o postprocess uma única vez', received === 1, `recebido ${received}x`);
+  check('resultado grande ainda é cortado localmente (bigResult não se perde)', /bigResult/.test(out), out.slice(0, 200));
+
+  await new Promise((resolve) => server.close(resolve));
+  if (process.platform !== 'win32') try { fs.rmSync(endpoint, { force: true }); } catch { /* melhor esforço */ }
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* melhor esforço */ }
+}
+
 async function main() {
+  await testAtMostOnceAfterSend();
+  await testPostHookKeepsBigResultAfterLostReply();
   await testStartOnDemand();
   await testSelfHeal();
   await testCustomEndpointPropagatesToSpawn();

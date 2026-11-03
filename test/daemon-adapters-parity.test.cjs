@@ -202,7 +202,12 @@ async function main() {
       const withoutDaemon = stripTs((await runHookAsync(POST_HOOK, payload2, {})).stdout);
       check('post-hook: stdout estrutura-igual com/sem daemon (após normalizar timestamp)',
         withDaemon === withoutDaemon,
-        `com=${withDaemon.slice(0, 160)} sem=${withoutDaemon.slice(0, 160)}`);
+        (() => {
+          let i = 0;
+          while (i < withDaemon.length && withDaemon[i] === withoutDaemon[i]) i += 1;
+          return `primeira diferença em ${i} (com ${withDaemon.length} chars, sem ${withoutDaemon.length}): ` +
+            `com=…${withDaemon.slice(Math.max(0, i - 40), i + 80)} sem=…${withoutDaemon.slice(Math.max(0, i - 40), i + 80)}`;
+        })());
       check('post-hook: bigResult trunca com additionalContext', withDaemon.includes('bigResult'));
     }
 
