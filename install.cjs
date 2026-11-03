@@ -403,8 +403,9 @@ function unregisterClaudeHttp(settings) {
 
 /* ------------------------------------------------------------------ */
 /* Autostart do daemon (F7) — so junto do alvo claude: hoje e o unico  */
-/* consumidor de lib/daemon-client.cjs (hook-cmd/post-hook/prompt-hook);*/
-/* cursor-hook.cjs e o mcp-server.cjs nao falam com o daemon.           */
+/* consumidor com autostart (cursor-hook.cjs e o alvo repo tambem usam  */
+/* lib/daemon-client.cjs, mas sem vigia); o mcp-server.cjs nao fala com */
+/* o daemon.                                                            */
 /* ------------------------------------------------------------------ */
 
 const DAEMON_TASK_NAME = 'TokenGuardDaemon';
@@ -1203,7 +1204,7 @@ if (!DRY && targets.some((t) => t !== 'repo')) {
 /**
  * Troca o daemon pelo da versão instalada, ao fim da instalação: os arquivos já foram substituídos, e o
  * processo antigo (código velho) só cairia quando um hook ou a tarefa de vigia desse por falta dele. Só
- * com o alvo claude (único consumidor do daemon) e no mesmo seam do autostart. Falha é alta: um daemon
+ * com o alvo claude (o do autostart e do vigia; cursor e repo usam o daemon sem ele) e no mesmo seam do autostart. Falha é alta: um daemon
  * que não responde o health na versão nova sai como erro, com o motivo.
  * @returns {Promise<{ok:boolean, error?:string, result?:object}|null>} null = não se aplica
  */

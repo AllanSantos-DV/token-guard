@@ -29,7 +29,11 @@ Nenhum é item técnico em aberto. L2, L3 e L4 foram feitos na 2.15.1 (tabela ab
 | # | Item | Resolução |
 |---|------|-----------|
 | B8 | **Daemon ficou ~7 min fora do ar após instalar a 2.16.0**: nada trocava o daemon no init/auto-update; o novo só subia pelo vigia | `swapDaemon` (lib/daemon-client.cjs) no fim do `init`; `daemon.log` de start/exit; `test/daemon-swap.test.cjs` (porta e home isolados). Pesquisa: docs/research/troca-do-daemon-no-windows-2026-11-03.md |
-| B9 | Lente irmã: `SessionStart` (`ensureDaemon`) deixa daemon de versão velha vivo se o instalador não rodou (ex.: `npm i -g` sem init) | **Anotado, não feito** (fora do escopo): usar `swapDaemon` quando o health informar versão diferente da do pacote |
+| B9 | `SessionStart` (`ensureDaemon`) confia no `retireIfStale` (`shutdown` por IPC, existe desde a 2.5.0) e não tem o fallback por pid do `swapDaemon`: daemon anterior à 2.5.0 que ignora o `shutdown` só gera o aviso "o daemon não ficou pronto" | **Anotado, não feito** (fora do escopo): usar `swapDaemon` quando o health informar versão diferente da do pacote |
+| B10 | Lente irmã: troca do daemon só no alvo `claude`; `init --target cursor` ou `repo` deixa o daemon velho até o primeiro hook | Anotado, não feito |
+| B11 | Lente irmã: restart do `setup` (`lib/ui-launch.cjs`) faz `shutdown` + `sleep(300)` sem esperar o antigo sair nem conferir a versão; pode bater em `EADDRINUSE` | Anotado, não feito; `swapDaemon` é o caminho |
+| B12 | Lente irmã: falha antes do `listen` do daemon (exceção, HTTP que não sobe, `giveUp`) não deixa linha no `daemon.log`, e o stderr do spawn vai para `ignore` | Anotado, não feito |
+| B13 | Lente irmã: `.github/token-guard` (alvo `repo`) fora do auto-update pode ter versão diferente da do daemon da máquina e os clientes se aposentarem mutuamente; unit systemd com `Restart=on-failure` não religa após `shutdown` com saída 0; `previous-unclean` com pid reusado; tray residente velho após atualização; desinstalação (docs/INSTALL.md) não para o daemon | Candidatos a reproduzir, não feitos |
 
 ## Fechado na release 2.16.0
 

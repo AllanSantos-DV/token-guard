@@ -64,6 +64,8 @@ faz com a sua máquina e os seus dados:
 - `~/.token-guard/daemon-http.json` — `{ port, url, pid, version }` de onde o hook http
   subiu (ou `error`, se não subiu). O daemon reescreve, só quando a porta muda, as URLs
   dos hooks http do token-guard em `~/.claude/settings.json` — nenhuma outra entrada.
+- `~/.token-guard/daemon.log` — uma linha JSON por partida e saída do daemon (`start`, `exit`, `previous-unclean`:
+  pid, versão, código, motivo); sem conteúdo de chamadas, aparado acima de 128 KB.
 - `~/.token-guard/install-state.json` — alvos de máquina instalados (para o auto-update);
   `auto-update.json` / `auto-update.log` / `auto-update.lock` — resultado, saída do
   instalador e trava da última atualização automática.
