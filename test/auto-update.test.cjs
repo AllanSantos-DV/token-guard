@@ -125,11 +125,19 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   check('erro na poda não derruba a atualização', r.status === 'ok', r);
 
   // B3: pedido sem versão (`npx pkg`) também é do token-guard e é podado; o da versão atual fica
-  const bare = mkNpx('ggg', [PK], '2.0.0');
-  const bareCur = mkNpx('hhh', [PK], NEXT);
-  const bareOther = mkNpx('iii', ['cowsay'], '1.0.0', 'cowsay');
-  AU.pruneOldNpxVersions(NEXT, cacheDir);
-  check('pedido sem versão de uma versão antiga é podado', !fs.existsSync(bare));
+  const aged = (dir) => { const old = new Date(Date.now() - 8 * 24 * 3600 * 1000); fs.utimesSync(dir, old, old); };
+  const bare = mkNpx('ggg', [PK], '2.0.0'); aged(bare);
+  const bareCur = mkNpx('hhh', [PK], NEXT); aged(bareCur);
+  const bareOther = mkNpx('iii', ['cowsay'], '1.0.0', 'cowsay'); aged(bareOther);
+  const bareRecent = mkNpx('jjj', [PK], '2.0.0');
+  const bareLocked = mkNpx('kkk', [PK], '2.0.0'); aged(bareLocked);
+  const realRename = fs.renameSync;
+  fs.renameSync = (from, to) => { if (from === bareLocked) { const e = new Error('EBUSY: resource busy or locked'); e.code = 'EBUSY'; throw e; } return realRename(from, to); };
+  try { AU.pruneOldNpxVersions(NEXT, cacheDir); } finally { fs.renameSync = realRename; }
+  check('pedido sem versão antigo (mais de 7 dias) e livre é podado', !fs.existsSync(bare));
+  check('pedido sem versão modificado há menos de 7 dias fica', fs.existsSync(bareRecent) && fs.existsSync(path.join(bareRecent, 'node_modules')));
+  check('pedido sem versão travado (rename falha) fica intacto', fs.existsSync(path.join(bareLocked, 'package.json')) && fs.existsSync(path.join(bareLocked, 'node_modules', ...PK.split('/'), 'package.json')));
+  check('poda não deixa pasta temporária de poda para trás', !fs.readdirSync(path.join(cacheDir, '_npx')).some((n) => n.includes('.poda-')));
   check('pedido sem versão da versão atual e de outro pacote ficam', fs.existsSync(bareCur) && fs.existsSync(bareOther));
 
   // B4: tarballs do token-guard em _cacache de outras versões saem (conteúdo + linha do índice)

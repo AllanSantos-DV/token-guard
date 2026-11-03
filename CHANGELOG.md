@@ -19,7 +19,10 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   (inclusive as de pedido sem versão) e os tarballs dessas versões no `_cacache` (conteúdo e linha do
   índice); mantém a nova. Só toca pasta cujo único pacote pedido é o token-guard e entrada cuja chave é o
   tarball dele, e instalação que falhou não apaga nada. A pasta do cache vem do próprio npm
-  (`npm config get cache`), então vale o `cache=` do `.npmrc`.
+  (`npm config get cache`), então vale o `cache=` do `.npmrc`. A pasta de pedido sem versão (a forma que o
+  IDE grava no `command` do servidor MCP) é a única que pode estar em uso: só é podada se não for a atual,
+  não foi modificada nos últimos 7 dias e um rename atômico para um nome temporário funciona (no Windows
+  falha com arquivo aberto, e então a pasta fica intacta); só depois do rename ela é apagada.
 - **Bloqueio reenviado não vira dois eventos.** O cliente do daemon reenvia o `check` quando estoura o
   timeout depois de enviar; o daemon gravava o bloqueio de novo em `events.jsonl` (contagem em dobro na
   tela e no ícone). Cada chamada leva agora uma chave de pedido, a mesma em todo reenvio, e o daemon grava
