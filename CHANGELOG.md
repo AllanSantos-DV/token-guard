@@ -5,6 +5,14 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.16.2] — 2026-11-03
+
+### Corrigido
+- A 2.16.1 não chegou ao npm: o gate do workflow de publicação falhou no Linux porque o teste de "morte forçada" do
+  daemon usava `kill` com SIGTERM, que o daemon agora trata e registra (`exit`, motivo "sinal SIGTERM"). O teste usa
+  SIGKILL, a única morte sem linha de `exit`. Nenhuma mudança de comportamento do produto; o conteúdo da 2.16.1
+  (troca imediata do daemon no init/auto-update e `daemon.log`) é entregue por esta versão.
+
 ## [2.16.1] — 2026-11-03
 
 ### Corrigido

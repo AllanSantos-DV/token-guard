@@ -148,7 +148,7 @@ const logLines = () => {
   check('log: o start leva a versão', newStart && newStart.version === VERSION, newStart);
 
   // 3 · morte forçada não passa pelo exit: o start seguinte denuncia
-  process.kill(swap.pid);
+  process.kill(swap.pid, 'SIGKILL'); // SIGTERM o daemon trata e registra; só SIGKILL é morte sem exit (no Windows kill já é forçado)
   await sleep(500);
   const afterKill = logLines().filter((l) => l.pid === swap.pid);
   check('morte forçada: sem linha de exit (é o que o registro seguinte precisa cobrir)', !afterKill.some((l) => l.event === 'exit'), afterKill);
