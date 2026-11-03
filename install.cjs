@@ -251,9 +251,40 @@ function writeGlobalConfig(dir, base) {
   writeJson(cfgPath, tpl, base, `${rel(base, cfgPath)}  (mode: ${MODE})`);
 }
 
+/**
+ * Origem declarada no fim da linha de comando de todo hook de comando que o
+ * token-guard instala: a falha de hook mostrada numa sessão diz de quem ela é
+ * (convenção do orquestrador: `--hook-origin=<projeto>`). Hook http (sem linha
+ * de comando) e mcp_tool do Codex não têm onde carregá-la.
+ */
+const HOOK_ORIGIN_ARG = '--hook-origin=token-guard';
+const HOOK_ORIGIN_RE = /\s--hook-origin=\S+\s*$/;
+
+/** Idempotente: assina o que falta, normaliza a origem do token-guard, nunca duplica. */
+function signCmd(cmd) {
+  return `${String(cmd).replace(HOOK_ORIGIN_RE, '')} ${HOOK_ORIGIN_ARG}`;
+}
+
+/**
+ * Migra entrada antiga (sem assinatura) no lugar: assina todo hook de comando do
+ * token-guard de `entries` (entradas `{hooks:[...]}` ou hooks soltos). Devolve quantos mudaram.
+ */
+function signEntries(entries) {
+  let changed = 0;
+  const sign = (h) => {
+    if (typeof h?.command !== 'string' || !h.command.includes('token-guard')) return;
+    const next = signCmd(h.command);
+    if (next !== h.command) { h.command = next; changed += 1; }
+  };
+  for (const e of Array.isArray(entries) ? entries : []) {
+    if (Array.isArray(e?.hooks)) e.hooks.forEach(sign); else sign(e);
+  }
+  return changed;
+}
+
 /** Node quoteado: caminhos com espaco sao a regra em Windows, nao a excecao. */
 function nodeCmd(scriptPath) {
-  return `node "${scriptPath.replace(/\\/g, '/')}"`;
+  return signCmd(`node "${scriptPath.replace(/\\/g, '/')}"`);
 }
 
 /* ------------------------------------------------------------------ */
@@ -692,6 +723,9 @@ function installClaude() {
       return false; // substituído pela entrada canônica abaixo
     });
 
+    // 2b. vivo sem assinatura de origem: assina no lugar (sem duplicar a entrada)
+    const signed = signEntries(entries);
+
     // 3. já registrado? olhando todos os hooks de todas as entradas
     const allCmds = entries
       .flatMap((entry) => (Array.isArray(entry?.hooks) ? entry.hooks : [entry]))
@@ -711,7 +745,7 @@ function installClaude() {
       }
     }
 
-    return { entries, repairedDead, replacedOldLayout, matcherUpdated, alreadyLive };
+    return { entries, repairedDead, replacedOldLayout, matcherUpdated, alreadyLive, signed };
   }
 
   /* PreToolUse — as quatro regras (com matcher: evita spawn nas chamadas que
@@ -723,6 +757,7 @@ function installClaude() {
       r.repairedDead ? 'registro obsoleto reparado' : null,
       r.replacedOldLayout ? 'layout antigo substituído' : null,
       r.matcherUpdated ? 'matcher atualizado' : null,
+      r.signed ? 'origem assinada' : null,
     ].filter(Boolean);
 
     if (r.alreadyLive) {
@@ -753,6 +788,7 @@ function installClaude() {
     const bits = [
       r.repairedDead ? 'registro obsoleto reparado' : null,
       r.replacedOldLayout ? 'layout antigo substituído' : null,
+      r.signed ? 'origem assinada' : null,
     ].filter(Boolean);
 
     if (r.alreadyLive) {
@@ -778,6 +814,7 @@ function installClaude() {
     const bits = [
       r.repairedDead ? 'registro obsoleto reparado' : null,
       r.replacedOldLayout ? 'layout antigo substituído' : null,
+      r.signed ? 'origem assinada' : null,
     ].filter(Boolean);
 
     if (r.alreadyLive) {
@@ -917,6 +954,7 @@ function installCodex() {
 
 function installCursor() {
   let staleCursor = false;
+  let signedCursor = false;
   const base = path.join(HOME, '.cursor');
   const dir = path.join(base, 'token-guard');
   installRuntime(dir, { base });
@@ -951,16 +989,17 @@ function installCursor() {
       (h) => typeof h?.command === 'string' && h.command.includes('token-guard')
     );
     if (has) {
-      skipped.push(`~/.cursor/hooks.json > ${evt} (token-guard ja registrado)`);
+      if (signEntries(hooks.hooks[evt])) signedCursor = true;
+      else skipped.push(`~/.cursor/hooks.json > ${evt} (token-guard ja registrado)`);
       continue;
     }
     hooks.hooks[evt].push({ command });
     added += 1;
   }
 
-  if (added || staleCursor) {
+  if (added || staleCursor || signedCursor) {
     writeJson(hooksPath, hooks, base,
-      `hooks.json  (${staleCursor ? 'registro obsoleto reparado · ' : ''}+${added} evento(s), demais preservados)`);
+      `hooks.json  (${staleCursor ? 'registro obsoleto reparado · ' : ''}${signedCursor ? 'origem assinada · ' : ''}+${added} evento(s), demais preservados)`);
   }
   writeGlobalConfig(base, base);
   notes.push('cursor   · preToolUse (Cursor recente) cobre as 4 regras; versoes antigas sem ele ficam sem broadScan.');
@@ -1066,9 +1105,10 @@ function installRepo() {
         driftFixed = true;
       }
     }
-    if (driftFixed) {
+    const signedRepo = signEntries(hooks.hooks.PreToolUse) > 0;
+    if (driftFixed || signedRepo) {
       writeJson(hooksPath, hooks, DEST,
-        '.github/hooks/hooks.json  (matcher atualizado para a cobertura atual)');
+        `.github/hooks/hooks.json  (${[driftFixed ? 'matcher atualizado para a cobertura atual' : null, signedRepo ? 'origem assinada' : null].filter(Boolean).join(' · ')})`);
     } else {
       skipped.push('.github/hooks/hooks.json (token-guard ja registrado)');
     }
@@ -1077,7 +1117,7 @@ function installRepo() {
     hooks.hooks.PreToolUse.push({
       matcher: MATCHER_COPILOT,
       type: 'command',
-      command: 'node .github/token-guard/token-guard.cjs',
+      command: signCmd('node .github/token-guard/token-guard.cjs'),
       timeout: 10,
     });
     writeJson(hooksPath, hooks, DEST,

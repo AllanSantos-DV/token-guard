@@ -5,6 +5,13 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado
+- **Todo hook de comando do token-guard declara a origem.** A linha de comando dos hooks que o instalador
+  grava (Claude Code: SessionStart, SubagentStart e, com `--command-hooks`, Pre/Post/UserPromptSubmit; Cursor;
+  repositório) termina em `--hook-origin=token-guard`, para a falha de hook mostrada numa sessão dizer de quem
+  ela é. Reinstalar assina no lugar as entradas antigas (sem assinatura), sem duplicar e sem tocar em hook de
+  outro dono. Hook http (sem linha de comando) e o `mcp_tool` do Codex não têm onde carregar o argumento.
+
 ## [2.15.1] — 2026-11-03
 
 ### Corrigido
