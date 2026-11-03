@@ -11,7 +11,7 @@ Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 
 | # | Item | Esforço |
 |---|------|---------|
-| B5 | A instalação global antiga (`npm i -g`, ex.: 2.13.1 em `AppData\Roaming\npm`) não é gerida nem avisada pelo auto-update, que só reinstala os alvos de `install-state.json`. Avisar na sessão seguinte seria comportamento novo para o usuário | S |
+| B5 | Aviso, na sessão seguinte, de que existe uma instalação global antiga do token-guard (`npm i -g`) que o auto-update não gere (ele só reinstala os alvos de `install-state.json`). **Decidido (Jarvis, 03/11): o aviso é feature nova visível ao usuário e espera o dono; a parte técnica (a cópia global velha nesta máquina) está corrigida** | S |
 
 Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD-tela-setup-bandeja.md, seção 8): pausar/retomar no menu do ícone; regras diferentes por IDE; modo "só avisar".
 
