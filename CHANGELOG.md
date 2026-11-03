@@ -5,6 +5,13 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.16.6] — 2026-11-03
+
+### Corrigido
+- A seção `quando: codigo` do contrato não repete mais a regra de comentários: quem já a recebe do `CLAUDE.md`
+  global a via duas vezes na mesma sessão, e de novo após a compactação. A seção guarda só o que é próprio do
+  escopo (guardas, reuso, cerimônia).
+
 ## [2.16.5] — 2026-11-03
 
 ### Corrigido

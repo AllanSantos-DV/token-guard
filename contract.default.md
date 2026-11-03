@@ -43,21 +43,12 @@ regras de programação, e é por isso que não confundem tarefa nenhuma.
 
 Entra quando a sessão já leu ou escreveu arquivo-fonte.
 
-- Comentário registra invariante, contrato e porquê não óbvio: a razão de o código não ser
-  o óbvio, a armadilha que ele evita, a garantia que ele mantém.
-- O histórico do desenvolvimento vai na mensagem de commit, que é onde ele é procurado.
-  "Antes era assim", "corrigido depois que o teste falhou", "isto quebrou aqui" descrevem a
-  sessão, não o código — não sobrevivem ao merge e poluem toda leitura futura do arquivo.
-- Código que se explica sozinho dispensa comentário que o repete em português.
-- Comentário segue o idioma e a densidade dos arquivos ao redor.
 - Guarda, `try/catch` e fallback entram onde há falha prevista e um caminho de recuperação
   real. Defesa genérica esconde o erro em vez de tratá-lo.
 - O que foi removido some. Código morto comentado é responsabilidade do controle de versão.
 - O repositório é consultado antes de nascer um helper. Função duplicada é a forma mais cara
   de lixo: cada cópia diverge, e todas passam a ser lidas.
-- A abstração que já existe é preferida mesmo quando não é a primeira que ocorre. Quando o
-  reuso não é óbvio, uma linha explicando a escolha é comentário legítimo — é invariante,
-  não histórico.
+- A abstração que já existe é preferida mesmo quando não é a primeira que ocorre.
 - Cerimônia que a linguagem não exige não entra: wrapper que só encaminha, acessor sem
   lógica, interface com uma implementação, tipo redeclarado onde a inferência já resolve.
   Custa saída agora e leitura para sempre.

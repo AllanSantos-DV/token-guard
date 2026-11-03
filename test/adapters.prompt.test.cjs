@@ -87,8 +87,10 @@ const CT = require(path.join(__dirname, '..', 'lib', 'contract.cjs'));
   CT.recordTouched(TMP, 'sess-cod', ['src/BigService.java']);
   const out = run({ cwd: TMP, session_id: 'sess-cod', prompt: 'bora' });
   check('evidência de código injeta a seção codigo junto',
-    Boolean(out?.additionalContext) && /Comentário registra invariante/.test(out.additionalContext),
+    Boolean(out?.additionalContext) && /O repositório é consultado antes de nascer um helper/.test(out.additionalContext),
     (out?.additionalContext || '').slice(0, 160));
+  check('a seção codigo não repete a regra de comentários do CLAUDE.md global',
+    !/Comentário registra|histórico do desenvolvimento|se explica sozinho/.test(out.additionalContext));
   check('estado registra sempre+codigo (não reinjeta em nenhum dos dois)',
     run({ cwd: TMP, session_id: 'sess-cod' }) === null);
 }
