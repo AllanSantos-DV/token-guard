@@ -151,7 +151,18 @@ const claudeDeny = { tool_name: 'Read', tool_input: { file_path: BIG }, cwd: TMP
     const before = await post(httpPort, '/token-guard/pre', claudeDeny, token);
 
     const t0 = Date.now();
-    const ss = spawnSync(process.execPath, [SESSION], { input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: TMP }), env, encoding: 'utf8', timeout: 15000 });
+    // Assíncrono de propósito: com spawnSync o loop não reaparece o daemon antigo (filho deste processo), que
+    // fica zumbi no Linux e o SessionStart o veria "vivo" depois do encerramento.
+    const ss = await new Promise((resolve) => {
+      const child = spawn(process.execPath, [SESSION], { env, stdio: ['pipe', 'pipe', 'pipe'] });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d) => { stdout += d; });
+      child.stderr.on('data', (d) => { stderr += d; });
+      const timer = setTimeout(() => child.kill(), 15000);
+      child.on('close', (status) => { clearTimeout(timer); resolve({ status, stdout, stderr }); });
+      child.stdin.end(JSON.stringify({ hook_event_name: 'SessionStart', cwd: TMP }));
+    });
     const took = Date.now() - t0;
     const after = await post(httpPort, '/token-guard/pre', claudeDeny, token);
     check('pré-condição: daemon antigo sem HTTP', before.status === 0, before);

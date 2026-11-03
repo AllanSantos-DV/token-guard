@@ -5,7 +5,16 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
-## [2.16.3] — 2026-11-03
+## [2.16.4] — 2026-11-03
+
+### Corrigido
+- A 2.16.3 não chegou ao npm: o gate do workflow de publicação falhou no Linux (três suítes, uma delas por um
+  zumbi: o daemon antigo, filho de um processo parado em `spawnSync`, seguia "vivo" para `kill(pid, 0)`). O
+  conteúdo da 2.16.3 sai nesta versão. No produto, um processo zumbi no Linux passa a contar como encerrado (na
+  troca do daemon e no lock do singleton); o resto são testes que não valiam fora do Windows e de usuário
+  comum. Todas as suítes passam também num container Linux, como root.
+
+## [2.16.3] — 2026-11-03 (não publicada; saiu na 2.16.4)
 
 ### Corrigido
 - **O daemon volta sozinho depois de atualizar, em qualquer alvo.** `init --target cursor` e `--target repo` agora

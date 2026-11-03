@@ -194,8 +194,11 @@ function startStubOldDaemon() {
   // 5 · falha antes de escutar deixa o motivo no log
   {
     resetLog();
-    const badEndpoint = process.platform === 'win32' ? '\\\\.\\nopipe\\tg-followups' : '/inexistente-tg/x.sock';
+    const notADir = path.join(os.tmpdir(), `tg-notadir-${process.pid}`);
+    fs.writeFileSync(notADir, '');
+    const badEndpoint = process.platform === 'win32' ? '\\\\.\\nopipe\\tg-followups' : path.join(notADir, 'x.sock');
     const r = spawnSync(process.execPath, [DAEMON, badEndpoint], { encoding: 'utf8', timeout: 20000, windowsHide: true, env: process.env });
+    fs.rmSync(notADir, { force: true });
     const exits = logLines().filter((l) => l.event === 'exit');
     check('listen que falha sai 1', r.status === 1, { status: r.status, err: r.stderr });
     check('o exit da falha antes de escutar traz o motivo', exits.length === 1 && /listen falhou/.test(exits[0].reason) && exits[0].code === 1, logLines());
