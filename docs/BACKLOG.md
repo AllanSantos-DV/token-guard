@@ -17,15 +17,12 @@ Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD
 
 ## Candidatos da lente irmã (pós-2.15.1)
 
-Nenhum bloqueia a release; nenhum é item técnico em aberto. Os dois quase de graça foram feitos na 2.15.1 (ver CHANGELOG). Os demais ficam aqui, com o motivo de não entrarem agora.
+Nenhum é item técnico em aberto. L2, L3 e L4 foram feitos na 2.15.1 (tabela abaixo); L1 e L5 são decisões de negócio e ficam como decididas.
 
-| # | Candidato | Ganho | Esforço e reuso | Por que fica |
-|---|-----------|-------|-----------------|--------------|
-| L1 | Reenvio de `postprocess` que devolve a mesma resposta guardada por `requestKey` | o `dupRead` e a rajada do scout valeriam também quando a resposta se perdeu (hoje `post-hook.cjs` só corta o resultado grande) | M: o daemon guardaria chave → resposta, não só a chave; reusa `firstDelivery`/`SEEN_MAX` (`adapters/daemon-server.cjs`) e o ramo `lost` de `adapters/post-hook.cjs` | contraria a decisão de "no máximo uma vez" da 2.15.1 e muda o que o usuário vê: decisão de produto |
-| L2 | Poda do cache do npm fora de uma atualização (intervalo de 24 h) | máquinas que atualizaram antes da 2.15.1 e pedidos manuais `npx pacote@X` deixam de acumular pastas e tarballs até a próxima atualização | S/M: `REAL_DEPS.pruneOldVersions` e `npmCacheDir` (`lib/auto-update.cjs`), padrão `shouldAttempt` para o intervalo; `pruneOldCacache` lê todo bucket e custa em cache grande | rodar a cada sessão tem custo de varredura medido só por estimativa: precisa de medição antes |
-| L3 | `trim()` do `events.jsonl` sem perder o append concorrente | uma linha gravada entre a leitura e o rename da poda deixa de sumir da contagem da tela | M: renomear antes de ler ou lock; reusa `trim`/`record`/`eventsPath` (`lib/events.cjs`) | defeito lido no código, não reproduzido; janela estreita |
-| L4 | `cursor-hook.cjs` passar pelo daemon como o `hook-cmd.cjs` | cache de veredito e proteção de reenvio por `requestKey` também no Cursor | M: copiar o bloco `tryDaemon('check')` de `adapters/hook-cmd.cjs` com `target` cursor; reusa `targetOf` (`adapters/daemon-server.cjs`); o payload canônico precisa ser validado | ganho de latência não medido; o processo `node` sobe por chamada de qualquer jeito |
-| L5 | `token_guard_check` (MCP) não gravar `deny` para consulta que não bloqueia | a contagem de bloqueios da tela deixa de incluir consultas do agente | S: usar um kind consultivo ou não registrar em `adapters/mcp-server.cjs`; reusa `EV.recordDeny`/`KINDS` (`lib/events.cjs`) | muda o número que o usuário vê na tela: decisão do dono |
+| # | Candidato | Decisão |
+|---|-----------|---------|
+| L1 | Reenvio de `postprocess` devolvendo a mesma resposta guardada por `requestKey` | **Decidido (Jarvis, 03/11):** não feito. O contrato da 2.15.1 é entregar o `postprocess` no máximo uma vez por pedido; repetir uma resposta guardada mudaria o que o usuário vê |
+| L5 | `token_guard_check` (MCP) não gravar `deny` para consulta que não bloqueia | **Decidido (Jarvis, 03/11):** não feito agora. O check do MCP continua gravando como hoje e a contagem que o usuário vê não muda |
 
 ## Fechado na release 2.15.1
 
@@ -35,6 +32,9 @@ Nenhum bloqueia a release; nenhum é item técnico em aberto. Os dois quase de g
 | B2 | A poda ignorava o cache customizado do `.npmrc` | `npmCacheDir` pergunta ao npm (`npm config get cache`) depois da variável de ambiente; `test/auto-update.test.cjs` com `.npmrc` real |
 | B3 | Pasta `_npx` de pedido sem versão não era podada | pedido `pacote` sem versão entra na poda só se não for a atual, tiver mais de 7 dias e um rename atômico para nome temporário funcionar (travada ou recente fica intacta); o servidor MCP carrega módulos sob demanda, então a pasta em uso precisa ser protegida (heurística no POSIX, onde o rename não detecta uso) |
 | B4 | `_cacache` fora da poda | `pruneOldCacache` remove o conteúdo e a linha do índice dos tarballs de outras versões do token-guard; só toca chave de tarball do nosso pacote |
+| L2 | Poda do cache do npm fora de uma atualização | `pruneIfDue` roda no ramo "em dia ou offline" do auto-update (processo destacado, nunca no hook síncrono), no máximo uma vez por 24 h (`prune-state.json`, gravado antes da varredura), mantendo a versão em uso. Custo medido: ~0,8 ms por bucket do `_cacache` (5000 buckets sintéticos: ~3,8 s; o cache real do dono tem 1991 arquivos de índice) |
+| L3 | `trim()` do `events.jsonl` perdia o append concorrente | o arquivo sai do caminho por rename antes da leitura; o registro que chega cria o arquivo novo e as linhas mantidas voltam por append; `readAll` ordena por tempo. Falha no meio deixa o arquivo de trabalho no disco, nada é apagado antes |
+| L4 | `cursor-hook.cjs` fora do daemon | passa por `tryDaemon('check')` como o `hook-cmd.cjs` (cache de veredito e `requestKey`); sem daemon decide local; pedido enviado sem resposta não regrava o evento; erro segue liberando |
 
 ## Fechado na release 2.14.1 (2026-10-30)
 

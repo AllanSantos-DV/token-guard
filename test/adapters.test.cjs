@@ -83,6 +83,18 @@ console.log('  [cursor]');
     JSON.stringify(r));
 }
 
+// L4: o cursor passa pelo daemon como o hook-cmd; um bloqueio vira um evento só (daemon grava, hook não duplica)
+{
+  const EV = require('../lib/events.cjs');
+  const cursorDenies = () => EV.readAll().filter((e) => e.kind === 'deny' && e.target === 'cursor').length;
+  const before = cursorDenies();
+  const r = runJson(CURSOR, { hook_event_name: 'beforeReadFile', file_path: BIG, workspace_roots: [TMP] });
+  check('cursor via daemon: deny continua igual', r && r.permission === 'deny', JSON.stringify(r));
+  check('cursor via daemon: um bloqueio grava exatamente um evento', cursorDenies() === before + 1, cursorDenies() - before);
+  const ok = runJson(CURSOR, { hook_event_name: 'beforeReadFile', file_path: path.join(TMP, 'pequeno.txt'), workspace_roots: [TMP] });
+  check('cursor via daemon: leitura liberada segue liberada, sem evento', ok && ok.permission === 'allow' && cursorDenies() === before + 1, JSON.stringify(ok));
+}
+
 {
   const r = runJson(CURSOR, {
     hook_event_name: 'beforeReadFile',

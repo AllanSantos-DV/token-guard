@@ -293,6 +293,34 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   delete process.env.TOKEN_GUARD_UPDATE_CHECK;
   fs.rmSync(cacheFile, { force: true });
 
+  // L2: poda do cache fora de uma atualização, no máximo uma vez por dia
+  fs.writeFileSync(AU.installStatePath(), JSON.stringify({ targets: ['claude'], runs: 1 }));
+  fs.rmSync(AU.pruneStatePath(), { force: true });
+  const uptodate = async () => ({ checked: true, updateAvailable: false, latestVersion: LOCAL, localVersion: LOCAL });
+  const prunes = [];
+  const seam = (t) => ({ checkForUpdate: uptodate, now: () => t, pruneOldVersions: (v) => { prunes.push(v); } });
+  const T0 = Date.now();
+  r = await AU.run(seam(T0));
+  check('em dia e nunca podou → poda mantendo a versão em uso', r.status === 'skipped' && prunes.length === 1 && prunes[0] === LOCAL, { r, prunes });
+  await AU.run(seam(T0 + 3600 * 1000));
+  check('dentro de 24 h não varre de novo', prunes.length === 1, prunes);
+  await AU.run(seam(T0 + 25 * 3600 * 1000));
+  check('passadas 24 h varre de novo', prunes.length === 2, prunes);
+  fs.rmSync(AU.pruneStatePath(), { force: true });
+  r = await AU.run({ checkForUpdate: uptodate, now: () => T0, pruneOldVersions: () => { throw new Error('boom'); } });
+  check('erro na poda por intervalo não derruba o run()', r.status === 'skipped', r);
+  const afterFail = await AU.run(seam(T0 + 1000));
+  check('falha na poda também consome o intervalo (não repete a cada sessão)', prunes.length === 2, prunes);
+  fs.rmSync(AU.pruneStatePath(), { force: true });
+  process.env.TOKEN_GUARD_AUTO_UPDATE = 'off';
+  await AU.run(seam(T0));
+  delete process.env.TOKEN_GUARD_AUTO_UPDATE;
+  check('auto-update desligado não poda', prunes.length === 2, prunes);
+  fs.rmSync(AU.installStatePath(), { force: true });
+  await AU.run(seam(T0));
+  check('sem install-state não poda', prunes.length === 2, prunes);
+  fs.rmSync(AU.pruneStatePath(), { force: true });
+
   reset();
   console.log(`\n  auto-update: ${pass} passaram · ${fail} falharam`);
   process.exit(fail ? 1 : 0);

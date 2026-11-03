@@ -37,6 +37,16 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   reenvios do mesmo pedido.
 - A poda do `_cacache` mantém a linha do índice quando o conteúdo do tarball não pôde ser removido e não
   reescreve um bucket que o npm alterou durante a poda.
+- **Poda do cache do npm também sem atualização.** Quem atualizou antes da poda existir, ou rodou `npx
+  pacote@X` à mão, acumulava pasta e tarball até a próxima atualização. O auto-update (processo destacado,
+  nunca o hook síncrono) varre de novo no máximo a cada 24 h, mantendo a versão em uso; o horário é gravado
+  antes da varredura, então uma falha não a repete a cada sessão. Custo medido: cerca de 0,8 ms por bucket
+  do `_cacache` (5000 buckets sintéticos: ~3,8 s; o cache real tem ~2000 arquivos de índice).
+- **O `trim()` do `events.jsonl` não perde mais o registro que chega durante a poda.** O arquivo é movido por
+  rename antes de ser lido, o registro novo cria o arquivo novo e as linhas mantidas voltam por append;
+  `readAll` ordena por tempo. Se a poda falhar no meio, o arquivo de trabalho fica no disco.
+- **O hook do Cursor passa pelo daemon** como o hook em modo comando (cache de veredito e proteção contra
+  reenvio por chave de pedido); sem daemon decide localmente e erro segue liberando a chamada.
 
 ## [2.15.0] — 2026-10-30
 

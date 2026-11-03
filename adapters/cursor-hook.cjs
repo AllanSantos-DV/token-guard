@@ -34,6 +34,7 @@
 
 const P = require('../lib/payload.cjs');
 const { decide } = require('../lib/decide.cjs');
+const { tryDaemon } = require('../lib/daemon-client.cjs');
 const EV = require('../lib/events.cjs');
 
 /** 'deny' corta a chamada e o motivo volta ao agente; nunca emitimos 'ask' (confirmação do usuário). */
@@ -102,8 +103,11 @@ async function main() {
   try {
     const canonical = toCanonical(payload);
     if (canonical) {
-      verdict = decide(canonical, { target: 'cursor' });
-      EV.recordDeny(verdict, 'cursor', canonical);
+      // Mesmo bloco do hook-cmd: o daemon decide e registra; sem ele, decide e registra aqui. `sent`: o pedido
+      // saiu e só a resposta se perdeu, então o daemon pode já ter gravado o bloqueio.
+      const viaDaemon = await tryDaemon('check', { root: P.cwd(canonical), payload: canonical, target: 'cursor' });
+      verdict = viaDaemon.ok ? viaDaemon.result.verdict : decide(canonical, { target: 'cursor' });
+      if (!viaDaemon.ok && !viaDaemon.sent) EV.recordDeny(verdict, 'cursor', canonical);
     }
   } catch {
     return respond(ALLOW); // fail-open, sempre
