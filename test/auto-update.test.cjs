@@ -193,15 +193,25 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   const cRace = content('tarball corrida');
   const eRace = entry('3377dddddd', TB('2.11.0'), cRace);
   fs.writeFileSync(eRace.file, eRace.line);
-  const realRm = fs.rmSync;
-  fs.rmSync = (p, o) => { realRm(p, o); if (p === cRace.file) fs.appendFileSync(eRace.file, '\nnova-linha-do-npm'); };
-  try { AU.pruneOldCacache(NEXT, cacheDir); } finally { fs.rmSync = realRm; }
-  check('cacache: bucket alterado durante a poda não é sobrescrito', fs.readFileSync(eRace.file, 'utf8').includes('nova-linha-do-npm'));
+  const realRead = fs.readFileSync;
+  let reads = 0;
+  fs.readFileSync = (p, o) => { const out = realRead(p, o); if (p === eRace.file && ++reads === 1) fs.appendFileSync(eRace.file, '\nnova-linha-do-npm'); return out; };
+  try { AU.pruneOldCacache(NEXT, cacheDir); } finally { fs.readFileSync = realRead; }
+  check('cacache: bucket alterado durante a poda não é sobrescrito nem tem o conteúdo apagado',
+    fs.readFileSync(eRace.file, 'utf8').includes('nova-linha-do-npm') && fs.readFileSync(eRace.file, 'utf8').includes(TB('2.11.0')) && fs.existsSync(cRace.file));
+
+  // Integridade que não é sha512: o conteúdo não é localizável, então a linha fica (nada de órfão).
+  const eSha1 = entry('4488eeeeee', TB('2.10.0'), { integrity: 'sha1-AAAA' });
+  fs.writeFileSync(eSha1.file, eSha1.line);
+  AU.pruneOldCacache(NEXT, cacheDir);
+  check('cacache: integridade que não é sha512 mantém a linha', fs.existsSync(eSha1.file) && fs.readFileSync(eSha1.file, 'utf8').includes(TB('2.10.0')));
 
   // B2: o cache vem do npm (cache= do .npmrc), não de um palpite por plataforma
   check('npmCacheDir: variável de ambiente vence', AU.npmCacheDir(() => '/do-npm') === cacheDir);
   const savedCache = process.env.npm_config_cache;
+  const savedCacheUpper = process.env.NPM_CONFIG_CACHE;
   delete process.env.npm_config_cache;
+  delete process.env.NPM_CONFIG_CACHE;
   check('npmCacheDir: sem variável, usa o que o npm respondeu', AU.npmCacheDir(() => '/do-npm') === '/do-npm');
   check('npmCacheDir: npm mudo → cai no padrão da plataforma, sem lançar', typeof AU.npmCacheDir(() => null) === 'string' && AU.npmCacheDir(() => null).length > 0);
   const custom = path.join(path.dirname(cacheDir), 'cache-do-npmrc');
@@ -217,6 +227,7 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   fs.rmSync(path.join(process.env.HOME, '.npmrc'), { force: true });
   fs.rmSync(custom, { recursive: true, force: true });
   process.env.npm_config_cache = savedCache;
+  if (savedCacheUpper !== undefined) process.env.NPM_CONFIG_CACHE = savedCacheUpper;
 
   // concorrência
   fs.rmSync(AU.resultPath(), { force: true });

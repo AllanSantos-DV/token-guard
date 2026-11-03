@@ -21,7 +21,7 @@ Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD
 |---|------|-----------|
 | B1 | Evento de bloqueio duplicado em `events.jsonl` quando o `check` é reenviado após o timeout do cliente | cada chamada de `tryDaemon` leva uma `requestKey`, igual em todo reenvio; o daemon grava o deny só na primeira vez que vê a chave (`firstDelivery`); o hook em modo comando não regrava localmente quando o pedido saiu (`sent`); limite aceito: reinício do daemon entre envio e reenvio pode contar o bloqueio duas vezes; `test/daemon-server.test.cjs`, `test/daemon-faulttolerance.test.cjs` |
 | B2 | A poda ignorava o cache customizado do `.npmrc` | `npmCacheDir` pergunta ao npm (`npm config get cache`) depois da variável de ambiente; `test/auto-update.test.cjs` com `.npmrc` real |
-| B3 | Pasta `_npx` de pedido sem versão não era podada | pedido `pacote` sem versão entra na poda só se não for a atual, tiver mais de 7 dias e um rename atômico para nome temporário funcionar (travada ou recente fica intacta); o servidor MCP carrega módulos sob demanda, então a pasta em uso precisa ser protegida |
+| B3 | Pasta `_npx` de pedido sem versão não era podada | pedido `pacote` sem versão entra na poda só se não for a atual, tiver mais de 7 dias e um rename atômico para nome temporário funcionar (travada ou recente fica intacta); o servidor MCP carrega módulos sob demanda, então a pasta em uso precisa ser protegida (heurística no POSIX, onde o rename não detecta uso) |
 | B4 | `_cacache` fora da poda | `pruneOldCacache` remove o conteúdo e a linha do índice dos tarballs de outras versões do token-guard; só toca chave de tarball do nosso pacote |
 
 ## Fechado na release 2.14.1 (2026-10-30)
