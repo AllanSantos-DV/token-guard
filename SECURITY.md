@@ -101,9 +101,11 @@ baixa o pacote do npm e executa o instalador dele, com os seus privilégios de u
 Só entram versão semver e alvo conhecido no comando. O resultado é mostrado na sessão
 seguinte. Desligue com `TOKEN_GUARD_AUTO_UPDATE=off` (ou `TOKEN_GUARD_UPDATE_CHECK=off`).
 
-Depois de um auto-update bem-sucedido, o token-guard **apaga** do cache do npm (`<cache>/_npx/<hash>`) as pastas
-que o `npx` deixou para versões antigas dele. Só apaga pasta cujo único pacote pedido é o `@allansantos-dev/token-guard`
-e nunca a da versão recém-instalada; falha na instalação não apaga nada, e erro ao apagar é ignorado.
+Depois de um auto-update bem-sucedido, o token-guard **apaga** do cache do npm o que o `npx` deixou de versões antigas
+dele: as pastas `<cache>/_npx/<hash>` e, em `<cache>/_cacache`, o conteúdo e a linha do índice dos tarballs dessas versões.
+Só apaga pasta cujo único pacote pedido é o `@allansantos-dev/token-guard` e entrada cuja chave é o tarball dele,
+nunca a da versão recém-instalada; falha na instalação não apaga nada, e erro ao apagar é ignorado. Para achar o cache,
+roda `npm config get cache` (oculto, local, sem rede) e respeita o `cache=` do `.npmrc`.
 
 ## O que NÃO existe
 

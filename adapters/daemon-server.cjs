@@ -192,6 +192,22 @@ function dispatchPostprocess(params) {
 /** Anexado a toda resposta (sucesso ou erro) — permite ao cliente detectar um daemon desatualizado sem pagar um roundtrip 'hello' extra. */
 const HANDSHAKE = { protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION };
 
+/** Quantas chaves de pedido o daemon lembra: o reenvio do cliente chega segundos depois, nunca muitos pedidos depois. */
+const SEEN_MAX = 512;
+
+/**
+ * true na primeira vez que a chave do pedido aparece. Sem chave (cliente antigo) conta sempre como primeira.
+ * O cliente reenvia o mesmo pedido, com a mesma chave, quando estoura o timeout depois de enviar.
+ */
+function firstDelivery(ctx, key) {
+  if (typeof key !== 'string' || !key) return true;
+  const seen = ctx.seen || (ctx.seen = new Set());
+  if (seen.has(key)) return false;
+  seen.add(key);
+  if (seen.size > SEEN_MAX) seen.delete(seen.values().next().value);
+  return true;
+}
+
 function handleMessage(msg, ctx) {
   const reply = routeMessage(msg, ctx);
   if (reply) reply.handshake = HANDSHAKE;
@@ -241,17 +257,18 @@ function routeMessage(msg, ctx) {
     const hash = ruleSetHash(root);
     const target = targetOf(params, params.payload);
     const key = `${root}\u0000${hash}\u0000${target}\u0000${targetState(root, params.payload)}\u0000${JSON.stringify(params.payload || {})}`;
+    const first = firstDelivery(ctx, msg.requestKey);
     const cached = ctx.cache.get(key);
     if (cached !== undefined) {
       ctx.hits++;
-      EV.recordDeny(cached, target, params.payload);
+      if (first) EV.recordDeny(cached, target, params.payload);
       return { id: msg.id, result: { ok: true, verdict: cached, cached: true } };
     }
     const out = dispatch(params);
     if (out.ok) {
       ctx.cache.set(key, out.verdict);
       ctx.misses++;
-      EV.recordDeny(out.verdict, target, params.payload);
+      if (first) EV.recordDeny(out.verdict, target, params.payload);
     }
     return { id: msg.id, result: out };
   }

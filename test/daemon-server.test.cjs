@@ -129,6 +129,19 @@ async function rpc(endpoint, msg) {
     check('editar config global invalida o cache (miss)', r8.result && r8.result.ok && !r8.result.cached);
     const r9 = await rpc(endpoint, { id: 13, method: 'check', params: { root: TMP, payload: denyPayload } });
     check('sem nova edição, volta a bater no cache', r9.result && r9.result.cached === true);
+
+    // B1: o reenvio do cliente após timeout leva a mesma requestKey; o deny só vira evento uma vez.
+    const EV = require('../lib/events.cjs');
+    const denies = () => EV.readAll().filter((e) => e.kind === 'deny').length;
+    const before = denies();
+    await rpc(endpoint, { id: 20, method: 'check', requestKey: 'k-reenvio', params: { root: TMP, payload: denyPayload } });
+    await rpc(endpoint, { id: 21, method: 'check', requestKey: 'k-reenvio', params: { root: TMP, payload: denyPayload } });
+    check('mesmo pedido reenviado (mesma requestKey) grava um único evento de deny', denies() === before + 1, `${denies() - before} eventos`);
+    await rpc(endpoint, { id: 22, method: 'check', requestKey: 'k-outro', params: { root: TMP, payload: denyPayload } });
+    check('outro pedido igual (requestKey nova) continua contando', denies() === before + 2, `${denies() - before} eventos`);
+    await rpc(endpoint, { id: 23, method: 'check', params: { root: TMP, payload: denyPayload } });
+    await rpc(endpoint, { id: 24, method: 'check', params: { root: TMP, payload: denyPayload } });
+    check('cliente sem requestKey conta cada chamada, como antes', denies() === before + 4, `${denies() - before} eventos`);
   } finally {
     server.close();
     if (typeof endpoint === 'string' && !endpoint.startsWith('\\\\')) {

@@ -269,7 +269,7 @@ versão nova, roda `npx @allansantos-dev/token-guard@<nova> init --target <os me
 runtime, hooks e MCP saem atualizados juntos. O resultado aparece na tela no início da
 sessão seguinte — sucesso ou falha, com o log em `~/.token-guard/auto-update.log` e o
 comando para rodar à mão. Falha não é repetida na mesma versão antes de 24 h. Depois de uma
-atualização bem-sucedida, o token-guard apaga do cache do `npx` (`_npx/`) as pastas das versões antigas dele.
+atualização bem-sucedida, o token-guard apaga do cache do npm (`_npx/` e os tarballs em `_cacache/`) o que sobrou das versões antigas dele.
 Desligue com `TOKEN_GUARD_AUTO_UPDATE=off`.
 
 Desde a 2.8.1, todo início de sessão também mostra na tela (`systemMessage`) quando há versão

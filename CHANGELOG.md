@@ -14,9 +14,21 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   entregue no máximo uma vez: depois do envio o hook só aplica localmente o corte de resultado grande, que é
   idempotente. Os demais métodos seguem com o reenvio de sempre.
 - **O auto-update não acumula mais versões antigas no disco.** Cada `npx --yes ...@X.Y.Z` deixa uma pasta
-  própria em `_npx/` do cache do npm, que o npm nunca limpa. Depois de um auto-update bem-sucedido, o
-  token-guard remove as pastas `_npx` das outras versões dele (mantém a nova). Só toca pasta cujo único
-  pacote pedido é o token-guard, e instalação que falhou não apaga nada.
+  própria em `_npx/` do cache do npm, que o npm nunca limpa, e o tarball de cada versão em `_cacache/`.
+  Depois de um auto-update bem-sucedido, o token-guard remove as pastas `_npx` das outras versões dele
+  (inclusive as de pedido sem versão) e os tarballs dessas versões no `_cacache` (conteúdo e linha do
+  índice); mantém a nova. Só toca pasta cujo único pacote pedido é o token-guard e entrada cuja chave é o
+  tarball dele, e instalação que falhou não apaga nada. A pasta do cache vem do próprio npm
+  (`npm config get cache`), então vale o `cache=` do `.npmrc`.
+- **Bloqueio reenviado não vira dois eventos.** O cliente do daemon reenvia o `check` quando estoura o
+  timeout depois de enviar; o daemon gravava o bloqueio de novo em `events.jsonl` (contagem em dobro na
+  tela e no ícone). Cada chamada leva agora uma chave de pedido, a mesma em todo reenvio, e o daemon grava
+  o evento só na primeira vez que a vê. A resposta do `check` continua sendo reenviada como sempre. Se o
+  pedido saiu e nenhuma resposta voltou, o hook em modo comando também não regrava o bloqueio localmente.
+  Limite aceito: se o daemon reiniciar entre o envio e o reenvio, a chave se perde e o bloqueio pode contar
+  duas vezes (janela estreita, só afeta o contador da tela).
+- A poda do `_cacache` mantém a linha do índice quando o conteúdo do tarball não pôde ser removido e não
+  reescreve um bucket que o npm alterou durante a poda.
 
 ## [2.15.0] — 2026-10-30
 

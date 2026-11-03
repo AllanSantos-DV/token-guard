@@ -324,8 +324,63 @@ async function testPostHookKeepsBigResultAfterLostReply() {
   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* melhor esforço */ }
 }
 
+async function testResendKeepsRequestKey() {
+  console.log('\n  [reenvio do mesmo pedido leva a mesma requestKey]');
+  const keys = [];
+  let calls = 0;
+  const client = createClient({
+    spawnFn: () => {}, sleepFn: () => Promise.resolve(), bootTimeoutMs: 100, maxSpawnAttempts: 1,
+    connectFn: async (method, _params, opts) => {
+      if (method === 'hello') return { ok: true, result: {} };
+      keys.push(opts && opts.requestKey);
+      calls += 1;
+      return calls === 1 ? { ok: false } : { ok: true, result: { ok: true } };
+    },
+  });
+  const res = await client.tryDaemon('check', {}, {});
+  check('o reenvio depois do bring-up deu certo', res.ok === true && keys.length === 2, JSON.stringify(keys));
+  check('as duas tentativas usam a mesma requestKey não vazia', typeof keys[0] === 'string' && keys[0].length >= 8 && keys[0] === keys[1], JSON.stringify(keys));
+  const keys2 = [];
+  const c2 = createClient({ connectFn: async (_m, _p, opts) => { keys2.push(opts.requestKey); return { ok: true, result: {} }; } });
+  await c2.tryDaemon('check', {}, {}); await c2.tryDaemon('check', {}, {});
+  check('chamadas diferentes usam requestKey diferente', keys2.length === 2 && keys2[0] !== keys2[1], JSON.stringify(keys2));
+}
+
+async function testSentPropagatesAndFrameMeasure() {
+  console.log('\n  [sent propaga no ok:false final; frame medido com a requestKey]');
+  const mk = (sentFirst, sentRetry) => createClient({
+    spawnFn: () => {}, sleepFn: () => Promise.resolve(), bootTimeoutMs: 100, maxSpawnAttempts: 1,
+    connectFn: async (method) => {
+      if (method === 'hello') return { ok: true, result: {} };
+      mk.n = (mk.n || 0) + 1;
+      const sent = mk.n === 1 ? sentFirst : sentRetry;
+      return sent ? { ok: false, sent: true } : { ok: false };
+    },
+  });
+  mk.n = 0;
+  const r1 = await mk(true, false).tryDaemon('check', {}, {});
+  check('enviou e falhou: ok:false com sent:true', r1.ok === false && r1.sent === true, JSON.stringify(r1));
+  mk.n = 0;
+  const r2 = await mk(false, true).tryDaemon('check', {}, {});
+  check('só o reenvio saiu: sent:true', r2.ok === false && r2.sent === true, JSON.stringify(r2));
+  mk.n = 0;
+  const r3 = await mk(false, false).tryDaemon('check', {}, {});
+  check('nada saiu: sem sent (o chamador registra localmente)', r3.ok === false && !r3.sent, JSON.stringify(r3));
+  // Payload 20 bytes abaixo do teto sem a chave, acima dele com a chave.
+  const { encodeFrame } = require('../lib/ipc-frame.cjs');
+  const { MAX_FRAME_BYTES } = require('../lib/ipc-frame.cjs');
+  let calls = 0;
+  const c = createClient({ connectFn: async () => { calls += 1; return { ok: true, result: {} }; } });
+  const base = Buffer.byteLength(encodeFrame({ id: 0, method: 'check', params: { x: '' } }));
+  const pad = 'a'.repeat(MAX_FRAME_BYTES - base - 4);
+  const res = await c.tryDaemon('check', { x: pad }, {});
+  check('frame que só estoura com a requestKey não vai ao daemon', res.ok === false && calls === 0, JSON.stringify({ res, calls }));
+}
+
 async function main() {
   await testAtMostOnceAfterSend();
+  await testSentPropagatesAndFrameMeasure();
+  await testResendKeepsRequestKey();
   await testPostHookKeepsBigResultAfterLostReply();
   await testStartOnDemand();
   await testSelfHeal();

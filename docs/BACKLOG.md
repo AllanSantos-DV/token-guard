@@ -7,17 +7,22 @@
 
 ## Aberto
 
-Achados durante a 2.15.1 (disco do auto-update e `postprocess` duplicado), fora do escopo daquela release:
+Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 
 | # | Item | Esforço |
 |---|------|---------|
-| B1 | Evento de bloqueio duplicado em `events.jsonl` quando o `check` é reenviado após timeout do cliente (200 ms): o daemon já gravou o deny e o reenvio grava outro. Precisa de gravação idempotente por requisição; `atMostOnce` não serve para `check`, que precisa da resposta | M |
-| B2 | `npmCacheDir()` ignora o cache configurado em `.npmrc` (só lê `npm_config_cache`, `LOCALAPPDATA`/`~/.npm`): com cache customizado, a poda não acha as pastas `_npx` | S |
-| B3 | Pasta `_npx` de pedido sem versão (`@allansantos-dev/token-guard` sem `@X.Y.Z`) não é podada | S |
-| B4 | `_cacache` (tarballs baixados) não entra na poda do auto-update | S |
-| B5 | A instalação global antiga (`npm i -g`, ex.: 2.13.1 em `AppData\\Roaming\\npm`) não é gerida nem avisada pelo auto-update, que só reinstala os alvos de `install-state.json`. Avisar na sessão seguinte seria feature nova: decisão do dono | S |
+| B5 | A instalação global antiga (`npm i -g`, ex.: 2.13.1 em `AppData\Roaming\npm`) não é gerida nem avisada pelo auto-update, que só reinstala os alvos de `install-state.json`. Avisar na sessão seguinte seria comportamento novo para o usuário | S |
 
 Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD-tela-setup-bandeja.md, seção 8): pausar/retomar no menu do ícone; regras diferentes por IDE; modo "só avisar".
+
+## Fechado na release 2.15.1
+
+| # | Item | Resolução |
+|---|------|-----------|
+| B1 | Evento de bloqueio duplicado em `events.jsonl` quando o `check` é reenviado após o timeout do cliente | cada chamada de `tryDaemon` leva uma `requestKey`, igual em todo reenvio; o daemon grava o deny só na primeira vez que vê a chave (`firstDelivery`); o hook em modo comando não regrava localmente quando o pedido saiu (`sent`); limite aceito: reinício do daemon entre envio e reenvio pode contar o bloqueio duas vezes; `test/daemon-server.test.cjs`, `test/daemon-faulttolerance.test.cjs` |
+| B2 | A poda ignorava o cache customizado do `.npmrc` | `npmCacheDir` pergunta ao npm (`npm config get cache`) depois da variável de ambiente; `test/auto-update.test.cjs` com `.npmrc` real |
+| B3 | Pasta `_npx` de pedido sem versão não era podada | pedido `pacote` sem versão entra na poda; a versão atual fica |
+| B4 | `_cacache` fora da poda | `pruneOldCacache` remove o conteúdo e a linha do índice dos tarballs de outras versões do token-guard; só toca chave de tarball do nosso pacote |
 
 ## Fechado na release 2.14.1 (2026-10-30)
 
