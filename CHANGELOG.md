@@ -5,6 +5,12 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.16.7] — 2026-11-03
+
+### Corrigido
+- A 2.16.6 não chegou ao npm: o `plugin.json` ficou na 2.16.5 e o gate do publish barrou. O conteúdo da 2.16.6
+  (contrato `codigo` sem a regra de comentários) sai nesta versão, com `plugin.json` acompanhando o `package.json`.
+
 ## [2.16.6] — 2026-11-03
 
 ### Corrigido
