@@ -443,6 +443,7 @@ function sweepStaleLocks(dir, ownLock) {
 function start(endpointOverride) {
   const endpoint = endpointOverride || defaultEndpoint();
   const lockFile = defaultLockPath(endpoint);
+  DL.hookProcess();
 
   // F4 (D4/D5): antes de tentar o listen, decide via lock-record se já existe
   // outro daemon vivo neste endpoint. Isto é só a primeira linha de defesa —
@@ -543,6 +544,7 @@ function start(endpointOverride) {
           ? `porta fixa ${DH.fixedPort()} (TOKEN_GUARD_HTTP_PORT) ocupada ou recusada: ${err.code || err.message}`
           : `nenhuma porta disponível: ${err.code || err.message}`;
         process.stderr.write(`token-guard daemon: hook http DESLIGADO — ${why}\n`);
+        DL.logLifecycle('http-off', { reason: why });
         try { DH.writeJsonAtomic(DH.endpointPath(), { ...(DH.readEndpoint() || {}), error: why, pid: process.pid, version: PACKAGE_VERSION }); } catch { /* o stderr acima já registrou */ }
       });
       server.once('close', () => { ui.close(); httpServer.close(); });
@@ -632,6 +634,7 @@ function start(endpointOverride) {
       return;
     }
     process.stderr.write(`token-guard daemon falhou: ${err.message}\n`);
+    DL.noteExitReason(`listen falhou: ${err.code || err.message}`);
     process.exit(1);
   });
   server.listen(endpoint);

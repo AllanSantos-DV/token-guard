@@ -95,15 +95,20 @@ Tudo que o instalador cria, em um lugar só:
 | `mcp` | `~/.token-guard/runtime/` (+ o snippet `~/.token-guard/mcp.json`) | bloco `token-guard` na config MCP do IDE | `~/.token-guard/token-guard.config.json` |
 | `repo` | `.github/token-guard/`, `.github/agents/`, `.github/skills/` | entrada em `.github/hooks/hooks.json` | `token-guard.config.json` na raiz |
 
-1. Remova o registro e o runtime da tabela acima.
+1. Encerre o daemon e o ícone antes de apagar os arquivos (sem isso o processo segue de pé, com o código já removido):
+   remova primeiro o autostart (passo 2, no alvo `claude`), depois rode
+   `node -e "require(require('os').homedir()+'/.claude/token-guard/lib/daemon-client.cjs').shutdownDaemon()"`
+   (sem o alvo `claude`, troque `.claude` por `.cursor`; no alvo `repo`, use o caminho de `.github/token-guard/lib/daemon-client.cjs`)
+   e, no Windows, clique com o botão direito no ícone da bandeja › *Fechar o ícone*.
+2. Remova o registro e o runtime da tabela acima.
    No alvo `claude`, remova também o autostart do daemon:
    - Windows: `schtasks /delete /tn TokenGuardDaemon /f`, `schtasks /delete /tn TokenGuardDaemonWatch /f` e `reg delete HKCU\Environment /v TOKEN_GUARD_SID /f`
    - Linux: `systemctl --user disable --now token-guard-daemon` e apague `~/.config/systemd/user/token-guard-daemon.service`
    - macOS: `launchctl unload -w ~/Library/LaunchAgents/com.token-guard.daemon.plist` e apague o arquivo
    No alvo `claude`, apague também `~/.claude/agents/scout.agent.md` se for o do token-guard (começa por `# Scout — reconhecimento com contexto descartável`); ele fica fora de `~/.claude/token-guard/`. No alvo `repo`, `.github/agents/scout.agent.md`.
-2. Apague as configs globais cujos homes você usou (só existem se você passou `--mode`).
-3. Estado regenerável, seguro de apagar: `<repo>/.token-guard/` (cache + estado de sessão).
-4. No alvo `repo`: reverta também a linha `.token-guard/` adicionada ao `.gitignore`.
+3. Apague as configs globais cujos homes você usou (só existem se você passou `--mode`).
+4. Estado regenerável, seguro de apagar: `<repo>/.token-guard/` (cache + estado de sessão).
+5. No alvo `repo`: reverta também a linha `.token-guard/` adicionada ao `.gitignore`.
 
 Para desligar sem desinstalar:
 

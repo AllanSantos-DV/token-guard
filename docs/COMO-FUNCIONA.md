@@ -83,7 +83,8 @@ já carregada:
 - **Ciclo de vida:** sobe no logon (autostart do alvo `claude`), no `SessionStart` do
   Claude Code ou sob demanda, no primeiro hook. Encerra após 10 min ocioso, exceto com
   o hook http ligado, em que ele é o único caminho. Um handshake de versão troca um
-  daemon velho depois de um upgrade.
+  daemon velho depois de um upgrade; o `init` (claude, cursor e repo) troca o daemon na hora, e um cliente
+  mais velho nunca aposenta um daemon mais novo.
 - **Falha:** o cliente de comando desarma depois de 3 falhas seguidas e decide
   localmente. O hook http, com o daemon fora, libera a chamada (fail-open).
 

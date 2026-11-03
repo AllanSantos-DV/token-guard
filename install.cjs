@@ -689,7 +689,7 @@ function installClaude() {
     installClaudeScout(base);
     writeGlobalConfig(base, base);
     installDaemonAutostart(dir);
-    notes.push('claude   · reinicie a sessao do Claude Code: o SessionStart sobe o daemon e os hooks passam a ser http (sem processo por chamada).');
+    notes.push('claude   · reinicie a sessao do Claude Code: os hooks passam a ser http no daemon, que o init já deixou de pé na versao nova (sem processo por chamada).');
     return;
   }
 
@@ -847,7 +847,7 @@ function installClaude() {
   installDaemonAutostart(dir);
   notes.push('claude   · reinicie a sessao do Claude Code para carregar o hook.');
   notes.push('claude   · daemon-unico: reinicie o Windows/logon (ou abra sessao nova) para o ' +
-    'TOKEN_GUARD_SID valer e o daemon ficar quente entre chamadas; ate la, sobe sob demanda, no primeiro hook.');
+    'TOKEN_GUARD_SID valer e o daemon ficar quente entre chamadas; ate la, o daemon que o init subiu atende e, se cair, sobe sob demanda, no primeiro hook.');
 }
 
 /* ------------------------------------------------------------------ */
@@ -1202,18 +1202,30 @@ if (!DRY && targets.some((t) => t !== 'repo')) {
 }
 
 /**
+ * Runtime de onde o daemon novo sobe: o do claude (o do autostart e do vigia) quando instalado agora; senão o
+ * do cursor ou o do repo. Os demais alvos não usam o daemon do hook.
+ * @returns {string|null} diretório do runtime, ou null se nenhum alvo se aplica
+ */
+function daemonRuntimeDir() {
+  if (targets.includes('claude')) return path.join(HOME, '.claude', 'token-guard');
+  if (targets.includes('cursor')) return path.join(HOME, '.cursor', 'token-guard');
+  if (targets.includes('repo')) return path.join(REPO_ROOT, '.github', 'token-guard');
+  return null;
+}
+
+/**
  * Troca o daemon pelo da versão instalada, ao fim da instalação: os arquivos já foram substituídos, e o
- * processo antigo (código velho) só cairia quando um hook ou a tarefa de vigia desse por falta dele. Só
- * com o alvo claude (o do autostart e do vigia; cursor e repo usam o daemon sem ele) e no mesmo seam do autostart. Falha é alta: um daemon
- * que não responde o health na versão nova sai como erro, com o motivo.
+ * processo antigo (código velho) só cairia quando um hook ou a tarefa de vigia desse por falta dele. Vale
+ * para claude, cursor e repo, no mesmo seam do autostart. Falha é alta: um daemon que não responde o health
+ * na versão nova sai como erro, com o motivo.
  * @returns {Promise<{ok:boolean, error?:string, result?:object}|null>} null = não se aplica
  */
 async function swapDaemonStep() {
-  if (DRY || !targets.includes('claude')) return null;
+  const dir = daemonRuntimeDir();
+  if (DRY || !dir) return null;
   // Seam de teste (test/bootstrap.cjs): a suíte não deixa daemon residente para trás; só o teste do swap a reabre.
   if (process.env.TOKEN_GUARD_NO_DAEMON_SWAP === '1') return null;
   if (targetPlatform() !== process.platform) return null;
-  const dir = path.join(HOME, '.claude', 'token-guard');
   try {
     const { swapDaemon } = require(path.join(dir, 'lib', 'daemon-client.cjs'));
     const result = await swapDaemon({ daemonServerPath: path.join(dir, 'adapters', 'daemon-server.cjs') });

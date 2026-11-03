@@ -271,7 +271,29 @@ const logLines = () => {
   const i3 = runInit();
   check('porta ocupada: init sai 1', i3.status === 1, { status: i3.status, out: i3.stdout.slice(-300) });
   check('porta ocupada: o erro nomeia o motivo', /DAEMON NAO SUBIU/.test(i3.stderr) && /sem HTTP/.test(i3.stderr) && /ocupada/.test(i3.stderr), i3.stderr.slice(-400));
-  busy.close();
+  await new Promise((r) => busy.close(r));
+  await DC.shutdownDaemon();
+  await sleep(300);
+
+  // 10 · cursor e repo também trocam o daemon, subindo-o do runtime do próprio alvo
+  const runTarget = (args, cwd) => spawnSync(process.execPath, [path.join(ROOT, 'install.cjs'), ...args], {
+    encoding: 'utf8', timeout: 120000, windowsHide: true, cwd,
+    env: { ...process.env, TOKEN_GUARD_NO_DAEMON_SWAP: '0' },
+  });
+  const iCur = runTarget(['--target', 'cursor']);
+  check('init --target cursor sai 0 e relata o daemon', iCur.status === 0 && /\[daemon\]\s+ok\s+respondendo na versão/.test(iCur.stdout), { status: iCur.status, err: iCur.stderr.slice(-300) });
+  const hCur = await waitHealth((h) => h.version === VERSION);
+  check('depois do init cursor o daemon responde na versão instalada', !!hCur, hCur);
+  if (hCur) spawned.add(hCur.h.pid);
+  const lastStart = [...logLines()].reverse().find((l) => l.event === 'start');
+  check('o daemon do cursor subiu do runtime do cursor', !!lastStart && lastStart.pid === (hCur && hCur.h.pid), lastStart);
+
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-repo-'));
+  const iRepo = runTarget(['--target', 'repo', repoDir], repoDir);
+  check('init --target repo sai 0 e troca o processo', iRepo.status === 0 && /o antigo \(pid \d+\) saiu/.test(iRepo.stdout), { status: iRepo.status, out: iRepo.stdout.slice(-500), err: iRepo.stderr.slice(-300) });
+  const hRepo = await waitHealth((h) => h.version === VERSION && hCur && h.pid !== hCur.h.pid);
+  check('depois do init repo responde um pid novo', !!hRepo, hRepo);
+  if (hRepo) spawned.add(hRepo.h.pid);
   await DC.shutdownDaemon();
   await sleep(300);
 

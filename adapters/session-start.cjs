@@ -21,8 +21,8 @@
 const path = require('path');
 const { spawn } = require('child_process');
 const P = require('../lib/payload.cjs');
-const { tryDaemon, shutdownDaemon } = require('../lib/daemon-client.cjs');
-const { checkHandshake } = require('../lib/daemon-lifecycle.cjs');
+const { tryDaemon, swapDaemon } = require('../lib/daemon-client.cjs');
+const { checkHandshake, daemonIsNewer } = require('../lib/daemon-lifecycle.cjs');
 const AU = require('../lib/auto-update.cjs');
 const DR = require('../lib/dupread.cjs');
 const CT = require('../lib/contract.cjs');
@@ -38,8 +38,14 @@ async function httpListening(port, token) {
   return Boolean(await DH.probeHealth(port, token));
 }
 
-/** Garante daemon atual (e HTTP de pé, se há token). Devolve o problema, ou null. */
-async function ensureDaemon() {
+/**
+ * Garante daemon atual (e HTTP de pé, se há token). Devolve o problema, ou null. Daemon antigo que o
+ * `shutdown` do cliente não tira do ar (anterior à 2.5.0, sem handshake) é trocado por swapDaemon, que
+ * prova o pid pelo próprio daemon e o encerra.
+ * @param {{swap?: Function}} [seams] só para teste
+ */
+async function ensureDaemon(seams) {
+  const swap = (seams && seams.swap) || swapDaemon;
   const expected = { protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION };
   const token = DH.readToken();
 
@@ -48,7 +54,13 @@ async function ensureDaemon() {
     // TOKEN_GUARD=off faz o cliente nem tentar o daemon (lib/daemon-client.cjs): não é falha.
     // Sem token não há hook http: o hook de comando avalia inline sem o daemon.
     if (!r.ok) return !token || /^(off|0|false)$/i.test(process.env.TOKEN_GUARD || '') ? null : 'o daemon não respondeu (cliente desarmado)';
-    const current = checkHandshake(r.handshake, expected).ok; // velho é aposentado pelo próprio tryDaemon
+    const current = checkHandshake(r.handshake, expected).ok || daemonIsNewer(r.handshake, expected);
+    if (!current && i >= 1) {
+      // Segunda volta e o daemon velho segue: o tryDaemon não o aposentou.
+      const swapped = await swap();
+      if (!swapped.ok) return `o daemon antigo não pôde ser trocado: ${swapped.error}`;
+      continue;
+    }
     if (current && !token) return null;
     if (current) {
       // O daemon grava a porta logo após o bind: dá uma volta para ela aparecer.
@@ -61,7 +73,13 @@ async function ensureDaemon() {
       }
       const ep = DH.readEndpoint();
       if (ep && ep.error) return `hook http desligado — ${ep.error}`;
-      await shutdownDaemon(); // de pé, mas sem HTTP: o próximo nasce lendo o token
+      if (daemonIsNewer(r.handshake, expected)) {
+        return `o daemon ${r.handshake.packageVersion} é mais novo que este cliente (${PACKAGE_VERSION}) e está sem http: atualize o token-guard deste alvo`;
+      }
+      // de pé, mas sem HTTP: o próximo nasce lendo o token
+      const swapped = await swap();
+      if (!swapped.ok) return `o daemon sem http não pôde ser reiniciado: ${swapped.error}`;
+      continue;
     }
     await new Promise((res) => setTimeout(res, PAUSE_MS));
   }
@@ -104,4 +122,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(() => { /* nunca bloqueia o início da sessão */ });
-module.exports = {};
+module.exports = { ensureDaemon };

@@ -5,6 +5,23 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.16.3] — 2026-11-03
+
+### Corrigido
+- **O daemon volta sozinho depois de atualizar, em qualquer alvo.** `init --target cursor` e `--target repo` agora
+  trocam o daemon (sobem-no do runtime do próprio alvo), como o `claude` já fazia; o início de sessão do Claude Code
+  troca por `swapDaemon` o daemon velho que o `shutdown` do cliente não tira (anterior à 2.5.0, sem handshake) e
+  avisa o motivo se não conseguir; o reinício do `token-guard setup` espera o antigo sair e confere a versão.
+- Daemon de pé sem http: o início de sessão o reinicia por `swapDaemon` (espera a saída e confere a versão), e nem
+  ele nem o `token-guard setup` reiniciam um daemon de versão mais nova que o cliente: avisam para atualizar o alvo.
+- A troca do daemon não toma mais o erro de http de um daemon anterior pelo do novo (falso "subiu sem HTTP" no `init`
+  logo depois de uma porta ocupada).
+- Um cliente de versão mais velha (cópia esquecida em `.github/token-guard`, runtime de outro alvo) não aposenta mais
+  um daemon de versão mais nova: antes os dois se derrubavam a cada chamada.
+- `daemon.log`: falha antes de escutar deixa um `exit` com o motivo (`listen falhou`, exceção, sinal), o http
+  desligado grava `http-off`, e `previous-unclean` vale por endpoint e independe de o pid estar vivo (pid reusado).
+- Desinstalar: o INSTALL.md traz o passo que encerra o daemon e fecha o ícone antes de apagar os arquivos.
+
 ## [2.16.2] — 2026-11-03
 
 ### Corrigido

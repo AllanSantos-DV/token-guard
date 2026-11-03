@@ -89,12 +89,16 @@ O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem gu
 - Política que restringe `allowedHttpHookUrls`: a porta pode mudar; fixe-a com
   `TOKEN_GUARD_HTTP_PORT` e inclua `http://127.0.0.1:<porta>/*` (o instalador avisa),
   ou reinstale com `init --target claude --command-hooks`.
-- Daemon que cai **no meio** da sessão volta pelo vigia em até ~5 min (tarefa
+- Daemon que cai **no meio** da sessão volta pelo vigia (só existe no alvo `claude`; cursor e repo sobem por demanda, no primeiro hook) em até ~5 min (tarefa
   `TokenGuardDaemonWatch` no Windows, `StartInterval` no macOS, `Restart=on-failure` no
   Linux); até lá o hook http falha aberto.
 - Para saber **por que** o daemon caiu, leia `~/.token-guard/daemon.log` (uma linha JSON por `start`/`exit`, com
-  versão, código e motivo; `previous-unclean` marca um start cujo antecessor morreu sem registrar saída, ex.: kill forçado).
-  Instalar/atualizar troca o daemon na hora e o `init` falha em voz alta (exit 1) se o novo não responder na versão instalada.
+  versão, código e motivo; `previous-unclean` marca um start do mesmo endpoint cujo antecessor morreu sem registrar
+  saída, ex.: kill forçado; `http-off` traz o motivo de o hook http não ter subido). Falha antes de escutar (porta ou
+  pipe recusado, exceção) grava um `exit` com o motivo e sem `start`; um segundo daemon que perde o singleton sai em
+  silêncio. Instalar/atualizar (claude, cursor ou repo) troca o daemon na hora e o `init` falha em voz alta (exit 1) se
+  o novo não responder na versão instalada. Um cliente de versão mais velha (ex.: `.github/token-guard` esquecido) nunca
+  derruba um daemon mais novo; quem rebaixa de propósito é o `init`.
 
 ## A tela de setup não abre ou o ícone não aparece
 

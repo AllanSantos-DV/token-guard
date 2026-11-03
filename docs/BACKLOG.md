@@ -24,16 +24,30 @@ Nenhum é item técnico em aberto. L2, L3 e L4 foram feitos na 2.15.1 (tabela ab
 | L1 | Reenvio de `postprocess` devolvendo a mesma resposta guardada por `requestKey` | **Decidido (Jarvis, 03/11):** não feito. O contrato da 2.15.1 é entregar o `postprocess` no máximo uma vez por pedido; repetir uma resposta guardada mudaria o que o usuário vê |
 | L5 | `token_guard_check` (MCP) não gravar `deny` para consulta que não bloqueia | **Decidido (Jarvis, 03/11):** não feito agora. O check do MCP continua gravando como hoje e a contagem que o usuário vê não muda |
 
+## Fechado na release 2.16.3
+
+| # | Item | Resolução |
+|---|------|-----------|
+| B9 | `SessionStart` sem o fallback por pid do `swapDaemon` para daemon anterior à 2.5.0 | `ensureDaemon` chama `swapDaemon` na segunda volta se o daemon segue velho; erro vira aviso com o motivo; `test/daemon-followups.test.cjs` (daemon falso sem handshake que ignora o shutdown) |
+| B10 | `init --target cursor`/`repo` não trocava o daemon | `swapDaemonStep` escolhe o runtime do claude, senão do cursor, senão do repo; `test/daemon-swap.test.cjs` roda os dois alvos com processos reais |
+| B11 | Reinício do `setup` sem esperar o antigo sair | `prepare` usa `swapDaemon`; o teste prova que o novo só começa depois do `exit` do antigo |
+| B12 | Falha antes do `listen` sem linha no `daemon.log` | ganchos de saída instalados no início do `start()`; `exit` com motivo (`listen falhou`) e `http-off`; perder o singleton continua sem linha |
+| B13a | `.github/token-guard` fora do auto-update, versões diferentes se aposentando | **Reproduzido** (o cliente velho derrubava o daemon novo; teste falha no código anterior). Corrigido: o cliente não aposenta daemon mais novo. A cópia do repo segue sem auto-update (são arquivos do repositório do usuário; atualiza com `init --target repo`), agora sem briga |
+| B13b | Unit systemd `Restart=on-failure` não religa após `shutdown` | **Não é defeito, descartado com evidência**: o daemon sai 0 no shutdown e também quando perde o singleton (teste), então `Restart=always` entraria em laço com o daemon que o init ou o hook subiu fora da unit; o daemon volta por demanda (hook/SessionStart) e a troca do init sobe o novo. Sem vigia no Linux é como sempre foi |
+| B13c | `previous-unclean` com pid reusado | **Reproduzido** (pid vivo escondia a queda) e corrigido: vale por endpoint, sem olhar o pid |
+| B13d | Ícone da bandeja velho após atualizar | **Não reproduz como defeito**: o script não muda desde a 2.14.0 e o ícone só relê `daemon-http.json` a cada 3 s (acompanha o daemon novo). O teste fixa o hash do `tray.ps1`: quando ele mudar, falha pedindo a troca do ícone antes |
+| B13e | Desinstalar sem parar o daemon | **Reproduzido** (a lista não tinha o passo) e corrigido no INSTALL.md; o teste roda o comando escrito no doc contra um daemon real |
+
 ## Fechado na release 2.16.1
 
 | # | Item | Resolução |
 |---|------|-----------|
 | B8 | **Daemon ficou ~7 min fora do ar após instalar a 2.16.0**: nada trocava o daemon no init/auto-update; o novo só subia pelo vigia | `swapDaemon` (lib/daemon-client.cjs) no fim do `init`; `daemon.log` de start/exit; `test/daemon-swap.test.cjs` (porta e home isolados). Pesquisa: docs/research/troca-do-daemon-no-windows-2026-11-03.md |
-| B9 | `SessionStart` (`ensureDaemon`) confia no `retireIfStale` (`shutdown` por IPC, existe desde a 2.5.0) e não tem o fallback por pid do `swapDaemon`: daemon anterior à 2.5.0 que ignora o `shutdown` só gera o aviso "o daemon não ficou pronto" | **Anotado, não feito** (fora do escopo): usar `swapDaemon` quando o health informar versão diferente da do pacote |
-| B10 | Lente irmã: troca do daemon só no alvo `claude`; `init --target cursor` ou `repo` deixa o daemon velho até o primeiro hook | Anotado, não feito |
-| B11 | Lente irmã: restart do `setup` (`lib/ui-launch.cjs`) faz `shutdown` + `sleep(300)` sem esperar o antigo sair nem conferir a versão; pode bater em `EADDRINUSE` | Anotado, não feito; `swapDaemon` é o caminho |
-| B12 | Lente irmã: falha antes do `listen` do daemon (exceção, HTTP que não sobe, `giveUp`) não deixa linha no `daemon.log`, e o stderr do spawn vai para `ignore` | Anotado, não feito |
-| B13 | Lente irmã: `.github/token-guard` (alvo `repo`) fora do auto-update pode ter versão diferente da do daemon da máquina e os clientes se aposentarem mutuamente; unit systemd com `Restart=on-failure` não religa após `shutdown` com saída 0; `previous-unclean` com pid reusado; tray residente velho após atualização; desinstalação (docs/INSTALL.md) não para o daemon | Candidatos a reproduzir, não feitos |
+| B9 | (fechado na 2.16.3) `SessionStart` (`ensureDaemon`) confia no `retireIfStale` (`shutdown` por IPC, existe desde a 2.5.0) e não tem o fallback por pid do `swapDaemon`: daemon anterior à 2.5.0 que ignora o `shutdown` só gera o aviso "o daemon não ficou pronto" | Fechado na 2.16.3: `ensureDaemon` usa `swapDaemon` quando o daemon segue velho |
+| B10 | Lente irmã: troca do daemon só no alvo `claude`; `init --target cursor` ou `repo` deixa o daemon velho até o primeiro hook | Fechado na 2.16.3 |
+| B11 | Lente irmã: restart do `setup` (`lib/ui-launch.cjs`) faz `shutdown` + `sleep(300)` sem esperar o antigo sair nem conferir a versão; pode bater em `EADDRINUSE` | Fechado na 2.16.3 (`swapDaemon`) |
+| B12 | Lente irmã: falha antes do `listen` do daemon (exceção, HTTP que não sobe, `giveUp`) não deixa linha no `daemon.log`, e o stderr do spawn vai para `ignore` | Fechado na 2.16.3: o `daemon.log` registra o motivo; o stderr do spawn segue descartado de propósito (o daemon nasce sem console) |
+| B13 | Lente irmã: `.github/token-guard` (alvo `repo`) fora do auto-update pode ter versão diferente da do daemon da máquina e os clientes se aposentarem mutuamente; unit systemd com `Restart=on-failure` não religa após `shutdown` com saída 0; `previous-unclean` com pid reusado; tray residente velho após atualização; desinstalação (docs/INSTALL.md) não para o daemon | Fechado na 2.16.3, caso a caso (B13a-e acima) |
 
 ## Fechado na release 2.16.0
 
