@@ -128,6 +128,25 @@ console.log('\n  [repo] assinado e migrado');
   fs.rmSync(home, { recursive: true, force: true }); fs.rmSync(repo, { recursive: true, force: true });
 }
 
+console.log('\n  [hooks.json do pacote] template assinado e igual ao shim do instalador');
+{
+  const shipped = readJson(path.join(__dirname, '..', 'hooks.json')).hooks.PreToolUse;
+  check('hooks.json do pacote: 1 comando, assinado',
+    shipped.length === 1 && shipped[0].command === `node .github/token-guard/token-guard.cjs${SIGN}`, JSON.stringify(shipped));
+}
+
+console.log('\n  [autostart] o teste nunca grava setx/tarefa agendada da máquina');
+{
+  const home = mkhome(); const repo = mkrepo();
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(home|userprofile|token_guard_force_platform)$/i.test(k)));
+  const r = spawnSync(process.execPath, [INSTALL, '--target', 'claude', repo], {
+    encoding: 'utf8', timeout: 60000, windowsHide: true, env: { ...env, HOME: home, USERPROFILE: home },
+  });
+  check('com TOKEN_GUARD_NO_AUTOSTART=1 o autostart é pulado e anunciado',
+    r.status === 0 && process.env.TOKEN_GUARD_NO_AUTOSTART === '1' && /autostart do daemon \(TOKEN_GUARD_NO_AUTOSTART=1\)/.test(r.stdout) && !/TokenGuardDaemon|setx/.test(r.stdout), r.stdout + r.stderr);
+  fs.rmSync(home, { recursive: true, force: true }); fs.rmSync(repo, { recursive: true, force: true });
+}
+
 console.log('');
 console.log(fail ? `  ${fail} falharam` : '  hook-origin: tudo ok');
 process.exit(fail ? 1 : 0);

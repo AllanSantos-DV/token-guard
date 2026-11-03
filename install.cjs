@@ -618,6 +618,12 @@ function installAutostartLaunchd(daemonScript) {
  *  (~/.claude/token-guard), onde adapters/daemon-server.cjs foi copiado
  *  por installRuntime() alguns comandos acima. */
 function installDaemonAutostart(dir) {
+  // Seam de teste (test/bootstrap.cjs): setx e tarefa agendada são da máquina, não do home falso. Só o
+  // FORCE_PLATFORM explícito (testes de dry-run/unidade POSIX em home falso) reabre o ramo.
+  if (process.env.TOKEN_GUARD_NO_AUTOSTART === '1' && !process.env.TOKEN_GUARD_FORCE_PLATFORM) {
+    skipped.push('autostart do daemon (TOKEN_GUARD_NO_AUTOSTART=1)');
+    return;
+  }
   const daemonScript = path.join(dir, 'adapters', 'daemon-server.cjs');
   const plat = targetPlatform();
   if (plat === 'win32') installAutostartWindows(daemonScript);

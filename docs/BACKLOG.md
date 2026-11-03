@@ -24,6 +24,13 @@ Nenhum é item técnico em aberto. L2, L3 e L4 foram feitos na 2.15.1 (tabela ab
 | L1 | Reenvio de `postprocess` devolvendo a mesma resposta guardada por `requestKey` | **Decidido (Jarvis, 03/11):** não feito. O contrato da 2.15.1 é entregar o `postprocess` no máximo uma vez por pedido; repetir uma resposta guardada mudaria o que o usuário vê |
 | L5 | `token_guard_check` (MCP) não gravar `deny` para consulta que não bloqueia | **Decidido (Jarvis, 03/11):** não feito agora. O check do MCP continua gravando como hoje e a contagem que o usuário vê não muda |
 
+## Fechado na release 2.16.0
+
+| # | Item | Resolução |
+|---|------|-----------|
+| B6 | **Testes do instalador executavam o autostart real no Windows** (`setx TOKEN_GUARD_SID` e as tarefas `TokenGuardDaemon`/`TokenGuardDaemonWatch` apontando para o home falso), achado ao assinar os hooks | `test/bootstrap.cjs` define `TOKEN_GUARD_NO_AUTOSTART=1`; `installDaemonAutostart` pula o ramo com esse sinal, exceto com `TOKEN_GUARD_FORCE_PLATFORM` explícito; `test/hook-origin.test.cjs` prova o pulo. Conferido: as tarefas desta máquina apontam para `~/.claude/token-guard` |
+| B7 | `hooks.json` do pacote (template do Copilot) fora da assinatura `--hook-origin` | comando assinado; teste confere a igualdade com o shim do instalador (lente irmã) |
+
 ## Fechado na release 2.15.1
 
 | # | Item | Resolução |

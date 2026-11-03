@@ -5,10 +5,20 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.16.0] — 2026-11-03
+
+### Corrigido
+- **Os testes do instalador não gravam mais `setx` nem tarefa agendada da máquina.** As suítes que rodavam
+  `install.cjs --target claude` sem `--dry-run` executavam, no Windows, o autostart de verdade (variável
+  `TOKEN_GUARD_SID` e tarefas `TokenGuardDaemon`/`TokenGuardDaemonWatch` apontando para o home falso do
+  teste). O `test/bootstrap.cjs` agora define `TOKEN_GUARD_NO_AUTOSTART=1` e o instalador pula o autostart
+  com esse sinal; só o `TOKEN_GUARD_FORCE_PLATFORM` explícito (dry-run e unidades POSIX em home falso)
+  reabre o ramo. O usuário final não é afetado: sem a variável nada muda.
+
 ### Adicionado
 - **Todo hook de comando do token-guard declara a origem.** A linha de comando dos hooks que o instalador
   grava (Claude Code: SessionStart, SubagentStart e, com `--command-hooks`, Pre/Post/UserPromptSubmit; Cursor;
-  repositório) termina em `--hook-origin=token-guard`, para a falha de hook mostrada numa sessão dizer de quem
+  repositório, e o `hooks.json` do pacote) termina em `--hook-origin=token-guard`, para a falha de hook mostrada numa sessão dizer de quem
   ela é. Reinstalar assina no lugar as entradas antigas (sem assinatura), sem duplicar e sem tocar em hook de
   outro dono. Hook http (sem linha de comando) e o `mcp_tool` do Codex não têm onde carregar o argumento.
 
