@@ -344,6 +344,36 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   ran = null;
   r = await AU.run({ checkForUpdate: realCheck, runInstaller: (c) => { ran = c; return { status: 0 }; }, pruneOldVersions: () => {} });
   check('todas as cópias em dia → não reinstala', r.status === 'skipped' && ran === null, r);
+
+  // Offline com a cópia do Codex atrasada: a poda guarda a versão que roda, não a da cópia atrasada.
+  fs.writeFileSync(codexPkg, JSON.stringify({ version: '2.15.1' }));
+  fs.rmSync(AU.pruneStatePath(), { force: true });
+  let kept = null;
+  r = await AU.run({ checkForUpdate: async () => ({ checked: false, reason: 'offline' }), runInstaller: () => { throw new Error('não instala offline'); }, pruneOldVersions: (v) => { kept = v; } });
+  check('offline com cópia atrasada poda guardando a versão em execução', r.status === 'skipped' && kept === LOCAL, { r, kept });
+  fs.rmSync(AU.pruneStatePath(), { force: true });
+
+  // Instalou "com sucesso" e a cópia do Codex continuou atrasada: o aviso diz qual cópia ficou para trás.
+  fs.writeFileSync(AU.resultPath(), JSON.stringify({ status: 'ok', from: '2.15.1', to: LOCAL, at: 1, reported: true, command: [] }));
+  r = await AU.run({ checkForUpdate: realCheck, runInstaller: () => ({ status: 0 }), pruneOldVersions: () => {} });
+  check('cópia que não subiu é nomeada no erro', r.status === 'failed' && /codex/.test(r.error) && /2\.15\.1/.test(r.error), r);
+  fs.rmSync(AU.resultPath(), { force: true });
+  fs.rmSync(path.join(process.env.HOME, '.codex'), { recursive: true, force: true });
+
+  // CODEX_HOME do init vale para o auto-update, que roda sem ele no ambiente (SessionStart do Claude).
+  const customCodex = path.join(process.env.HOME, 'codex-custom');
+  process.env.CODEX_HOME = customCodex;
+  AU.recordInstall({ targets: ['codex'], commandHooks: false, version: LOCAL });
+  delete process.env.CODEX_HOME;
+  check('init registra o CODEX_HOME resolvido', AU.readInstallState().codexHome === customCodex, AU.readInstallState());
+  fs.mkdirSync(path.join(customCodex, 'token-guard'), { recursive: true });
+  fs.writeFileSync(path.join(customCodex, 'token-guard', 'package.json'), JSON.stringify({ version: '2.15.1' }));
+  ran = null;
+  r = await AU.run({ checkForUpdate: realCheck, runInstaller: (c) => { ran = c; return { status: 0 }; }, pruneOldVersions: () => {} });
+  check('auto-update lê a cópia do CODEX_HOME registrado e reinstala nele',
+    r.status === 'ok' && r.from === '2.15.1' && ran && ran.env && ran.env.CODEX_HOME === customCodex, { r, ran });
+  fs.rmSync(customCodex, { recursive: true, force: true });
+  fs.rmSync(AU.resultPath(), { force: true });
   fs.rmSync(path.join(process.env.HOME, '.codex'), { recursive: true, force: true });
   fs.rmSync(path.join(process.env.HOME, '.claude', 'token-guard'), { recursive: true, force: true });
 

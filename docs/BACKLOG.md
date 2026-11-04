@@ -32,12 +32,18 @@ Investigação: `docs/research/quedas-com-daemon-saudavel-2026-11-04.md`.
 
 | # | Item | Resolução |
 |---|------|-----------|
-| C1 | Auto-update comparava só a cópia que o rodava; a cópia do Codex ficava velha com a do Claude em dia | `oldestInstalledVersion` parte da cópia mais antiga dos alvos registrados; `test/auto-update.test.cjs` falha sem a correção |
+| C1 | Auto-update comparava só a cópia que o rodava; a cópia do Codex ficava velha com a do Claude em dia | `oldestInstalledCopy` parte da cópia mais antiga dos alvos registrados; `test/auto-update.test.cjs` falha sem a correção |
 | C2 | `daemon.log` sem a porta do hook http | linha `http-on` com a porta; `test/daemon-followups.test.cjs` (6b) falha sem ela |
 | C3 | Lente irmã: o aviso de versão nova também compara só a cópia que roda | **Não é defeito:** cada harness avisa da própria cópia; quem reinstala todos os alvos é o auto-update (C1) |
 | C4 | Lente irmã: processo longo do MCP do Codex carrega módulos tarde e pode misturar versões após a troca em disco | **Medido:** de 2.15.1 para 2.17.1 toda função carregada tarde existe com a mesma aridade; falha restante cai no fail-open. Sem mudança |
 | C5 | Hipótese: sucessor subindo durante o shutdown abre em outra porta | **Descartada por medição:** o antigo segura pipe e porta até sair; o sucessor desiste em vez de mudar de porta |
 | C6 | Hook http recusado não deixa rastro | **Limite do harness** (falha aberta silenciosa, sem anexo no transcript); o token-guard não vê a recusa. Documentado na pesquisa |
+| C7 | Lente irmã: offline com cópia atrasada, a poda apagava versões a partir da cópia velha, não da que roda | `pruneIfDue` recebe a versão em execução; teste falha sem a correção |
+| C8 | Lente irmã: erro "instalou mas não subiu" citava só a versão, sem dizer qual cópia ficou para trás | mensagem nomeia o alvo e a pasta; teste falha sem a correção |
+| C9 | Lente irmã: auto-update roda no ambiente do SessionStart do Claude Code, sem o `CODEX_HOME` do usuário; a cópia real do Codex não era lida nem reinstalada | `init` grava `codexHome` em `install-state.json`; o auto-update lê a cópia ali e passa `CODEX_HOME` ao `npx`; teste falha sem a correção |
+| C10 | Lente irmã: falha ao gravar `daemon-http.json` ou ao reapontar os hooks só ia para o stderr do daemon (descartado) | `http-on` leva `hooksRepointed`, `hooksError`, `endpointError`; `test/daemon-followups.test.cjs` (6b) falha sem a correção |
+| C11 | Lente irmã: SECURITY.md e README desatualizados (evento `http-on`, base da comparação do auto-update) | docs alinhados |
+| C12 | Lente irmã: sem token não há hook http | **Não é defeito:** é o modo `--command-hooks`, em que o Claude Code chama o hook de comando |
 
 ## Fechado na release 2.16.3
 

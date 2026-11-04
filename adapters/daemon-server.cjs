@@ -526,13 +526,18 @@ function start(endpointOverride) {
       DH.listenFirstFree(httpServer, DH.candidatePorts()).then((port) => {
         httpPort = port;
         process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${port}\n`);
-        DL.logLifecycle('http-on', { port });
+        // O daemon roda destacado e o stderr dele não é lido: o daemon.log é o único rastro de para onde os hooks foram.
+        const on = { port };
         try {
           DH.writeJsonAtomic(DH.endpointPath(), { port, url: `http://127.0.0.1:${port}/token-guard`, pid: process.pid, version: PACKAGE_VERSION });
         } catch (err) {
+          on.endpointError = err.message;
           process.stderr.write(`token-guard daemon: não gravou ${DH.endpointPath()} (${err.message})\n`);
         }
         const sync = DH.syncClaudeSettings(port);
+        if (sync.ok) on.hooksRepointed = sync.changed;
+        else on.hooksError = sync.error;
+        DL.logLifecycle('http-on', on);
         if (!sync.ok) process.stderr.write(`token-guard daemon: settings.json do Claude Code NÃO reapontado para a porta ${port}: ${sync.error}\n`);
         else if (sync.changed) process.stderr.write(`token-guard daemon: ${sync.changed} hook(s) http do Claude Code reapontado(s) para a porta ${port}\n`);
         // Ícone na bandeja: nasce com o daemon (uma instância por usuário; o próprio script se trava).

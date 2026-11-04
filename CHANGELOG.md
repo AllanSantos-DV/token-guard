@@ -10,9 +10,12 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Corrigido
 - **Auto-update deixava alvos para trás.** Ele comparava só a versão da cópia que o rodava; com o Claude em dia,
   a cópia do Codex (`~/.codex/token-guard`, lida pelo servidor MCP) ficava numa versão antiga para sempre. Agora
-  parte da versão mais antiga entre as cópias dos alvos registrados e reinstala todos.
-- `~/.token-guard/daemon.log` grava `http-on` com a porta em que o hook http subiu: sem ela não se sabia, depois,
-  para onde as chamadas dos hooks iam.
+  parte da versão mais antiga entre as cópias dos alvos registrados e reinstala todos. O `init` registra o
+  `CODEX_HOME` resolvido e o auto-update reinstala nele, mesmo rodando num ambiente sem a variável; a poda de
+  versões antigas guarda a versão em execução e o erro de "instalou mas não subiu" nomeia a cópia atrasada.
+- `~/.token-guard/daemon.log` grava `http-on` com a porta em que o hook http subiu, quantos hooks do Claude Code
+  foram reapontados para ela (`hooksRepointed`) e a falha ao reapontar ou ao gravar `daemon-http.json`
+  (`hooksError`, `endpointError`), que antes só iam para o stderr do daemon, que ninguém lê.
 
 ## [2.17.0] — 2026-11-03
 

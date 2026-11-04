@@ -231,9 +231,22 @@ function startStubOldDaemon() {
     startDaemon(DAEMON, { TOKEN_GUARD_HTTP_PORT: String(port), TOKEN_GUARD_TRAY: 'off' });
     const on = await waitFor(() => logLines().find((l) => l.event === 'http-on'));
     check('http no ar grava http-on com a porta e o pid', !!on && on.port === port && Number.isInteger(on.pid), logLines());
+    check('http-on diz quantos hooks foram reapontados', !!on && on.hooksRepointed === 0 && !on.hooksError && !on.endpointError, on);
     await stopDaemon();
-    fs.rmSync(DH.httpTokenPath(), { force: true });
     fs.rmSync(DH.endpointPath(), { force: true });
+
+    // Endpoint e settings.json que não podem ser gravados: a falha vai ao log, não só ao stderr que ninguém lê.
+    resetLog();
+    fs.mkdirSync(DH.claudeSettingsPath(), { recursive: true });
+    fs.mkdirSync(DH.endpointPath(), { recursive: true });
+    startDaemon(DAEMON, { TOKEN_GUARD_HTTP_PORT: String(await freePort()), TOKEN_GUARD_TRAY: 'off' });
+    const bad = await waitFor(() => logLines().find((l) => l.event === 'http-on'));
+    check('http-on registra a falha ao reapontar os hooks', !!bad && typeof bad.hooksError === 'string' && bad.hooksRepointed === undefined, bad);
+    check('http-on registra a falha ao gravar o endpoint', !!bad && typeof bad.endpointError === 'string', bad);
+    await stopDaemon();
+    fs.rmSync(DH.claudeSettingsPath(), { recursive: true, force: true });
+    fs.rmSync(DH.endpointPath(), { recursive: true, force: true });
+    fs.rmSync(DH.httpTokenPath(), { force: true });
   }
 
   // 7 · swapDaemon não toma o erro de http de um daemon anterior pelo do novo

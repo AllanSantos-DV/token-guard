@@ -266,7 +266,8 @@ Desde a 2.8.0, o `init` registra os alvos de máquina instalados
 (`~/.token-guard/install-state.json`). A cada início de sessão do Claude Code, um
 processo oculto e destacado (a sessão não espera) usa a mesma checagem acima e, havendo
 versão nova, roda `npx @allansantos-dev/token-guard@<nova> init --target <os mesmos>`:
-runtime, hooks e MCP saem atualizados juntos. O resultado aparece na tela no início da
+runtime, hooks e MCP saem atualizados juntos. A comparação parte da cópia mais antiga entre
+as dos alvos instalados (não só da que roda o processo), então nenhum alvo fica para trás. O resultado aparece na tela no início da
 sessão seguinte — sucesso ou falha, com o log em `~/.token-guard/auto-update.log` e o
 comando para rodar à mão. Falha não é repetida na mesma versão antes de 24 h. Depois de uma
 atualização bem-sucedida, o token-guard apaga do cache do npm (`_npx/` e os tarballs em `_cacache/`) o que sobrou das versões antigas dele.
