@@ -35,17 +35,19 @@ function check(label, cond, detail) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function post(port, body, token) {
+// Com timeout: uma porta que aceita e nunca responde (o bloqueador do teste) não pode travar a suíte.
+function post(port, body, token, timeoutMs = 5000) {
   return new Promise((resolve) => {
     const data = JSON.stringify(body);
     const req = http.request({
-      host: '127.0.0.1', port, path: '/token-guard/pre', method: 'POST',
+      host: '127.0.0.1', port, path: '/token-guard/pre', method: 'POST', timeout: timeoutMs,
       headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data), 'x-token-guard': token },
     }, (res) => {
       let out = '';
       res.on('data', (c) => { out += c; });
       res.on('end', () => resolve({ status: res.statusCode, body: out }));
     });
+    req.on('timeout', () => { req.destroy(); resolve({ status: 0, body: 'timeout' }); });
     req.on('error', (e) => resolve({ status: 0, body: e.code }));
     req.end(data);
   });
@@ -86,8 +88,9 @@ function tgPorts() {
     .map((u) => Number(/:(\d+)\//.exec(u)[1]));
 }
 
+// Teto largo: com a máquina carregada o daemon leva mais de 6 s para subir, e ler o endpoint antigo daria falso negativo.
 async function waitEndpoint(pred) {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 300; i++) {
     const e = DH.readEndpoint();
     if (e && pred(e)) return e;
     await sleep(100);
@@ -97,7 +100,7 @@ async function waitEndpoint(pred) {
 
 // O daemon grava o endpoint e só depois sincroniza o settings.json: espera a sincronia em vez de ler cedo.
 async function waitPorts(port) {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 300; i++) {
     try { if (tgPorts().every((p) => p === port)) break; } catch { /* settings em escrita */ }
     await sleep(100);
   }
@@ -108,9 +111,12 @@ function startDaemon(sid, extraEnv) {
   return spawn(process.execPath, [DAEMON], { env: { ...process.env, TOKEN_GUARD_SID: sid, ...(extraEnv || {}) }, stdio: 'ignore' });
 }
 
+// Espera a saída de verdade: o passo seguinte ocupa a porta deste daemon, e ela só fica livre depois que ele morre.
 async function stop(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise((r) => child.once('exit', r));
   try { child.kill(); } catch { /* já saiu */ }
-  await sleep(250);
+  await Promise.race([exited, sleep(10000)]);
 }
 
 (async () => {
@@ -162,6 +168,13 @@ async function stop(child) {
     fs.rmSync(settingsFile, { force: true });
     const none = DH.syncClaudeSettings(43333);
     check('sem settings.json → nada a fazer, sem criar arquivo', none.ok && none.changed === 0 && !fs.existsSync(settingsFile), none);
+  }
+
+  {
+    const silent = await block(0);
+    const r = await post(silent.address().port, claudeDeny, 'x', 500);
+    check('porta que aceita e não responde vira timeout, não trava a suíte', r.status === 0 && r.body === 'timeout', r);
+    silent.close();
   }
 
   // 4 · daemon real: troca de porta acompanhada pelo settings.json
