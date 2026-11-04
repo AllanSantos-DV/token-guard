@@ -105,7 +105,7 @@ async function main() {
   if (sid && ['compact', 'clear', 'resume'].includes(payload.source)) DR.resetSession(payload.cwd || process.cwd(), sid);
   // O contrato injetado também saiu da janela (compact/clear); no resume o histórico volta com ele.
   const prompt = payload && ['compact', 'clear'].includes(payload.source) ? H.promptArgs(payload) : null;
-  if (prompt) CT.resetInjected(prompt.root, prompt.sessionId);
+  if (prompt) CT.resetInjected(prompt.root, prompt.sessionId, payload.source);
 
   const messages = [];
   const problem = await ensureDaemon();

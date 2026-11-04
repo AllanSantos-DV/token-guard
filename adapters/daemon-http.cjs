@@ -166,7 +166,7 @@ function answer(kind, payload, handle) {
   const r = handle({ id: 1, method: 'contract', params: args });
   const decision = (r && r.result) || {};
   const out = H.promptEnvelope(decision.text, CW.check(args));
-  if (decision.text) CT.writeState(args.root, args.sessionId, { injected: [...state.injected, ...(decision.triggers || [])] });
+  if (decision.text) CT.commitInjection(args.root, args.sessionId, state, decision);
   return out;
 }
 
@@ -251,5 +251,5 @@ function probeHealth(port, token, timeoutMs = 500) {
 module.exports = {
   probeHealth, createHttpServer, httpPort, httpTokenPath, readToken,
   fixedPort, defaultPort, candidatePorts, listenFirstFree,
-  endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
+  answer, endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
 };

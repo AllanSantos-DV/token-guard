@@ -5,6 +5,21 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.17.0] — 2026-11-03
+
+### Adicionado
+- `contract.skip` na config: seção do contrato que o usuário já recebe por outro canal (ex.: `["codigo"]`
+  quando as instruções globais trazem as mesmas regras) deixa de ser injetada. Cada regra tem um dono só;
+  a tabela está em `docs/CONTRACT.md`.
+- `~/.token-guard/injections.jsonl`: cada injeção do contrato registra origem, motivo (`inicio`, `evidencia`,
+  `compact`, `clear`), seções e tamanho em caracteres e tokens.
+
+### Alterado
+- `CT.commitInjection` é o único ponto que grava as seções já injetadas (hook de comando, hook http do
+  daemon e plugin do Copilot passam por ele).
+- `test/contract-ownership.test.cjs` falha se uma regra chegar duas vezes na mesma janela, se o padrão
+  voltar a carregar regra de comentário ou se `contract.skip` não calar a seção.
+
 ## [2.16.7] — 2026-11-03
 
 ### Corrigido

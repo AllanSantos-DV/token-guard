@@ -65,6 +65,12 @@ Um `token-guard.config.json` dentro de um repositório continua mandando naquele
 tela mostra o erro. Você pode editar o arquivo à mão; a tela acompanha a mudança.
 
 O registro do que foi barrado e poupado fica em `~/.token-guard/events.jsonl` (uma linha por evento, aparado acima de 2 MB).
+O registro do que o contrato injetou fica em `~/.token-guard/injections.jsonl` (origem, motivo, seções, tamanho; aparado acima de 256 KB).
+
+## `contract.skip`
+
+`{ "contract": { "skip": ["codigo"] } }` tira seções inteiras do contrato (`sempre`, `codigo`, `teste`, `docs`, `subagente`)
+para quem já recebe as mesmas regras pelas instruções do próprio usuário. Detalhe em `docs/CONTRACT.md`.
 
 ## Estado em disco (`.token-guard/`)
 

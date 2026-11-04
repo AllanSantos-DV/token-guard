@@ -156,9 +156,7 @@ const session = await joinSession({
         const decision = CT.decide({ contract, touched, injected: state.injected });
         if (!decision.text) return null;
 
-        CT.writeState(root, sid, {
-          injected: [...state.injected, ...decision.triggers],
-        });
+        CT.commitInjection(root, sid, state, decision, { target: "copilot" });
         return { additionalContext: decision.text };
       } catch {
         return null; // fail-open, sempre

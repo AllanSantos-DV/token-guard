@@ -65,3 +65,52 @@ arquivo que cada ferramenta tocou em `.token-guard/sessions/<id>-touched.json`; 
 prompt seguinte, a seção que o gatilho liga entra uma vez. Antes da 2.6.2, no Claude
 Code esse registro só acontecia quando o resultado era truncado — na prática, só a
 camada `sempre` entrava.
+
+## Dono de cada regra
+
+Uma regra chega ao modelo por **um** canal. O token-guard só entrega regra sobre a
+**forma e o custo da saída**; política pessoal do usuário (idioma, fail-loud, pesquisa,
+revisão, escopo) mora nas instruções dele e o token-guard nunca a carrega.
+
+| Regra | Dono | Canal |
+|---|---|---|
+| Forma da resposta (`sempre`) | token-guard | `UserPromptSubmit`, uma vez por janela |
+| Código enxuto: guarda/fallback, código morto, reuso, cerimônia (`codigo`) | token-guard por padrão; do usuário se ele a declara nas instruções | `UserPromptSubmit` por evidência; `contract.skip: ["codigo"]` quando já a recebe por outro canal |
+| Teste (`teste`) e documentação (`docs`) | token-guard | idem |
+| Contrato do subagente (`subagente`) | token-guard | `SubagentStart`, só no scout |
+| Comentários de código | instruções globais do usuário | o token-guard nunca a entrega |
+| Idioma, fail-loud, pesquisa, revisão, YAGNI, patch sobre greenfield | instruções globais do usuário | o token-guard nunca a entrega |
+
+Usuário que já escreve uma dessas seções nas próprias instruções declara em
+`~/.token-guard/token-guard.config.json` (ou no config do repositório):
+
+```json
+{ "contract": { "skip": ["codigo"] } }
+```
+
+A seção pulada some do contrato inteiro (injeção, `contract` da CLI, simulação). O teste
+`test/contract-ownership.test.cjs` falha se uma regra chegar duas vezes na mesma janela, se
+o padrão voltar a carregar regra de comentário ou se `skip` não calar a seção.
+
+## Algoritmo de entrega (contrato para quem integra)
+
+1. **Escopo por evidência.** Os caminhos que a sessão tocou (`-touched.json`, até 50) ligam
+   `codigo` / `teste` / `docs`; `sempre` vale sempre. A frase do usuário nunca classifica.
+2. **Uma vez por janela.** `injected` guarda as seções já entregues na sessão; só o que falta
+   é injetado. O único ponto de escrita desse estado é `CT.commitInjection`, usado pelo hook de
+   comando, pelo hook http do daemon e pelo plugin do Copilot.
+3. **Reinjeção.** `SessionStart` com `source` `compact` ou `clear` zera `injected` (a evidência
+   em disco sobrevive); o prompt seguinte entrega de novo o conjunto que a evidência pede. `resume`
+   e `startup` não mexem: o histórico volta com o texto.
+4. **Texto declarativo, sem ordem**, para não acionar a defesa contra prompt injection.
+5. **Um processo por categoria.** `UserPromptSubmit`, `PreToolUse` e `PostToolUse` são atendidos
+   pelo daemon por hook http (nenhum processo por chamada). Só `SessionStart` e `SubagentStart`
+   são hook de comando, porque o harness não os aceita por http; ambos declaram
+   `--hook-origin=token-guard`.
+6. **Observável.** Cada injeção vira uma linha em `~/.token-guard/injections.jsonl`
+   (`origin`, `target`, `session`, `reason`: `inicio` | `evidencia` | `compact` | `clear`,
+   `sections`, `chars`, `tokens`), aparado acima de 256 KB.
+
+Quem implementa o mesmo algoritmo em outro harness (o Boss, `harness-padroes-cliente`) precisa
+de: estado por sessão com as seções entregues, zerado em `compact`/`clear`; escrita única desse
+estado; origem declarada em cada hook; registro do que entregou e do tamanho.

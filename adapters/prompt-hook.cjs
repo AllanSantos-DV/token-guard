@@ -66,9 +66,7 @@ async function main() {
   process.stdout.write(JSON.stringify(H.promptEnvelope(decision.text, warning)));
   if (!decision.text) return;
 
-  CT.writeState(root, sessionId, {
-    injected: [...state.injected, ...decision.triggers],
-  });
+  CT.commitInjection(root, sessionId, state, decision);
 }
 
 if (require.main === module) {
