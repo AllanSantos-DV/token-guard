@@ -81,17 +81,17 @@ console.log('\n  [prompt-hook · user prompt submit]');
 }
 
 /* Evidência acumulada pelo post-hook muda o que é injetado: sessão que tocou
-   código recebe a seção quando:codigo além da "sempre". */
+   teste recebe a seção quando:teste além da "sempre"; código não injeta regra de código. */
 const CT = require(path.join(__dirname, '..', 'lib', 'contract.cjs'));
 {
-  CT.recordTouched(TMP, 'sess-cod', ['src/BigService.java']);
+  CT.recordTouched(TMP, 'sess-cod', ['src/BigService.java', 'test/BigServiceTest.java']);
   const out = run({ cwd: TMP, session_id: 'sess-cod', prompt: 'bora' });
-  check('evidência de código injeta a seção codigo junto',
-    Boolean(out?.additionalContext) && /O repositório é consultado antes de nascer um helper/.test(out.additionalContext),
+  check('evidência de teste injeta a seção teste junto',
+    Boolean(out?.additionalContext) && /O nome do teste enuncia a garantia/.test(out.additionalContext),
     (out?.additionalContext || '').slice(0, 160));
-  check('a seção codigo não repete a regra de comentários do CLAUDE.md global',
-    !/Comentário registra|histórico do desenvolvimento|se explica sozinho/.test(out.additionalContext));
-  check('estado registra sempre+codigo (não reinjeta em nenhum dos dois)',
+  check('evidência de código não injeta regra de código (dona: regras com escopo do Boss)',
+    !/O repositório é consultado antes de nascer um helper|Cerimônia que a linguagem não exige|Código morto comentado/.test(out.additionalContext));
+  check('estado registra sempre+teste (não reinjeta em nenhum dos dois)',
     run({ cwd: TMP, session_id: 'sess-cod' }) === null);
 }
 

@@ -19,7 +19,7 @@ narrativa de sessão em comentário, cerimônia sem valor — porque saída-lixo
 | Seção | Entra quando | Injeta na sessão principal? |
 |---|---|---|
 | `sempre` | Toda tarefa | sim, uma única vez |
-| `quando: codigo` | A sessão leu/escreveu arquivo-fonte | sim, uma única vez |
+| `quando: codigo` | Só num `contract.md` do repositório (o padrão não traz a seção) | sim, uma única vez |
 | `quando: teste` | Tocou arquivo de teste | sim, uma única vez |
 | `quando: docs` | Escreveu markdown/docs | sim, uma única vez |
 | `subagente` | — | NUNCA na sessão principal: no Claude Code o `SubagentStart` o injeta no scout; nos demais vai no prompt de quem roda em contexto descartável |
@@ -49,7 +49,7 @@ npx @allansantos-dev/token-guard contract --subagente            # bloco pronto 
 
 ## Status honesto
 
-| Harness | Camada `sempre` | Gatilhos por evidência (`codigo`/`teste`/`docs`) |
+| Harness | Camada `sempre` | Gatilhos por evidência (`teste`/`docs`) |
 |---|---|---|
 | Copilot CLI/App (plugin) | automática (`onUserPromptSubmitted`) | automáticos |
 | Claude Code | automática (`UserPromptSubmit`); bloco `subagente` no scout via `SubagentStart` | automáticos desde a 2.6.2 |
@@ -75,7 +75,7 @@ revisão, escopo) mora nas instruções dele e o token-guard nunca a carrega.
 | Regra | Dono | Canal |
 |---|---|---|
 | Forma da resposta (`sempre`) | token-guard | `UserPromptSubmit`, uma vez por janela |
-| Código enxuto: guarda/fallback, código morto, reuso, cerimônia (`codigo`) | token-guard por padrão; do usuário se ele a declara nas instruções | `UserPromptSubmit` por evidência; `contract.skip: ["codigo"]` quando já a recebe por outro canal |
+| Código enxuto: guarda/fallback, código morto, reuso, cerimônia | regras com escopo do Boss (`rule:codigo:sem-cerimonia`, `rule:codigo:sem-codigo-morto`) | injeção do Boss, uma vez por escopo; o token-guard não entrega mais a seção `codigo` |
 | Teste (`teste`) e documentação (`docs`) | token-guard | idem |
 | Contrato do subagente (`subagente`) | token-guard | `SubagentStart`, só no scout |
 | Comentários de código | instruções globais do usuário | o token-guard nunca a entrega |
@@ -85,7 +85,7 @@ Usuário que já escreve uma dessas seções nas próprias instruções declara 
 `~/.token-guard/token-guard.config.json` (ou no config do repositório):
 
 ```json
-{ "contract": { "skip": ["codigo"] } }
+{ "contract": { "skip": ["docs"] } }
 ```
 
 A seção pulada some do contrato inteiro (injeção, `contract` da CLI, simulação). O teste
@@ -95,7 +95,7 @@ o padrão voltar a carregar regra de comentário ou se `skip` não calar a seç�
 ## Algoritmo de entrega (contrato para quem integra)
 
 1. **Escopo por evidência.** Os caminhos que a sessão tocou (`-touched.json`, até 50) ligam
-   `codigo` / `teste` / `docs`; `sempre` vale sempre. A frase do usuário nunca classifica.
+   `teste` / `docs` (e `codigo`, se o `contract.md` do repositório a define); `sempre` vale sempre. A frase do usuário nunca classifica.
 2. **Uma vez por janela.** `injected` guarda as seções já entregues na sessão; só o que falta
    é injetado. O único ponto de escrita desse estado é `CT.commitInjection`, usado pelo hook de
    comando, pelo hook http do daemon e pelo plugin do Copilot.

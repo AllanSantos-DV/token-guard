@@ -55,6 +55,7 @@ console.log('\n  [dono único por regra]');
   const c = CT.parse(fs.readFileSync(path.join(__dirname, '..', 'contract.default.md'), 'utf8'));
   const all = Object.values(c.rules).flat();
   check('nenhuma regra repetida entre seções do padrão', new Set(all).size === all.length);
+  check('o padrão não carrega a seção de código (dona: regras com escopo do Boss)', !all.some((r) => /try\/catch|código morto|helper|wrapper/i.test(r)) && !('codigo' in c.rules), c.order);
   check('o padrão não carrega regra de comentário (dona: instrução global do usuário)',
     !all.some((r) => /coment[aá]rio/i.test(r)), all.filter((r) => /coment[aá]rio/i.test(r)));
 }
@@ -70,7 +71,7 @@ for (const [name, via] of [['hook de comando', viaCommand], ['hook http do daemo
   take(via(root, sid));
   take(via(root, sid));
   check(`${name}: nenhuma regra chega duas vezes na mesma janela`, new Set(seen).size === seen.length, seen.length);
-  check(`${name}: sempre + código + teste + docs entraram`, seen.length >= 4);
+  check(`${name}: sempre + teste + docs entraram`, seen.length >= 3);
 
   const before = seen.length;
   start(root, sid, 'compact');
@@ -81,15 +82,15 @@ for (const [name, via] of [['hook de comando', viaCommand], ['hook http do daemo
 
 {
   const root = mkroot();
-  fs.writeFileSync(path.join(root, 'token-guard.config.json'), JSON.stringify({ contract: { skip: ['codigo', ' Docs '] } }), 'utf8');
+  fs.writeFileSync(path.join(root, 'token-guard.config.json'), JSON.stringify({ contract: { skip: ['teste', ' Docs '] } }), 'utf8');
   CFG.clearMemo();
   const c = CT.load(root);
-  check('contract.skip tira as seções do contrato', !c.order.includes('codigo') && !c.order.includes('docs') && c.order.includes('sempre') && c.order.includes('teste'), c.order);
+  check('contract.skip tira as seções do contrato', !c.order.includes('teste') && !c.order.includes('docs') && c.order.includes('sempre') && c.order.includes('subagente'), c.order);
   CT.recordTouched(root, 'sk', ['src/a.js', 'docs/a.md', 'test/a.test.js']);
   const text = viaCommand(root, 'sk');
   const defaults = CT.parse(fs.readFileSync(path.join(__dirname, '..', 'contract.default.md'), 'utf8'));
   check('seção pulada não é injetada, as demais seguem',
-    !rulesOf(text).some((r) => defaults.rules.codigo.includes(r)) && rulesOf(text).some((r) => defaults.rules.teste.includes(r)), text.slice(0, 200));
+    !rulesOf(text).some((r) => defaults.rules.teste.includes(r) || defaults.rules.docs.includes(r)) && rulesOf(text).some((r) => defaults.rules.sempre.includes(r)), text.slice(0, 200));
 }
 
 {

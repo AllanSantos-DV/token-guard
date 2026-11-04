@@ -146,7 +146,7 @@ console.log('\n  [render]');
   check('subagente rende separado', CT.subagentText(c).includes('Regra de subagente.'));
 
   /* Regra escrita como ordem imperativa vaza: o modelo mostra o texto em vez de seguir. */
-  const imperativos = (CT.load(ROOT).rules.codigo || [])
+  const imperativos = Object.values(CT.load(ROOT).rules).flat()
     .filter((r) => /^(nunca|sempre|não |nao |jamais|evite|proíbo)/i.test(r));
   check('o contrato padrão não abre regra em modo imperativo',
     imperativos.length === 0, imperativos.join(' | '));
@@ -157,7 +157,7 @@ console.log('\n  [render]');
 console.log('\n  [carga]');
 {
   const base = CT.load(ROOT);
-  check('contrato padrão do projeto carrega', base.order.includes('sempre') && base.order.includes('codigo'),
+  check('contrato padrão do projeto carrega', base.order.includes('sempre') && !base.order.includes('codigo'),
     base.order.join(','));
   check('a seção subagente existe no padrão', base.order.includes('subagente'));
 
@@ -175,7 +175,7 @@ console.log('\n  [carga]');
 
   fs.writeFileSync(path.join(proj, 'contract.md'), '# Só prosa, sem seção\n', 'utf8');
   check('contract.md sem seção cai para o padrão sem quebrar',
-    (CT.load(proj).rules.codigo || []).length > 1);
+    (CT.load(proj).rules.sempre || []).length > 1);
 
   const antes = process.env.TOKEN_GUARD;
   process.env.TOKEN_GUARD = 'off';

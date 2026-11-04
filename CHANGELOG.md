@@ -5,6 +5,11 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Removido
+- **Seção `quando: codigo` do contrato padrão.** As duas regras de código (sem cerimônia, sem código morto) passam a vir
+  das regras com escopo do Boss, injetadas uma vez por escopo; o token-guard entregava o mesmo texto em duplicata.
+  Um `contract.md` do repositório que defina `quando: codigo` continua valendo.
+
 ### Corrigido
 - **broadScan aceitava o cwd como escopo.** Um Glob `**/*` (ou um grep de conteúdo sem teto) com `path` igual à
   raiz do repositório passava, enquanto o mesmo pedido sem `path` era barrado; o Claude Code costuma mandar o cwd
