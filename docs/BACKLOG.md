@@ -13,6 +13,12 @@ Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 |---|------|---------|
 | B5 | **Decidido (Jarvis, 03/11):** o aviso, na sessão seguinte, de que existe uma instalação global antiga do token-guard (`npm i -g`) que o auto-update não gere é feature nova visível ao usuário e espera o dono. **Item de negócio, nada técnico aberto:** a parte técnica (a cópia global velha nesta máquina, trazida à versão candidata) está corrigida | S |
 
+Técnico (achado na verificação da limpeza do `~/.token-guard/runtime`, 2026-11-04):
+
+| # | Item | Esforço |
+|---|------|---------|
+| B6 | **broadScan aceita `path` absoluto igual ao cwd como escopo.** `hasRealPathScope` (`lib/rules.cjs`) só recusa `''`, `.`, `/` e `C:`; um Glob `**/*` com `path` = raiz do repositório (o Claude Code costuma mandar o absoluto) passa, enquanto o mesmo `**/*` sem `path` é barrado (medido no daemon vivo: sem `path` → deny com ~4.617 arquivos; com `path` = raiz → `{}`). Corrigir comparando o `path` resolvido com o `cwd` (e com a raiz do disco), mais um caso em `test/fixtures/cases.cjs` | S |
+
 Decidido (Jarvis, 2026-11-03): `contract.skip` (2.17.0) fica opt-in e não habilitado; o ganho de ~184 tokens por sessão não compensa mudar o que as regras do dono entregam. Nenhum item técnico aberto.
 
 Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD-tela-setup-bandeja.md, seção 8): pausar/retomar no menu do ícone; regras diferentes por IDE; modo "só avisar".
