@@ -222,6 +222,20 @@ function startStubOldDaemon() {
     fs.rmSync(DH.endpointPath(), { force: true });
   }
 
+  // 6b · http que sobe deixa a porta no log: sem ela não dá para saber, depois, para onde os hooks iam
+  {
+    resetLog();
+    const port = await freePort();
+    fs.mkdirSync(path.dirname(DH.httpTokenPath()), { recursive: true });
+    fs.writeFileSync(DH.httpTokenPath(), 'tok-followups\n');
+    startDaemon(DAEMON, { TOKEN_GUARD_HTTP_PORT: String(port), TOKEN_GUARD_TRAY: 'off' });
+    const on = await waitFor(() => logLines().find((l) => l.event === 'http-on'));
+    check('http no ar grava http-on com a porta e o pid', !!on && on.port === port && Number.isInteger(on.pid), logLines());
+    await stopDaemon();
+    fs.rmSync(DH.httpTokenPath(), { force: true });
+    fs.rmSync(DH.endpointPath(), { force: true });
+  }
+
   // 7 · swapDaemon não toma o erro de http de um daemon anterior pelo do novo
   {
     let spawnedNew = false;

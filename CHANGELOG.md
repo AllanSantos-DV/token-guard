@@ -5,6 +5,15 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.17.1] — 2026-11-04
+
+### Corrigido
+- **Auto-update deixava alvos para trás.** Ele comparava só a versão da cópia que o rodava; com o Claude em dia,
+  a cópia do Codex (`~/.codex/token-guard`, lida pelo servidor MCP) ficava numa versão antiga para sempre. Agora
+  parte da versão mais antiga entre as cópias dos alvos registrados e reinstala todos.
+- `~/.token-guard/daemon.log` grava `http-on` com a porta em que o hook http subiu: sem ela não se sabia, depois,
+  para onde as chamadas dos hooks iam.
+
 ## [2.17.0] — 2026-11-03
 
 ### Adicionado

@@ -94,7 +94,7 @@ O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem gu
   Linux); até lá o hook http falha aberto.
 - Para saber **por que** o daemon caiu, leia `~/.token-guard/daemon.log` (uma linha JSON por `start`/`exit`, com
   versão, código e motivo; `previous-unclean` marca um start do mesmo endpoint cujo antecessor morreu sem registrar
-  saída, ex.: kill forçado; `http-off` traz o motivo de o hook http não ter subido). Falha antes de escutar (porta ou
+  saída, ex.: kill forçado; `http-on` traz a porta em que o hook http subiu e `http-off`, o motivo de não ter subido). Falha antes de escutar (porta ou
   pipe recusado, exceção) grava um `exit` com o motivo e sem `start`; um segundo daemon que perde o singleton sai em
   silêncio. Instalar/atualizar (claude, cursor ou repo) troca o daemon na hora e o `init` falha em voz alta (exit 1) se
   o novo não responder na versão instalada. Um cliente de versão mais velha (ex.: `.github/token-guard` esquecido) nunca

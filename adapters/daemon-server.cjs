@@ -526,6 +526,7 @@ function start(endpointOverride) {
       DH.listenFirstFree(httpServer, DH.candidatePorts()).then((port) => {
         httpPort = port;
         process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${port}\n`);
+        DL.logLifecycle('http-on', { port });
         try {
           DH.writeJsonAtomic(DH.endpointPath(), { port, url: `http://127.0.0.1:${port}/token-guard`, pid: process.pid, version: PACKAGE_VERSION });
         } catch (err) {

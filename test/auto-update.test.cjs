@@ -321,6 +321,32 @@ const reset = () => [AU.installStatePath(), AU.resultPath(), AU.logPath(), AU.lo
   check('sem install-state não poda', prunes.length === 2, prunes);
   fs.rmSync(AU.pruneStatePath(), { force: true });
 
+  // Cópia de outro alvo parada numa versão antiga: a deste processo em dia não pode esconder isso.
+  reset();
+  delete process.env.CODEX_HOME;
+  const UC = require('../lib/update-check.cjs');
+  const realCheck = async (lv) => ({ checked: true, updateAvailable: UC.compareVersions(lv, LOCAL) < 0, latestVersion: LOCAL, localVersion: lv });
+  const codexPkg = path.join(process.env.HOME, '.codex', 'token-guard', 'package.json');
+  const claudePkg = path.join(process.env.HOME, '.claude', 'token-guard', 'package.json');
+  fs.mkdirSync(path.dirname(claudePkg), { recursive: true });
+  fs.writeFileSync(claudePkg, JSON.stringify({ version: LOCAL }));
+  AU.recordInstall({ targets: ['claude', 'codex'], commandHooks: false, version: LOCAL });
+  ran = null;
+  r = await AU.run({ checkForUpdate: realCheck, runInstaller: (c) => { ran = c; return { status: 0 }; }, pruneOldVersions: () => {} });
+  check('alvo registrado sem cópia no disco não força reinstalação', r.status === 'skipped' && ran === null, r);
+  fs.mkdirSync(path.dirname(codexPkg), { recursive: true });
+  fs.writeFileSync(codexPkg, JSON.stringify({ version: '2.15.1' }));
+  r = await AU.run({ checkForUpdate: realCheck, runInstaller: (c) => { ran = c; return { status: 0 }; }, pruneOldVersions: () => {} });
+  check('cópia do Codex antiga com a do Claude em dia → reinstala todos os alvos',
+    r.status === 'ok' && r.from === '2.15.1' && r.to === LOCAL && ran && ran.args.join(' ').endsWith(`@${LOCAL} init --target claude,codex`), r);
+  fs.writeFileSync(codexPkg, JSON.stringify({ version: LOCAL }));
+  fs.rmSync(AU.resultPath(), { force: true });
+  ran = null;
+  r = await AU.run({ checkForUpdate: realCheck, runInstaller: (c) => { ran = c; return { status: 0 }; }, pruneOldVersions: () => {} });
+  check('todas as cópias em dia → não reinstala', r.status === 'skipped' && ran === null, r);
+  fs.rmSync(path.join(process.env.HOME, '.codex'), { recursive: true, force: true });
+  fs.rmSync(path.join(process.env.HOME, '.claude', 'token-guard'), { recursive: true, force: true });
+
   reset();
   console.log(`\n  auto-update: ${pass} passaram · ${fail} falharam`);
   process.exit(fail ? 1 : 0);
