@@ -81,7 +81,7 @@ console.log('\n  [prompt-hook · user prompt submit]');
 }
 
 /* Evidência acumulada pelo post-hook muda o que é injetado: sessão que tocou
-   teste recebe a seção quando:teste além da "sempre"; código não injeta regra de código. */
+   teste recebe a seção quando:teste além da "sempre"; código injeta as regras de código do padrão. */
 const CT = require(path.join(__dirname, '..', 'lib', 'contract.cjs'));
 {
   CT.recordTouched(TMP, 'sess-cod', ['src/BigService.java', 'test/BigServiceTest.java']);
@@ -89,9 +89,13 @@ const CT = require(path.join(__dirname, '..', 'lib', 'contract.cjs'));
   check('evidência de teste injeta a seção teste junto',
     Boolean(out?.additionalContext) && /O nome do teste enuncia a garantia/.test(out.additionalContext),
     (out?.additionalContext || '').slice(0, 160));
-  check('evidência de código não injeta regra de código (dona: regras com escopo do Boss)',
-    !/O repositório é consultado antes de nascer um helper|Cerimônia que a linguagem não exige|Código morto comentado/.test(out.additionalContext));
-  check('estado registra sempre+teste (não reinjeta em nenhum dos dois)',
+  check('evidência de código injeta as três regras de código que o Boss não tem',
+    /Guarda, `try\/catch` e fallback/.test(out.additionalContext) &&
+    /O repositório é consultado antes de nascer um helper/.test(out.additionalContext) &&
+    /A abstração que já existe é preferida/.test(out.additionalContext));
+  check('evidência de código não repete as regras do Boss (cerimônia, código morto)',
+    !/Cerimônia que a linguagem não exige|Código morto comentado|O que foi removido some/.test(out.additionalContext));
+  check('estado registra sempre+código+teste (não reinjeta em nenhum)',
     run({ cwd: TMP, session_id: 'sess-cod' }) === null);
 }
 
