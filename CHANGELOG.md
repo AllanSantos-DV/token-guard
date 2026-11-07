@@ -3,7 +3,10 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [2.18.0] — 2026-11-07
+
+### Adicionado
+- **Subcaminho `./rules`.** `@allansantos-dev/token-guard/rules` expõe `lib/rules.cjs`, incluindo `isAllowlisted`.
 
 ### Removido
 - **Seção `quando: codigo` do contrato padrão.** As duas regras de código (sem cerimônia, sem código morto) passam a vir
@@ -14,7 +17,7 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - **broadScan aceitava o cwd como escopo.** Um Glob `**/*` (ou um grep de conteúdo sem teto) com `path` igual à
   raiz do repositório passava, enquanto o mesmo pedido sem `path` era barrado; o Claude Code costuma mandar o cwd
   como `path` absoluto. Agora o cwd e qualquer ancestral dele, em qualquer grafia (barra final, separador, caixa
-  no Windows e no macOS), não contam como escopo.
+  no Windows e no macOS), não contam como escopo. O mesmo vale para `grep -r`/`rg` no shell (`shellDump`) com o cwd absoluto.
 
 ## [2.17.1] — 2026-11-04
 

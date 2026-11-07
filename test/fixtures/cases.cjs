@@ -160,6 +160,8 @@ const CASES = [
   ['deny', 'path = cwd com barras normais não é escopo', claude('Glob', { pattern: '**/*', path: TMP.replace(/\\/g, '/') }), 'broadScan'],
   [FOLD_CASE ? 'deny' : 'allow', 'path = cwd em outra caixa segue a plataforma', claude('Glob', { pattern: '**/*', path: TMP.toUpperCase() }), FOLD_CASE ? 'broadScan' : null],
   ['deny', 'path ancestral do cwd não é escopo',       claude('Glob', { pattern: '**/*', path: path.dirname(TMP) }), 'broadScan'],
+  ['deny', 'grep -r no shell com o cwd absoluto não é escopo', claude('Bash', { command: `grep -rn Service ${TMP.replace(/\\/g, '/')}` }), 'shellDump'],
+  ['allow', 'grep -r no shell com subdiretório absoluto é escopo', claude('Bash', { command: `grep -rn Service ${path.join(TMP, 'src').replace(/\\/g, '/')}` }), null],
   ['deny', 'grep de conteúdo com path = cwd não é escopo', claude('Grep', { pattern: 'Service', output_mode: 'content', path: TMP }), 'broadScan'],
   ['allow', 'leitura com faixa de linhas',            vscode('view', { path: BIG, view_range: [40, 90] }), null],
   ['allow', 'leitura com offset/limit',               claude('Read', { file_path: BIG, offset: 10, limit: 60 }), null],

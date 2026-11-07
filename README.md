@@ -552,7 +552,7 @@ falha (o cliente desarma e decide localmente; o pós-execução, que muda estado
 
 A economia tem dois lados. Os guards cuidam da **entrada**; o contrato cuida da
 **saída**: regras de forma (`contract.default.md`) divididas por gatilho de
-evidência — `sempre`, `quando: codigo` quando a sessão tocou código-fonte,
+evidência — `sempre`,
 `quando: teste`, `quando: docs` — mais um bloco `subagente` para contexto descartável.
 
 Um `contract.md` na raiz substitui seções inteiras do padrão. Inspecione com:
@@ -565,7 +565,7 @@ npx @allansantos-dev/token-guard contract --subagente              # bloco pront
 
 Estado honesto: no Claude Code (`UserPromptSubmit`) e no Copilot (`onUserPromptSubmitted`)
 a injeção é automática — a camada "sempre" no primeiro prompt e os gatilhos por
-evidência (`codigo`/`teste`/`docs`) no prompt seguinte ao toque, alimentados pelos
+evidência (`teste`/`docs`) no prompt seguinte ao toque, alimentados pelos
 arquivos que a sessão tocou (no Claude Code, desde a 2.6.2).
 O bloco `subagente` é automático só no Claude Code (`SubagentStart`, no scout); no Copilot,
 Cursor, Codex e MCP o consumo é manual (`--subagente` no prompt do scout). Detalhes em [docs/CONTRACT.md](docs/CONTRACT.md).
