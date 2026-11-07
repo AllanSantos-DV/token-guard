@@ -82,8 +82,11 @@ async function waitFor(pred, ms = 15000) {
 const helloUp = () => DC.connectOnce('hello', {}, { timeoutMs: 300 });
 
 async function stopDaemon() {
+  const down = async () => !(await helloUp()).ok && [...spawned].every((p) => !alive(p));
   await DC.shutdownDaemon();
-  await waitFor(async () => !(await helloUp()).ok && [...spawned].every((p) => !alive(p)), 8000);
+  if (await waitFor(down, 8000)) return;
+  for (const p of spawned) if (alive(p)) { try { process.kill(p); } catch { /* já saiu */ } }
+  if (!(await waitFor(down, 8000))) throw new Error('daemon do teste não encerrou: o pipe segue ocupado');
 }
 
 /** Cópia do pacote com outra versão: o "daemon/cliente antigo" é código real anterior. */
@@ -104,6 +107,7 @@ function copyOld(version) {
 function startStubOldDaemon() {
   const endpoint = DS.defaultEndpoint();
   const server = net.createServer((socket) => {
+    socket.on('error', () => {});
     parseStream(socket).on('data', (msg) => writeFrame(socket, { id: msg.id, result: { pong: true, pid: process.pid } }));
   });
   return new Promise((resolve, reject) => {
@@ -267,6 +271,21 @@ function startStubOldDaemon() {
   // 8 · SessionStart: daemon velho que ignora o shutdown e não tem handshake é trocado
   {
     const stub = await startStubOldDaemon();
+    const endpoint = DS.defaultEndpoint();
+    let errored = null;
+    const hooks = process.listeners('uncaughtException');
+    process.removeAllListeners('uncaughtException');
+    process.on('uncaughtException', (e) => { errored = e; });
+    await Promise.all(Array.from({ length: 100 }, () => new Promise((resolve) => {
+      const c = net.connect(endpoint);
+      c.on('error', resolve);
+      c.on('close', resolve);
+      c.on('connect', () => { writeFrame(c, { id: 1, method: 'hello', params: {} }); c.destroy(); });
+    })));
+    await sleep(300);
+    process.removeAllListeners('uncaughtException');
+    for (const h of hooks) process.on('uncaughtException', h);
+    check('cliente que fecha antes da resposta não derruba o daemon falso (EPIPE sem tratador)', errored === null, errored && errored.message);
     let swaps = 0;
     const problem = await SS.ensureDaemon({
       swap: async () => { swaps++; await new Promise((r) => stub.close(r)); return { ok: true }; },
