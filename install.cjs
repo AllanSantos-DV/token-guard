@@ -938,16 +938,22 @@ function installCodex() {
   if (!hooks.hooks || typeof hooks.hooks !== 'object') hooks.hooks = {};
   const before = JSON.stringify(hooks);
   const isOurs = (h) => h?.type === 'mcp_tool' && h?.server === 'token-guard';
-  // Entrada nossa vai SEMPRE no fim: a aprovação do Codex é por índice
-  // (hooks.json:pre_tool_use:<i>:<j>) — não deslocar os hooks já aprovados.
-  hooks.hooks.PreToolUse = [...withoutHooks(hooks.hooks.PreToolUse, isOurs), {
-    matcher: 'Bash',
-    hooks: [{
-      type: 'mcp_tool', server: 'token-guard', tool: 'token_guard_hook',
-      input: { tool_name: '${tool_name}', tool_input: '${tool_input}', cwd: '${cwd}' },
-      timeout: 10, statusMessage: 'token-guard',
-    }],
-  }];
+  const ourHook = {
+    type: 'mcp_tool', server: 'token-guard', tool: 'token_guard_hook',
+    input: { tool_name: '${tool_name}', tool_input: '${tool_input}', cwd: '${cwd}' },
+    timeout: 10, statusMessage: 'token-guard',
+  };
+  // A aprovação do Codex é por índice (hooks.json:pre_tool_use:<i>:<j>): entrada
+  // nova vai no fim e a já existente é atualizada no lugar, sem deslocar os outros hooks.
+  const pre = Array.isArray(hooks.hooks.PreToolUse) ? hooks.hooks.PreToolUse : [];
+  const at = pre.findIndex((e) => Array.isArray(e?.hooks) && e.hooks.some(isOurs));
+  if (at === -1) {
+    hooks.hooks.PreToolUse = [...pre, { matcher: 'Bash', hooks: [ourHook] }];
+  } else {
+    const slot = pre[at].hooks.findIndex(isOurs);
+    pre[at] = { ...pre[at], hooks: pre[at].hooks.map((h, j) => (j === slot ? ourHook : h)) };
+    hooks.hooks.PreToolUse = pre;
+  }
   if (JSON.stringify(hooks) === before) skipped.push(`${rel(base, hooksPath)} (hook do token-guard ja registrado)`);
   else writeJson(hooksPath, hooks, base, 'hooks.json  (PreToolUse: mcp_tool -> token-guard/token_guard_hook)');
 

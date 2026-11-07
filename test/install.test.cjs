@@ -306,6 +306,23 @@ console.log('\n  [codex] ponte mcp_tool -> servidor MCP do token-guard');
   check('reinstalação codex é idempotente (config.toml e hooks.json idênticos)',
     fs.readFileSync(cfgPath, 'utf8') === cfg1 && fs.readFileSync(hooksPath, 'utf8') === hk1);
 
+  // Nossa entrada no meio, com hooks de terceiros depois dela: reinstalar não
+  // pode deslocar ninguém (a confiança do Codex é por posição).
+  const mid = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
+  const stale = { ...mid.hooks.PreToolUse[1], hooks: [{ ...mid.hooks.PreToolUse[1].hooks[0], timeout: 99 }] };
+  mid.hooks.PreToolUse = [mid.hooks.PreToolUse[0], stale,
+    { matcher: 'Bash', hooks: [{ type: 'command', command: 'python depois.py' }, { type: 'command', command: 'python depois2.py' }] }];
+  fs.writeFileSync(hooksPath, JSON.stringify(mid, null, 2), 'utf8');
+  runInstall(['--target', 'codex', repo], ENV);
+  const after = JSON.parse(fs.readFileSync(hooksPath, 'utf8')).hooks.PreToolUse;
+  check('hooks.json: hooks depois da nossa entrada mantêm índice e ordem; nossa entrada é atualizada no lugar',
+    after.length === 3 && after[0].hooks[0].command === 'python router.py' &&
+    after[1].hooks[0].server === 'token-guard' && after[1].hooks[0].timeout === 10 &&
+    after[2].hooks[0].command === 'python depois.py' && after[2].hooks[1].command === 'python depois2.py', JSON.stringify(after));
+  const hk2 = fs.readFileSync(hooksPath, 'utf8');
+  runInstall(['--target', 'codex', repo], ENV);
+  check('hooks.json: reinstalar de novo não muda nada', fs.readFileSync(hooksPath, 'utf8') === hk2);
+
   // Tabela antiga (outro caminho, com subtabela) no MEIO do arquivo: é
   // substituída inteira, sem duplicar e sem engolir a tabela seguinte.
   fs.writeFileSync(cfgPath, cfgBefore + '\r\n[mcp_servers.token-guard]\r\ncommand = "node"\r\nargs = ["C:/velho/mcp-server.cjs"]\r\n\r\n[mcp_servers.token-guard.env]\r\nX = "1"\r\n\r\n[profiles.fim]\r\nmodel = "y"\r\n', 'utf8');
