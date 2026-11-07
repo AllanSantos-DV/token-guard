@@ -19,7 +19,7 @@ narrativa de sessão em comentário, cerimônia sem valor — porque saída-lixo
 | Seção | Entra quando | Injeta na sessão principal? |
 |---|---|---|
 | `sempre` | Toda tarefa | sim, uma única vez |
-| `quando: codigo` | Só num `contract.md` do repositório (o padrão não traz a seção) | sim, uma única vez |
+| `quando: codigo` | Tocou arquivo-fonte (guarda/fallback, helper, abstração existente) | sim, uma única vez |
 | `quando: teste` | Tocou arquivo de teste | sim, uma única vez |
 | `quando: docs` | Escreveu markdown/docs | sim, uma única vez |
 | `subagente` | — | NUNCA na sessão principal: no Claude Code o `SubagentStart` o injeta no scout; nos demais vai no prompt de quem roda em contexto descartável |
@@ -75,7 +75,8 @@ revisão, escopo) mora nas instruções dele e o token-guard nunca a carrega.
 | Regra | Dono | Canal |
 |---|---|---|
 | Forma da resposta (`sempre`) | token-guard | `UserPromptSubmit`, uma vez por janela |
-| Código enxuto: guarda/fallback, código morto, reuso, cerimônia | regras com escopo do Boss (`rule:codigo:sem-cerimonia`, `rule:codigo:sem-codigo-morto`) | injeção do Boss, uma vez por escopo; o token-guard não entrega mais a seção `codigo` |
+| Código enxuto: sem cerimônia, sem código morto | regras com escopo do Boss (`rule:codigo:sem-cerimonia`, `rule:codigo:sem-codigo-morto`) | injeção do Boss, uma vez por escopo; o padrão não as repete |
+| Código enxuto: guarda/fallback, helper só depois de consultar o repositório, abstração existente (`codigo`) | token-guard | `UserPromptSubmit`, no prompt seguinte ao toque em arquivo-fonte; vale com ou sem o Boss |
 | Teste (`teste`) e documentação (`docs`) | token-guard | idem |
 | Contrato do subagente (`subagente`) | token-guard | `SubagentStart`, só no scout |
 | Comentários de código | instruções globais do usuário | o token-guard nunca a entrega |
@@ -95,7 +96,7 @@ o padrão voltar a carregar regra de comentário ou se `skip` não calar a seç�
 ## Algoritmo de entrega (contrato para quem integra)
 
 1. **Escopo por evidência.** Os caminhos que a sessão tocou (`-touched.json`, até 50) ligam
-   `teste` / `docs` (e `codigo`, se o `contract.md` do repositório a define); `sempre` vale sempre. A frase do usuário nunca classifica.
+   `codigo` / `teste` / `docs`; `sempre` vale sempre. A frase do usuário nunca classifica.
 2. **Uma vez por janela.** `injected` guarda as seções já entregues na sessão; só o que falta
    é injetado. O único ponto de escrita desse estado é `CT.commitInjection`, usado pelo hook de
    comando, pelo hook http do daemon e pelo plugin do Copilot.

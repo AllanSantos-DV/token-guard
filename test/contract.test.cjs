@@ -157,7 +157,7 @@ console.log('\n  [render]');
 console.log('\n  [carga]');
 {
   const base = CT.load(ROOT);
-  check('contrato padrão do projeto carrega', base.order.includes('sempre') && !base.order.includes('codigo'),
+  check('contrato padrão do projeto carrega', base.order.includes('sempre') && base.order.includes('codigo'),
     base.order.join(','));
   check('a seção subagente existe no padrão', base.order.includes('subagente'));
 

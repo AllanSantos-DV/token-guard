@@ -3,6 +3,14 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.18.1] — 2026-11-07
+
+### Corrigido
+- **O contrato padrão voltou a entregar três regras de código.** A 2.18.0 tirou a seção `quando: codigo` inteira
+  por causa das regras do Boss, mas o Boss só traz `sem-cerimonia` e `sem-codigo-morto`. Voltam, sem o Boss
+  duplicado: guarda/`try/catch`/fallback só com falha prevista, consultar o repositório antes de criar helper e
+  preferir a abstração que já existe.
+
 ## [2.18.0] — 2026-11-07
 
 ### Adicionado

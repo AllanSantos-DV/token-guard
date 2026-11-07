@@ -69,7 +69,7 @@ O registro do que o contrato injetou fica em `~/.token-guard/injections.jsonl` (
 
 ## `contract.skip`
 
-`{ "contract": { "skip": ["docs"] } }` tira seções inteiras do contrato (`sempre`, `codigo`, `teste`, `docs`, `subagente`)
+`{ "contract": { "skip": ["codigo"] } }` tira seções inteiras do contrato (`sempre`, `codigo`, `teste`, `docs`, `subagente`)
 para quem já recebe as mesmas regras pelas instruções do próprio usuário. Detalhe em `docs/CONTRACT.md`.
 
 ## Estado em disco (`.token-guard/`)

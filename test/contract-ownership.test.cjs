@@ -55,7 +55,11 @@ console.log('\n  [dono único por regra]');
   const c = CT.parse(fs.readFileSync(path.join(__dirname, '..', 'contract.default.md'), 'utf8'));
   const all = Object.values(c.rules).flat();
   check('nenhuma regra repetida entre seções do padrão', new Set(all).size === all.length);
-  check('o padrão não carrega a seção de código (dona: regras com escopo do Boss)', !all.some((r) => /try\/catch|código morto|helper|wrapper/i.test(r)) && !('codigo' in c.rules), c.order);
+  const codigo = c.rules.codigo || [];
+  check('o padrão entrega as três regras de código que o Boss não tem (guarda, helper, abstração existente)',
+    codigo.length === 3 && /try\/catch/.test(codigo[0]) && /helper/.test(codigo[1]) && /abstração que já existe/.test(codigo[2]), codigo);
+  check('o padrão não repete as regras de código do Boss (sem cerimônia, sem código morto)',
+    !all.some((r) => /código morto|wrapper|cerimônia/i.test(r)), all.filter((r) => /código morto|wrapper|cerimônia/i.test(r)));
   check('o padrão não carrega regra de comentário (dona: instrução global do usuário)',
     !all.some((r) => /coment[aá]rio/i.test(r)), all.filter((r) => /coment[aá]rio/i.test(r)));
 }

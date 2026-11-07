@@ -39,6 +39,16 @@ regras de programação, e é por isso que não confundem tarefa nenhuma.
   Cabeçalho sobre parágrafo único é decoração e custa.
 - Repetir o pedido antes de responder não demonstra entendimento — a resposta demonstra.
 
+## quando: codigo
+
+Entra quando a sessão já leu ou escreveu arquivo-fonte.
+
+- Guarda, `try/catch` e fallback entram onde há falha prevista e um caminho de recuperação
+  real. Defesa genérica esconde o erro em vez de tratá-lo.
+- O repositório é consultado antes de nascer um helper. Função duplicada é a forma mais cara
+  de lixo: cada cópia diverge, e todas passam a ser lidas.
+- A abstração que já existe é preferida mesmo quando não é a primeira que ocorre.
+
 ## subagente
 
 Não é injetado na sessão principal: é o contrato de saída de quem roda em contexto
