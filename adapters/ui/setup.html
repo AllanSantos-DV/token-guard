@@ -182,6 +182,8 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
 .pseg { position: absolute; inset: 0 auto 0 0; width: 40%; background: var(--accent); border-radius: 6px; animation: deslizar 1.2s cubic-bezier(.2, 0, 0, 1) infinite; }
 @keyframes deslizar { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 .pcount { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.more { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; }
+.more .foot-note { margin: 0; flex: 1 1 240px; }
 .btn { font: inherit; font-weight: 600; min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
 .btn:hover { background: var(--alt); }
 .vazio { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 24px; }
@@ -581,11 +583,22 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
     setPill('erro'); setFoot(null);
   }
 
-  function costTable(c) {
-    var repos = c.repos.slice().sort(function (a, b) { return b.usd - a.usd || a.name.localeCompare(b.name, 'pt-BR'); });
-    var max = repos.length ? repos[0].usd : 0;
+  var TOP_REPOS = 15;
+  var showAllRepos = false;
+
+  function sortRepos(repos) {
+    return repos.slice().sort(function (a, b) { return b.usd - a.usd || a.name.localeCompare(b.name, 'pt-BR'); });
+  }
+  function visibleRepos(sorted, all) {
+    return all || sorted.length <= TOP_REPOS ? sorted : sorted.slice(0, TOP_REPOS);
+  }
+
+  function costTable(c, all) {
+    var sorted = sortRepos(c.repos);
+    var max = sorted.length ? sorted[0].usd : 0;
+    var repos = visibleRepos(sorted, all);
     var t = h('table', { class: 'rtable' });
-    t.appendChild(h('caption', { text: 'Custo por repositório ' + PERIOD_TXT[period] + ', em ordem decrescente de US$ aprox.' }));
+    t.appendChild(h('caption', { text: 'Custo por repositório ' + PERIOD_TXT[period] + ', em ordem decrescente de US$ aprox.' + (repos.length < sorted.length ? ' Mostrando os ' + repos.length + ' maiores.' : '') }));
     t.appendChild(h('thead', {}, [h('tr', {}, [
       h('th', { scope: 'col', text: 'Repositório' }), h('th', { scope: 'col', class: 'n', text: 'Sessões' }),
       h('th', { scope: 'col', class: 'n', text: 'Chamadas' }), h('th', { scope: 'col', class: 'n', text: 'US$ aprox.' })])]));
@@ -652,8 +665,30 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
     body.appendChild(h('ul', { class: 'legend', 'aria-label': 'Legenda das barras' }, [
       h('li', {}, [h('span', { class: 'swatch normal', 'aria-hidden': 'true' }), document.createTextNode('contexto até 200 mil')]),
       h('li', {}, [h('span', { class: 'swatch heavy', 'aria-hidden': 'true' }), document.createTextNode('contexto acima de 200 mil')])]));
-    body.appendChild(costTable(c));
+    var box = h('div', { id: 'cost-repos' });
+    body.appendChild(box);
+    showAllRepos = false;
+    renderRepos(c, box);
     setPill(um.length ? 'aviso' : null); setFoot(c);
+  }
+
+  function renderRepos(c, box) {
+    var sorted = sortRepos(c.repos);
+    box.textContent = '';
+    box.appendChild(costTable(c, showAllRepos));
+    if (sorted.length <= TOP_REPOS) return;
+    var rest = sorted.slice(TOP_REPOS);
+    var restUsd = rest.reduce(function (a, r) { return a + r.usd; }, 0);
+    var btn = h('button', { type: 'button', class: 'btn more-btn', id: 'repos-toggle', 'aria-expanded': String(showAllRepos), 'aria-controls': 'cost-repos',
+      text: showAllRepos ? 'Mostrar só os ' + TOP_REPOS + ' maiores' : 'Mostrar todos os ' + sorted.length + ' repositórios' });
+    var hint = h('p', { class: 'foot-note more-note', text: showAllRepos ? 'Mostrando todos os ' + sorted.length + ' repositórios.'
+      : 'Os outros ' + rest.length + ' repositórios somam aprox. ' + usd(restUsd) + '; o total acima já conta todos.' });
+    box.appendChild(h('div', { class: 'more' }, [hint, btn]));
+    btn.addEventListener('click', function () {
+      showAllRepos = !showAllRepos;
+      renderRepos(c, box);
+      $('repos-toggle').focus();
+    });
   }
 
   function loadCost() {

@@ -72,5 +72,5 @@ const result = MC.measure(servers, {
 if (flag('--json')) {
   console.log(JSON.stringify(result, null, 2));
 } else {
-  console.log(MC.renderText(result));
+  console.log(MC.renderText(result, require('./lib/cost.cjs').pricesFrom(cfg)));
 }

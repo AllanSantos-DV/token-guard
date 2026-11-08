@@ -152,6 +152,23 @@ const csrfOf = (html) => /name="tg-csrf" content="([^"]+)"/.exec(html)?.[1];
     check('sem cache e sem placeholder sobrando', page.headers['cache-control'] === 'no-store' && !/__NONCE__|__CSRF__/.test(page.body));
     check('a página consulta a rota de custo e mostra o dólar com a conta', /\/token-guard\/ui\/api\/cost\?since=/.test(page.body) && /id="usd-body"/.test(page.body) && /id="cost-body"/.test(page.body) && /data-periodo="24h"/.test(page.body) && /data-periodo="30d"/.test(page.body));
 
+    console.log('\n  [tabela de repositórios: 15 maiores e "mostrar todos"]');
+    const vm = require('vm');
+    const grab = (name) => new RegExp(`  function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n  \\}`).exec(page.body)?.[0];
+    const fns = ['sortRepos', 'visibleRepos'].map(grab);
+    check('a página define o recorte dos 15 maiores', fns.every(Boolean) && /var TOP_REPOS = 15;/.test(page.body));
+    const sandbox = vm.createContext({});
+    vm.runInContext(`var TOP_REPOS = 15;\n${fns.join('\n')}`, sandbox);
+    const mk = (n) => Array.from({ length: n }, (_, i) => ({ name: `r${String(i).padStart(2, '0')}`, usd: i + 1 }));
+    const sortedMany = vm.runInContext('sortRepos', sandbox)(mk(40));
+    const vis = vm.runInContext('visibleRepos', sandbox);
+    check('recolhido: só os 15 de maior custo, do maior para o menor', vis(sortedMany, false).length === 15 && vis(sortedMany, false)[0].usd === 40 && vis(sortedMany, false)[14].usd === 26);
+    check('expandido: todos os 40, na mesma ordem', vis(sortedMany, true).length === 40 && vis(sortedMany, true)[39].usd === 1);
+    check('com 15 ou menos não há o que recolher', vis(vm.runInContext('sortRepos', sandbox)(mk(15)), false).length === 15 && vis(vm.runInContext('sortRepos', sandbox)(mk(3)), false).length === 3);
+    check('o controle é um botão com aria-expanded e aria-controls, nos dois rótulos',
+      /id: 'repos-toggle', 'aria-expanded': String\(showAllRepos\), 'aria-controls': 'cost-repos'/.test(page.body) && /'Mostrar todos os ' \+ sorted\.length \+ ' repositórios'/.test(page.body) && /'Mostrar só os ' \+ TOP_REPOS \+ ' maiores'/.test(page.body));
+    check('o recolhido avisa quanto somam os repositórios escondidos, o total continua o de todos', /Os outros ' \+ rest\.length \+ ' repositórios somam aprox\. '/.test(page.body) && /c\.total\.usd/.test(page.body));
+
     console.log('\n  [contraste da página, WCAG 1.4.3]');
     const lum = (hex) => {
       const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));

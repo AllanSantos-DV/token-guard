@@ -120,7 +120,7 @@ Depois:
 ```bash
 npx @allansantos-dev/token-guard audit     # veja o tamanho do problema neste repo
 npx @allansantos-dev/token-guard test      # o núcleo, contra o hook real
-npx @allansantos-dev/token-guard status    # configuração ativa, bloqueios e tokens poupados
+npx @allansantos-dev/token-guard status    # configuração ativa, bloqueios e tokens poupados (--json para script)
 ```
 
 Reinicie a sessão do agente para carregar o hook.

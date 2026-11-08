@@ -168,6 +168,29 @@ async function main() {
   check('modelo anterior da família segue a tabela da família (Opus 4.7: 5/25, cache 0,1×)', near(usd('claude-opus-4-7', { input: 1e6, cacheRead: 1e6 }), 5.5));
   check('relatório mostra o fator de cache próprio do modelo', /opus-5-5 4\/20 \(cache 0,05×\)/.test(COST.renderText(r, { prices: COST.DEFAULT_PRICES })));
 
+  console.log('\n  [relatório: repositórios, poupança do guard e preço de entrada]');
+  const withSaved = COST.renderText(here, { prices: COST.DEFAULT_PRICES, saved: { blocks: 3, tokensSaved: 2000000 } });
+  check('o texto lista os repositórios mais caros, com sessões e custo (as duas sessões do repo somam num só)',
+    /repositórios mais caros\n\s+repo\s+2 sessões\s+2 ch\s+US\$ 4\.00/.test(withSaved), withSaved);
+  check('o texto diz o que o guard poupou na mesma janela, com a conta (2M tokens × US$ 4/Mtok = US$ 8,00)',
+    /guard na mesma janela: 3 barrados · ~2\.0M tokens poupados ≈ US\$ 8\.00 \(tokens × US\$ 4\/Mtok de opus-5-5, tabela padrão; aproximado\)/.test(withSaved), withSaved);
+  check('sem `saved` o texto não inventa a linha do guard', !/guard na mesma janela/.test(COST.renderText(here, { prices: COST.DEFAULT_PRICES })));
+  check('inputUsdText: tokens × entrada do primeiro modelo, com a conta e a fonte',
+    COST.inputUsdText(1e6, COST.DEFAULT_PRICES) === '≈ US$ 4,00 de entrada (opus-5-5, US$ 4/Mtok, tabela padrão; aproximado)', COST.inputUsdText(1e6, COST.DEFAULT_PRICES));
+  check('inputUsdText: primeiro modelo sem preço de entrada devolve vazio, nunca um valor inventado', COST.inputUsdText(1e6, { sonnet: { out: 10 } }) === '');
+
+  const AUDIT = require('../lib/audit.cjs');
+  const CFGL = require('../lib/config.cjs');
+  const auditDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-audit-'));
+  fs.writeFileSync(path.join(auditDir, 'a.js'), 'x'.repeat(4000));
+  const auditCfg = CFGL.load(auditDir);
+  check('token-audit mostra o preço de entrada da lista de nomes de arquivo, com a fonte',
+    /≈ US\$ \d+,\d\d de entrada \(opus-5-5, US\$ 4\/Mtok, tabela padrão; aproximado\)/.test(AUDIT.renderText(AUDIT.scan(auditDir, auditCfg, { top: 3 }), auditCfg)));
+  const MC = require('../lib/mcp-cost.cjs');
+  const mcpText = MC.renderText(MC.measure([], {}), COST.DEFAULT_PRICES);
+  check('mcp-cost mostra o preço de entrada do preâmbulo, com a fonte', /≈ US\$ 0,00 de entrada \(opus-5-5, US\$ 4\/Mtok, tabela padrão; aproximado\), se o schema todo entrar na janela/.test(mcpText), mcpText);
+  check('mcp-cost sem tabela de preços não mostra a linha de US$', !/de entrada \(/.test(MC.renderText(MC.measure([], {}))));
+
   console.log('');
   console.log(`  ${pass} passaram · ${fail} falharam`);
   try { fs.rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }

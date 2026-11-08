@@ -61,6 +61,26 @@ const noIn = statusWith(EVENTS, { 'token-guard.config.json': JSON.stringify({ co
 check('primeiro modelo sem preço de entrada: diz que não há estimativa, sem inventar valor',
   /em US\$:\s+sem estimativa/.test(noIn.stdout) && !/≈ US\$/.test(noIn.stdout), noIn.stdout);
 
+console.log('\n  [status --json e a poupança na janela do cost]');
+const js = (() => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-status-json-'));
+  fs.mkdirSync(path.join(home, '.token-guard'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.token-guard', 'events.jsonl'), EVENTS.map((e) => JSON.stringify(e)).join('\n') + '\n');
+  const env = { ...process.env, HOME: home, USERPROFILE: home, TOKEN_GUARD_UPDATE_CHECK: 'off' };
+  const run = (script, args) => spawnSync(process.execPath, [path.join(__dirname, '..', script), ...args], { cwd: home, env, encoding: 'utf8' });
+  return { status: run('cli.cjs', ['status', home, '--json']), cost: run('cost.cjs', ['--since', '1d', '--json', '--dir', path.join(home, 'vazio')]), home };
+})();
+let parsed = null;
+try { parsed = JSON.parse(js.status.stdout); } catch { /* o check abaixo acusa */ }
+check('status --json é JSON válido, sem texto solto', parsed !== null && js.status.status === 0, js.status.stdout.slice(0, 200) + js.status.stderr);
+check('status --json traz modo, regras ativas e a pasta', parsed && parsed.mode === 'block' && parsed.rules.includes('broadScan') && parsed.root === js.home, JSON.stringify(parsed && { mode: parsed.mode, root: parsed.root }));
+check('status --json traz os barrados e a poupança em US$ aproximado, com a conta', parsed && parsed.saved.total.blocks === 2 && parsed.saved.today.blocks === 1 && parsed.saved.usd.approximate === true
+  && parsed.saved.usd.inPerMtok === 4 && Math.abs(parsed.saved.usd.total - 6.02) < 0.01, JSON.stringify(parsed && parsed.saved));
+let costJson = null;
+try { costJson = JSON.parse(js.cost.stdout); } catch { /* o check abaixo acusa */ }
+check('cost --since 1d --json traz só o que o guard poupou nessa janela (o evento de 2 dias atrás fica fora)',
+  costJson && costJson.saved.blocks === 1 && costJson.saved.tokensSaved === 5000 && costJson.saved.dups === 0, JSON.stringify(costJson && costJson.saved) + js.cost.stderr);
+
 console.log('\n  [sem eventos]');
 const empty = statusWith(null);
 check('sem events.jsonl: diz que nada foi registrado ainda', /barrados:\s+nenhum registrado ainda/.test(empty.stdout) && !/tokens poupados:/.test(empty.stdout), empty.stdout);

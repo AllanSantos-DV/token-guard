@@ -13,6 +13,10 @@ Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 |---|------|---------|
 | B5 | **Decidido (Jarvis, 03/11):** o aviso, na sessão seguinte, de que existe uma instalação global antiga do token-guard (`npm i -g`) que o auto-update não gere é feature nova visível ao usuário e espera o dono. **Item de negócio, nada técnico aberto:** a parte técnica (a cópia global velha nesta máquina, trazida à versão candidata) está corrigida | S |
 
+| B6 | **Pergunta ao dono (lente irmã da 2.19.0):** poupança por repositório (a tela e o `status` dizem quanto o guard poupou *neste* repositório). Recomendação: sim, mas só para eventos novos: o evento passa a gravar a raiz do repositório (hoje não grava), os antigos aparecem como "sem pasta". Muda o que a tela mostra, não o que o guard barra | M |
+| B7 | **Pergunta ao dono (lente irmã da 2.19.0):** `token-guard uninstall`, um comando que desfaz o que o `init` gravou (hooks, MCP, autostart, daemon). Recomendação: sim, é a saída honesta do produto, mas é uma ação destrutiva nova e precisa de ensaio `--dry-run` | L |
+| B8 | **Pergunta ao dono (lente irmã da 2.19.0):** zerar o contador de bloqueios e poupança (rota na tela e comando). Recomendação: não agora: apaga o histórico que a tela e o `status` mostram e o `trim` já limita o arquivo | S |
+
 Decidido (Jarvis, 2026-11-03): `contract.skip` (2.17.0) fica opt-in e não habilitado; o ganho de ~184 tokens por sessão não compensa mudar o que as regras do dono entregam. Nenhum item técnico aberto.
 
 Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD-tela-setup-bandeja.md, seção 8): pausar/retomar no menu do ícone; regras diferentes por IDE; modo "só avisar".
@@ -36,6 +40,17 @@ Candidatos da lente irmã da 2.18.2, aprovados pelo dono (pergunta 674497) e con
 | L7 | `token-guard cost --here`: custo só das sessões cujo `cwd` está dentro do repositório atual | `lib/cost.cjs`: `repoRoot` (pasta com `.git` acima do diretório atual) e `analyze({within})` filtra por `isWithin`; `test/cost.test.cjs` falha sem a mudança |
 | L8 | Tokens poupados também em US$ estimados na tela de setup e no `status` (tokens × preço de entrada de `cost.prices`); o texto precisa dizer que é estimativa sobre estimativa | `lib/cost.cjs`: `pricesFrom` (uma só leitura de `cost.prices`, reusada por `cost.cjs` e `ctxwatch`) e `savingsUsd` (preço de entrada do primeiro modelo da tabela, marcado `approximate`); `status` imprime a conta e a fonte, o estado da tela traz `savings`; `test/status.test.cjs` e `test/setup-ui.test.cjs` falham sem a mudança |
 | P1 | Paridade da tela de setup com L6/L7/L8: o daemon expõe os dados (estado com `savings`, rota de custo por repositório) e a tela integra o desenho da Smart Design | `adapters/daemon-ui.cjs` (`savings` no estado, `GET /ui/api/cost`, `cost.cjs --repos`) e `adapters/ui/setup.html` (dólar com a conta, custo por repositório com seletor, estados calculando, erro, aviso e vazio); `test/setup-ui.test.cjs` falha sem a mudança |
+
+Lente irmã da 2.19.0 (sem mudar o uso; construídos na mesma versão):
+
+| # | Candidato | Resolução |
+|---|-----------|-----------|
+| L10 | `token-guard cost` em texto mostrar o custo por repositório (só saía em JSON por `--repos`) | `renderText` lista os repositórios mais caros com `byRepo`; `test/cost.test.cjs` falha sem a mudança |
+| L11 | `cost` mostrar o que o guard poupou na mesma janela (`--since`) | `events.savedSince(since)` + linha "guard na mesma janela" com a conta; `--json` traz `saved`; `test/cost.test.cjs` e `test/status.test.cjs` falham sem a mudança |
+| L12 | `token-guard status --json` (os outros comandos já têm) | `cli.cjs` `status` monta o objeto com os mesmos dados do texto; `test/status.test.cjs` falha sem a mudança |
+| L13 | `token-audit` mostrar o preço de entrada da lista de nomes de arquivo | `COST.inputUsdText` (preço de entrada do primeiro modelo, conta e fonte); `test/cost.test.cjs` falha sem a mudança |
+| L14 | `mcp-cost` mostrar o preço de entrada do preâmbulo dos servidores | mesma `COST.inputUsdText`; `test/cost.test.cjs` falha sem a mudança |
+| D1 | Duplicata exata `sameToken` em `daemon-http.cjs` e `daemon-ui.cjs` (`project_manage duplicates`) | `daemon-ui` importa a de `daemon-http`; `test/setup-ui.test.cjs` cobre o token nas duas rotas |
 
 ## Fechado na release 2.19.0
 

@@ -249,7 +249,7 @@ function probeHealth(port, token, timeoutMs = 500) {
 }
 
 module.exports = {
-  probeHealth, createHttpServer, httpPort, httpTokenPath, readToken,
+  probeHealth, createHttpServer, httpPort, httpTokenPath, readToken, sameToken,
   fixedPort, defaultPort, candidatePorts, listenFirstFree,
   answer, endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
 };

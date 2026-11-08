@@ -83,6 +83,22 @@ async function status(args) {
   const stats = CFG.repoStats(root);
   const on = CFG.activeRules(cfg);
 
+  if (args.includes('--json')) {
+    const attempt = async (fn) => { try { return await fn(); } catch (e) { return { error: e.message }; } };
+    const s = await attempt(() => require('./lib/events.cjs').summary());
+    const out = {
+      root, mode: cfg.mode, modeLabel: CFG.modeLabel(cfg), configSource: cfg._source, rules: on, targets: cfg.targets || {},
+      limits: { readBytesWithoutRange: cfg.limits.readBytesWithoutRange, minRepoFilesForScanGuard: cfg.limits.minRepoFilesForScanGuard },
+      repoStats: stats ? { totalFiles: stats.totalFiles } : null,
+      saved: s.error ? s : { since: s.since, today: s.today, total: s.total,
+        usd: require('./lib/cost.cjs').savingsUsd({ today: s.today.tokensSaved, total: s.total.tokensSaved }, require('./lib/cost.cjs').pricesFrom(cfg)) },
+      daemon: await attempt(() => require('./lib/daemon-status.cjs').inspect()),
+      scout: await attempt(() => require('./lib/daemon-status.cjs').inspectScout()),
+    };
+    console.log(JSON.stringify(out, null, 2));
+    return;
+  }
+
   console.log('');
   console.log(`  token-guard · ${root}`);
   console.log('  ' + '─'.repeat(66));
@@ -167,7 +183,7 @@ function help() {
                           --top N       quantos itens nos rankings
                           --no-cache    não grava o cache de calibração
 
-    status [caminho]      Mostra a configuração ativa.
+    status [caminho] [--json]  Mostra a configuração ativa (--json: o mesmo, para script).
 
     setup                 Abre a tela de configurações no navegador: escolha o que
                           o token-guard barra, em quais IDEs, e veja o que ele já

@@ -27,6 +27,7 @@ const CE = require('../lib/config-edit.cjs');
 const EV = require('../lib/events.cjs');
 const CAT = require('../lib/catalog.cjs');
 const COST = require('../lib/cost.cjs');
+const { sameToken } = require('./daemon-http.cjs');
 
 const BASE = '/token-guard';
 const TICKET_TTL_MS = 60 * 1000;
@@ -41,12 +42,6 @@ const COST_TIMEOUT_MS = 300 * 1000;
 const COST_SINCE = /^\d{1,3}[dh]$/;
 
 const rand = (n = 24) => crypto.randomBytes(n).toString('base64url');
-
-function sameToken(a, b) {
-  const x = Buffer.from(String(a || ''));
-  const y = Buffer.from(String(b || ''));
-  return x.length === y.length && crypto.timingSafeEqual(x, y);
-}
 
 function parseCookies(header) {
   const out = {};

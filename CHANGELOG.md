@@ -19,6 +19,15 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   `GET /token-guard/ui/api/cost`, resultado guardado por 60 s) e a leitura dos transcripts só decodifica as linhas
   de uso: 7 dias passaram de mais de 10 minutos para cerca de 40 segundos.
 
+- **A tabela de repositórios da tela mostra os 15 mais caros** e um botão "Mostrar todos os N repositórios" (e de
+  volta), com o quanto somam os escondidos; o total sempre conta todos.
+- **`token-guard cost` em texto lista o custo por repositório** e diz o que o guard poupou na mesma janela
+  (`--since`), em US$ aproximado com a conta; `cost --json` traz `saved`.
+- **`token-guard status --json`.** O mesmo estado do texto (modo, regras, bloqueios, poupança em US$, daemon, scout)
+  para script.
+- **`token-audit` e `mcp-cost` mostram o preço de entrada** da lista de nomes de arquivo e do preâmbulo dos servidores
+  MCP, com a conta e a fonte do preço.
+
 ### Corrigido
 - **Contraste da tela de setup.** No tema claro o verde e o âmbar do texto ficavam abaixo de 4,5:1 (WCAG 1.4.3), e o
   cinza do estado "daemon fora" também; os três foram escurecidos e os dois temas passaram a ser medidos pelo teste.
