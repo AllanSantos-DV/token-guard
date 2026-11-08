@@ -24,3 +24,6 @@ temp/
 dist/
 out/
 coverage/
+
+# boards narrados: o HTML leva o áudio embutido e é regenerável pelo .gen.mjs
+boards/*.html

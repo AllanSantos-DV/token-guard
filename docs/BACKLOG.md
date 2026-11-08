@@ -13,6 +13,12 @@ Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 |---|------|---------|
 | B5 | **Decidido (Jarvis, 03/11):** o aviso, na sessão seguinte, de que existe uma instalação global antiga do token-guard (`npm i -g`) que o auto-update não gere é feature nova visível ao usuário e espera o dono. **Item de negócio, nada técnico aberto:** a parte técnica (a cópia global velha nesta máquina, trazida à versão candidata) está corrigida | S |
 
+Técnico (bloqueia a release enquanto aberto):
+
+| # | Item | Esforço |
+|---|------|---------|
+| C10 | Tabela padrão de preços desatualizada. `lib/cost.cjs` usa opus 5/25, sonnet 3/15, haiku 1/5 e leitura de cache 0,1× para todos; a página oficial (https://platform.claude.com/docs/en/about-claude/pricing, lida em 2026-11-08) dá Opus 5.5 4/20 e Sonnet 5.5 2/10 com cache lido a 0,05×, Fable 5.1 10/50 a 0,025×, e Haiku 5.5 em duas faixas (0,10/0,50 até 100k de prompt, 0,50/2,50 acima). Afeta `token-guard cost` e o custo do aviso de contexto (`lib/ctxwatch.cjs`). Achado ao montar o board de L6/L7/L8 | M |
+
 Decidido (Jarvis, 2026-11-03): `contract.skip` (2.17.0) fica opt-in e não habilitado; o ganho de ~184 tokens por sessão não compensa mudar o que as regras do dono entregam. Nenhum item técnico aberto.
 
 Propostas opcionais da tela de setup, desligadas e a decidir pelo dono (docs/SDD-tela-setup-bandeja.md, seção 8): pausar/retomar no menu do ícone; regras diferentes por IDE; modo "só avisar".
@@ -28,7 +34,7 @@ Nenhum é item técnico em aberto. L2, L3 e L4 foram feitos na 2.15.1 (tabela ab
 
 ## Candidatos da lente irmã (2.18.2)
 
-Decisão do dono (mudam o que o usuário vê; não entram sem ele). Nenhum item técnico aberto: o único técnico (L9) foi feito.
+Decisão do dono (mudam o que o usuário vê; não entram sem ele). O único técnico da lente (L9) foi feito; a decisão está no board `boards/backlog-l6-l7-l8.html` (gerado por `boards/backlog-l6-l7-l8.gen.mjs`).
 
 | # | Candidato | Esforço |
 |---|-----------|---------|
