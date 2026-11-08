@@ -40,9 +40,9 @@ Candidatos da lente irmã da 2.18.2, aprovados pelo dono (pergunta 674497) e con
 
 | # | Item | Esforço | Situação |
 |---|------|---------|----------|
-| P1 | Paridade da tela de setup com L6/L7/L8: o daemon expõe os dados (estado com `savings`, rota de custo por repositório) e a tela integra o desenho da Smart Design | M | API em construção; desenho pedido ao orquestrador |
+| P1 | Paridade da tela de setup com L6/L7/L8: o daemon expõe os dados (estado com `savings`, rota de custo por repositório) e a tela integra o desenho da Smart Design | M | API pronta (`b7dfd7f`, contrato enviado ao orquestrador); aguardando o desenho da Smart Design para integrar em `adapters/ui/setup.html` |
 
-## Fechado na release 2.18.2
+## Fechado na release 2.19.0
 
 | # | Item | Resolução |
 |---|------|-----------|

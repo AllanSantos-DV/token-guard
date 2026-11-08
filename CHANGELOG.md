@@ -3,7 +3,7 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [2.18.2] — 2026-11-08
+## [2.19.0] — 2026-11-08
 
 ### Adicionado
 - **`token-guard status` mostra o que o guard barrou e poupou.** Bloqueios e tokens poupados de hoje e do total,
