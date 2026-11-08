@@ -62,6 +62,16 @@ function block(port) {
   });
 }
 
+/** Ocupa `port` assim que o dono anterior a soltar; lança se ela não ficar livre em 30 s. */
+async function blockWhenFree(port) {
+  for (let i = 0; i < 300; i++) {
+    const s = await block(port);
+    if (s) return s;
+    await sleep(100);
+  }
+  throw new Error(`porta ${port} não ficou livre em 30 s: o daemon anterior não saiu`);
+}
+
 function freePort() {
   return block(0).then((s) => { const p = s.address().port; return new Promise((r) => s.close(() => r(p))); });
 }
@@ -196,7 +206,8 @@ async function stop(child) {
   check('hook http responde na porta nova', res.status === 200 && /"deny"/.test(res.body), res);
   await stop(d);
 
-  const recordedBlocker = await block(recorded);
+  // Com a máquina carregada o daemon parado ainda segura a porta: ocupar cedo falharia em silêncio e o próximo a herdaria.
+  const recordedBlocker = await blockWhenFree(recorded);
   d = startDaemon(sid);
   ep = await waitEndpoint((e) => e.pid === d.pid);
   const moved = ep && ep.port;
