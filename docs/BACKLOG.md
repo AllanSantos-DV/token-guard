@@ -45,6 +45,7 @@ Candidatos da lente irmã da 2.18.2. Decisão do dono (mudam o que o usuário v�
 | L9 | Lente irmã: `ctxwatch` tinha tabela de preços própria e ignorava `cost.prices` | usa `COST.priceOf` × fator de leitura de cache; `test/ctxwatch.test.cjs` falha sem a correção |
 | C9 | Metadados com nome pessoal (`author`, copyright da licença) | "token-guard contributors" |
 | C10 | Tabela padrão de preços desatualizada (opus 5/25, sonnet 3/15, haiku 1/5 e cache lido 0,1× para todos); afetava `token-guard cost` e o custo do aviso de contexto. Achado ao montar o board de L6/L7/L8 | tabela da página oficial (https://platform.claude.com/docs/en/about-claude/pricing, lida em 2026-11-08) com `cacheRead` e faixa `long` por modelo; o aviso de contexto reusa `COST.callCost`; `test/cost.test.cjs` e `test/ctxwatch.test.cjs` falham sem a correção |
+| C11 | Lente irmã: `token-guard cost` ignorava os transcripts de subagente (`<sessão>/subagents/*.jsonl`, sem `requestId`) e subcontava o custo das sessões que delegam | `listTranscripts` lê também `subagents/`, a chave de dedup cai para `message.id` sem `requestId` e `analyze` soma por `sessionId`; `test/cost.test.cjs` falha sem a correção |
 
 ## Fechado na release 2.17.1
 

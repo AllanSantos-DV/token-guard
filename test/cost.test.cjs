@@ -81,6 +81,22 @@ async function main() {
   const s2 = r2.sessions.find((x) => x.sessionId === 's2');
   check('escrita de cache sem quebra por TTL conta como 5 min (não superestima)', near(s2.agg.usd, 2 * 1.25), String(s2.agg.usd));
 
+  console.log('\n  [subagentes entram na sessão do pai]');
+  const subRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-sub-'));
+  const subProj = path.join(subRoot, 'proj-b');
+  fs.mkdirSync(path.join(subProj, 'p1', 'subagents'), { recursive: true });
+  fs.writeFileSync(path.join(subProj, 'p1.jsonl'),
+    rec('a1', 'ra', 'claude-sonnet-5', { input_tokens: 1000000, output_tokens: 0 }, undefined, { sessionId: 'p1' }), 'utf8');
+  // transcript de subagente: sessionId do pai, sem requestId, streaming repete o message.id
+  const sub = (usage) => rec('b1', undefined, 'claude-sonnet-5', usage, undefined, { sessionId: 'p1', isSidechain: true, agentId: 'x' });
+  fs.writeFileSync(path.join(subProj, 'p1', 'subagents', 'agent-x.jsonl'), [
+    sub({ input_tokens: 100, output_tokens: 0 }),
+    sub({ input_tokens: 500000, output_tokens: 0 }),
+  ].join('\n'), 'utf8');
+  const rs = await COST.analyze({ dir: subRoot, prices: PRICES });
+  check('subagente soma na sessão do pai (uma sessão, 2 chamadas)', rs.sessions.length === 1 && rs.sessions[0].agg.calls === 2, JSON.stringify(rs.sessions.map((x) => [x.sessionId, x.agg.calls])));
+  check('streaming do subagente sem requestId conta uma vez (a última linha)', near(rs.total.usd, 2 + 1), String(rs.total.usd));
+
   console.log('\n  [tabela padrão: preços oficiais por modelo]');
   const use = (f) => ({ input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0, ...f });
   const usd = (model, f) => COST.callCost(use(f), COST.priceOf(model, COST.DEFAULT_PRICES));
