@@ -190,6 +190,7 @@ function help() {
     cost [--since 7d]     Custo por sessão e por modelo a partir dos transcripts do
                           Claude Code (~/.claude/projects): chamadas, tokens, cache,
                           contexto máximo, US$ estimado e fração acima de 200k.
+                          --here        só as sessões do repositório atual
                           --top N       sessões mais caras (padrão 10)
                           --dir PASTA   outra pasta de transcripts
                           --json        dados crus

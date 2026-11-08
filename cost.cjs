@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * cost.cjs — `token-guard cost [--since 7d|AAAA-MM-DD] [--top N] [--dir PASTA] [--json]`
- * Custo por sessão e por modelo a partir dos transcripts do Claude Code.
+ * cost.cjs — `token-guard cost [--here] [--since 7d|AAAA-MM-DD] [--top N] [--dir PASTA] [--json]`
+ * Custo por sessão e por modelo a partir dos transcripts do Claude Code. `--here`: só as sessões
+ * do repositório atual (a pasta com `.git` acima de onde o comando roda, senão a própria pasta).
  */
 
 const path = require('path');
@@ -20,7 +21,8 @@ async function main() {
   const prices = (cfg.cost && cfg.cost.prices && typeof cfg.cost.prices === 'object') ? cfg.cost.prices : COST.DEFAULT_PRICES;
   const top = Number(flag(argv, '--top')) > 0 ? Number(flag(argv, '--top')) : 10;
   const dir = flag(argv, '--dir');
-  const r = await COST.analyze({ since: COST.parseSince(flag(argv, '--since')), prices, ...(dir ? { dir: path.resolve(dir) } : {}) });
+  const within = argv.includes('--here') ? COST.repoRoot(process.cwd()) : null;
+  const r = await COST.analyze({ since: COST.parseSince(flag(argv, '--since')), prices, within, ...(dir ? { dir: path.resolve(dir) } : {}) });
   if (argv.includes('--json')) {
     console.log(JSON.stringify(r, null, 2));
   } else {

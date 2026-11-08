@@ -8,6 +8,8 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Adicionado
 - **`token-guard status` mostra o que o guard barrou e poupou.** Bloqueios e tokens poupados de hoje e do total,
   os mesmos números da tela de setup e do ícone.
+- **`token-guard cost --here`.** Custo só das sessões do repositório atual (a pasta com `.git` acima de onde o
+  comando roda, e as subpastas dela), em vez de todos os projetos da máquina num total só.
 
 ### Corrigido
 - **Reinstalar no Codex não desloca mais os hooks de terceiros.** A entrada do token-guard em `hooks.json` é

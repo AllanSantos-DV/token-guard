@@ -108,6 +108,34 @@ async function main() {
   check('subagente soma na sessão do pai (uma sessão, 2 chamadas)', rs.sessions.length === 1 && rs.sessions[0].agg.calls === 2, JSON.stringify(rs.sessions.map((x) => [x.sessionId, x.agg.calls])));
   check('streaming do subagente sem requestId conta uma vez (a última linha)', near(rs.total.usd, 2 + 1), String(rs.total.usd));
 
+  console.log('\n  [--here: só as sessões do repositório atual]');
+  const hereRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-here-'));
+  const repo = path.join(hereRoot, 'repo');
+  fs.mkdirSync(path.join(repo, '.git'), { recursive: true });
+  fs.mkdirSync(path.join(repo, 'sub', 'deep'), { recursive: true });
+  const tdir = path.join(hereRoot, 'transcripts', 'proj');
+  fs.mkdirSync(tdir, { recursive: true });
+  const at = (sid, cwd, id) => fs.writeFileSync(path.join(tdir, `${sid}.jsonl`),
+    rec(id, `q-${id}`, 'claude-sonnet-5', { input_tokens: 1000000, output_tokens: 0 }, undefined, { sessionId: sid, cwd }), 'utf8');
+  at('in-root', repo, 'h1');
+  at('in-sub', path.join(repo, 'sub'), 'h2');
+  at('sibling', path.join(hereRoot, 'repo-x'), 'h3');
+  at('outside', hereRoot, 'h4');
+  check('repoRoot sobe até a pasta com .git', COST.repoRoot(path.join(repo, 'sub', 'deep')) === repo);
+  check('repoRoot fora de repositório devolve a própria pasta', COST.repoRoot(path.join(hereRoot, 'transcripts')) === path.join(hereRoot, 'transcripts'));
+  const here = await COST.analyze({ dir: path.join(hereRoot, 'transcripts'), prices: PRICES, within: repo });
+  const ids = here.sessions.map((x) => x.sessionId).sort().join(',');
+  check('conta a raiz e as subpastas do repositório; pasta irmã com o mesmo prefixo e pasta acima ficam fora', ids === 'in-root,in-sub', ids);
+  check('total soma só as sessões do repositório', here.total.calls === 2 && near(here.total.usd, 4), JSON.stringify(here.total));
+  check('relatório diz que filtrou e por qual pasta', COST.renderText(here, { prices: PRICES }).includes(`só as sessões em ${repo} e abaixo (--here)`));
+  if (process.platform === 'win32') {
+    check('Windows: cwd com maiúsculas diferentes conta como o mesmo repositório', COST.isWithin(path.join(repo, 'sub').toUpperCase(), repo));
+  }
+  const cli = require('child_process').spawnSync(process.execPath, [path.join(__dirname, '..', 'cost.cjs'), '--here', '--json', '--dir', path.join(hereRoot, 'transcripts')],
+    { cwd: path.join(repo, 'sub', 'deep'), encoding: 'utf8' });
+  const cliOut = cli.status === 0 ? JSON.parse(cli.stdout) : null;
+  check('token-guard cost --here a partir de uma subpasta usa a raiz do repositório', cliOut && cliOut.within === repo && cliOut.sessions.length === 2, cli.stderr || cli.stdout.slice(0, 200));
+
   console.log('\n  [tabela padrão: preços oficiais por modelo]');
   const use = (f) => ({ input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0, ...f });
   const usd = (model, f) => COST.callCost(use(f), COST.priceOf(model, COST.DEFAULT_PRICES));

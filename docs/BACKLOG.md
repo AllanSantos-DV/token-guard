@@ -33,12 +33,12 @@ Candidatos da lente irmã da 2.18.2, aprovados pelo dono (pergunta 674497) e con
 | # | Candidato | Resolução |
 |---|-----------|-----------|
 | L6 | `token-guard status` mostrar bloqueios e tokens poupados (hoje e total), que só apareciam na tela de setup e no ícone | `cli.cjs` lê `lib/events.cjs:summary` e imprime as linhas "barrados" e "tokens poupados"; `test/status.test.cjs` falha sem a mudança |
+| L7 | `token-guard cost --here`: custo só das sessões cujo `cwd` está dentro do repositório atual | `lib/cost.cjs`: `repoRoot` (pasta com `.git` acima do diretório atual) e `analyze({within})` filtra por `isWithin`; `test/cost.test.cjs` falha sem a mudança |
 
 ## Em construção (aprovados, pergunta 674497)
 
 | # | Candidato | Esforço | Decisão |
 |---|-----------|---------|---------|
-| L7 | `token-guard cost --here`: custo só das sessões cujo `cwd` está dentro do repositório atual. Peças: `lib/cost.cjs:analyze`/`readTranscript` (já guardam o `cwd`) | S | aprovado, em construção |
 | L8 | Tokens poupados também em US$ estimados na tela de setup e no `status` (tokens × preço de entrada de `cost.prices`); o texto precisa dizer que é estimativa sobre estimativa | S–M | aprovado, em construção |
 
 ## Fechado na release 2.18.2
