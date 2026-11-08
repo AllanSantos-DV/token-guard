@@ -37,7 +37,7 @@ const COALESCE_MS = 100;
 const MAX_BODY = 16 * 1024;
 const COOKIE = 'tg_ui';
 const COST_TTL_MS = 60 * 1000;
-const COST_TIMEOUT_MS = 120 * 1000;
+const COST_TIMEOUT_MS = 300 * 1000;
 const COST_SINCE = /^\d{1,3}[dh]$/;
 
 const rand = (n = 24) => crypto.randomBytes(n).toString('base64url');

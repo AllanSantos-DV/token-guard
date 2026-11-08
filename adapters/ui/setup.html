@@ -9,9 +9,9 @@
 :root {
   color-scheme: light dark;
   --bg: #f5f4ef; --card: #ffffff; --ink: #1c2226; --muted: #5d6870; --line: #dedbd2;
-  --on: #1f8a57; --on-bg: #e3f3ea; --partial: #a86d0a; --partial-bg: #fbf0d9;
-  --off: #b83a3a; --off-bg: #f8e2e2; --down: #6b727a; --down-bg: #e9eaec;
-  --accent: #1f8a57; --focus: #1b5fd1;
+  --on: #1a7a4b; --on-bg: #e3f3ea; --partial: #8f5a05; --partial-bg: #fbf0d9;
+  --off: #b83a3a; --off-bg: #f8e2e2; --down: #5f666d; --down-bg: #e9eaec;
+  --accent: #1a7a4b; --on-accent: #ffffff; --alt: #ecebe4; --focus: #1b5fd1;
   --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
 }
@@ -20,7 +20,7 @@
     --bg: #14181b; --card: #1c2226; --ink: #e8ecee; --muted: #9aa5ad; --line: #2f383e;
     --on: #46c486; --on-bg: #15301f; --partial: #e7b24a; --partial-bg: #35290f;
     --off: #ef7777; --off-bg: #3a1d1d; --down: #98a0a8; --down-bg: #262c30;
-    --accent: #46c486; --focus: #7aa7ff;
+    --accent: #46c486; --on-accent: #14181b; --alt: #262c30; --focus: #7aa7ff;
   }
 }
 * { box-sizing: border-box; }
@@ -115,6 +115,101 @@ ul.log .d { color: var(--muted); font-family: var(--mono); font-size: 12.5px; ov
 footer { margin-top: 36px; color: var(--muted); font-size: 13.5px; }
 footer code { font-family: var(--mono); font-size: 12.5px; }
 @media (max-width: 560px) { .bar { grid-template-columns: 1fr; } ul.log li { grid-template-columns: 1fr; } }
+
+/* dólar aproximado e custo por repositório */
+.r-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.r-head h3 { font-size: 19px; }
+.r-pill { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid currentColor; border-radius: 999px; background: var(--card); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.r-pill[hidden] { display: none; }
+.r-pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.r-pill.calc { color: var(--muted); border-color: var(--line); }
+.r-pill.erro { color: var(--off); }
+.r-pill.aviso { color: var(--partial); }
+.r-card { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.r-card > * { min-width: 0; }
+.usd { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.usd-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.usd-item + .usd-item { border-left: 1px solid var(--line); padding-left: 24px; }
+.usd-per, .usd-src, .usd-approx { color: var(--muted); font-size: 13px; }
+.usd-val { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.usd-amount { font-size: 26px; font-weight: 700; line-height: 1.25; letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.usd-calc { font-family: var(--mono); font-size: 13px; background: var(--alt); border-radius: 6px; padding: 4px 8px; align-self: flex-start; }
+.notice { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 12px 16px; }
+.notice svg { width: 24px; height: 24px; flex: none; color: var(--accent); }
+.notice .nb { display: flex; flex-direction: column; gap: 8px; min-width: 0; align-items: flex-start; flex: 1 1 auto; }
+.notice .nt { font-weight: 600; color: var(--accent); }
+.notice.erro { border-left-color: var(--off); }
+.notice.erro .nt, .notice.erro svg { color: var(--off); }
+.notice.aviso { border-left-color: var(--partial); }
+.notice.aviso .nt, .notice.aviso svg { color: var(--partial); }
+.notice.neutro { grid-column: 1 / -1; border-left-color: var(--line); color: var(--muted); }
+.notice.neutro svg { color: var(--muted); }
+.cost-body { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.seg.periodo { align-self: flex-start; max-width: 100%; flex-wrap: wrap; }
+.seg.periodo button { min-height: 44px; min-width: 44px; padding: 0 14px; }
+.sum { display: flex; flex-direction: column; gap: 8px; }
+.sum-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.sum-total { font-size: 26px; font-weight: 700; line-height: 1.25; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.sum-meta, .sum-explain, .sum-time, .foot-note { color: var(--muted); }
+.sum-explain, .sum-time, .foot-note { font-size: 13px; }
+.sum-heavy { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.swatch { display: inline-block; width: 16px; height: 12px; border-radius: 6px; flex: none; }
+.swatch.normal, .rbar .rn { background: var(--accent); }
+.swatch.heavy, .rbar .rh { background: repeating-linear-gradient(-45deg, var(--partial) 0 4px, var(--card) 4px 8px); box-shadow: inset 0 0 0 1px var(--partial); }
+.rbar .rh { box-shadow: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: 13px; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.rbar { display: flex; height: 8px; margin-top: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.rbar .rf { display: flex; height: 100%; min-width: 2px; }
+.rbar .rn, .rbar .rh { height: 100%; }
+.rtable { width: 100%; border-collapse: collapse; }
+.rtable caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.rtable th, .rtable td { padding: 12px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rtable th:first-child, .rtable td:first-child { padding-left: 0; }
+.rtable th:last-child, .rtable td:last-child { padding-right: 0; }
+.rtable thead th { color: var(--muted); font-size: 13px; font-weight: 600; text-align: left; white-space: nowrap; }
+.rtable .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rname { font-weight: 600; overflow-wrap: anywhere; }
+.rname.sem { color: var(--muted); font-style: italic; font-weight: 400; }
+.rtable .rc { width: 100%; min-width: 0; }
+.rtable .tot th, .rtable .tot td { font-weight: 700; border-bottom: 0; border-top: 1px solid var(--muted); }
+.rtable .tot th { text-align: left; }
+.skel { display: block; height: 16px; border-radius: 6px; background: var(--alt); animation: pulsar 1.2s cubic-bezier(.2, 0, 0, 1) infinite; }
+.skel.nm { width: 70%; } .skel.br { width: 90%; height: 8px; margin-top: 8px; } .skel.nn { width: 32px; margin-left: auto; }
+@keyframes pulsar { 50% { opacity: .45; } }
+.progress { display: flex; flex-direction: column; gap: 8px; }
+.ptrack { height: 4px; background: var(--alt); border-radius: 6px; overflow: hidden; position: relative; }
+.pseg { position: absolute; inset: 0 auto 0 0; width: 40%; background: var(--accent); border-radius: 6px; animation: deslizar 1.2s cubic-bezier(.2, 0, 0, 1) infinite; }
+@keyframes deslizar { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+.pcount { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.btn { font: inherit; font-weight: 600; min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.btn:hover { background: var(--alt); }
+.vazio { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 24px; }
+.vazio svg { width: 32px; height: 32px; }
+.foot-note { border-top: 1px solid var(--line); padding-top: 12px; }
+.foot-note[hidden] { display: none; }
+@media (max-width: 559px) {
+  .r-card { padding: 16px; }
+  .usd { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .usd-item + .usd-item { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 16px; }
+  .legend { flex-direction: column; }
+  .btn { width: 100%; }
+  .rtable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .rtable, .rtable tbody, .rtable tfoot, .rtable tr, .rtable td, .rtable th { display: block; width: 100%; }
+  .rtable tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .rtable th, .rtable td { border: 0; padding: 0; }
+  .rtable td.rc { grid-column: 1 / -1; }
+  .rtable td.n { display: flex; justify-content: space-between; gap: 8px; grid-column: 1 / -1; text-align: right; }
+  .rtable td.n::before { content: attr(data-label); color: var(--muted); font-weight: 400; }
+  .rtable .tot { background: var(--bg); border-radius: 10px; padding: 12px; margin-top: 12px; border: 0; }
+  .rtable .tot th { grid-column: 1 / -1; }
+  .rtable .skel-row td.n::before { content: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel, .pseg { animation: none; }
+  .pseg { transform: none; }
+  .seg button { transition: none; }
+}
 </style>
 </head>
 <body data-state="down">
@@ -156,6 +251,20 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
     <h2 id="done-h">O que já foi barrado e poupado</h2>
     <p class="hint">Números medidos aqui, neste computador. Barrar conta chamadas que não rodaram; “poupado” só conta o que foi medido (um texto cortado ou uma leitura repetida), estimado em 4 caracteres por token.</p>
     <div class="nums" id="nums"></div>
+    <section class="card mt r-card" aria-labelledby="usd-h">
+      <div class="r-head"><h3 id="usd-h">Dólar aproximado</h3></div>
+      <div class="usd" id="usd-body" aria-live="polite"></div>
+    </section>
+    <section class="card mt r-card" id="cost-card" aria-labelledby="cost-h">
+      <div class="r-head"><h3 id="cost-h">Quanto cada repositório custou</h3><span class="r-pill" id="cost-pill" hidden></span></div>
+      <div class="seg periodo" role="group" aria-label="Período" id="period-seg">
+        <button type="button" data-periodo="24h" aria-pressed="false">24 h</button>
+        <button type="button" data-periodo="7d" aria-pressed="true">7 dias</button>
+        <button type="button" data-periodo="30d" aria-pressed="false">30 dias</button>
+      </div>
+      <div class="cost-body" id="cost-body" aria-live="polite"></div>
+      <p class="foot-note" id="cost-foot" hidden></p>
+    </section>
     <div class="card mt" id="byrule-card">
       <h3>Por regra</h3>
       <div class="bars" id="byrule"></div>
@@ -192,6 +301,16 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
   var built = false;
   var last = null;
   var ruleEls = {}, ideEls = {};
+  var costStarted = false;
+  var period = '7d';
+  var costTimer = null;
+  var costCtrl = null;
+  var PERIOD_TXT = { '24h': 'nas últimas 24 horas', '7d': 'nos últimos 7 dias', '30d': 'nos últimos 30 dias' };
+  var usdFmt = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var ICON_ALERT = '<path d="M12 3 2 20h20L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  var ICON_INFO = '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v5M12 8v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  var ICON_EMPTY = '<rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 10h8M8 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
+  var SVG = 'http://www.w3.org/2000/svg';
 
   function h(tag, attrs, kids) {
     var el = document.createElement(tag);
@@ -309,6 +428,8 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
     $('foot').textContent = 'Suas escolhas ficam em ' + c.file + '.';
 
     renderStats(s);
+    renderSavings(s.savings);
+    if (!costStarted) { costStarted = true; loadCost(); }
   }
 
   function showWarn(msg) { var w = $('warn'); w.textContent = msg ? 'Atenção: ' + msg : ''; w.classList.toggle('show', Boolean(msg)); }
@@ -360,6 +481,207 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
     });
     $('log-empty').style.display = st.recent.length ? 'none' : '';
   }
+
+  function usd(n) { return 'US$\u00a0' + usdFmt.format(n); }
+  function svg(paths, cls) {
+    var el = document.createElementNS(SVG, 'svg');
+    el.setAttribute('viewBox', '0 0 24 24'); el.setAttribute('aria-hidden', 'true'); el.setAttribute('focusable', 'false');
+    if (cls) el.setAttribute('class', cls);
+    el.innerHTML = paths;
+    return el;
+  }
+  function notice(kind, icon, title, text, extra) {
+    var body = h('div', { class: 'nb' }, [title ? h('p', { class: 'nt', text: title }) : null, h('p', { text: text }), extra || null]);
+    var el = h('div', { class: 'notice ' + kind }, [svg(icon), body]);
+    if (kind === 'erro') el.setAttribute('role', 'alert');
+    if (kind === 'aviso') el.setAttribute('role', 'status');
+    return el;
+  }
+
+  function renderSavings(sv) {
+    var body = $('usd-body');
+    body.textContent = '';
+    if (!sv || !Number.isFinite(sv.inPerMtok) || sv.today == null || sv.total == null) {
+      body.appendChild(notice('neutro', ICON_INFO, '', 'Sem preço de entrada configurado para o modelo; os tokens poupados continuam valendo.'));
+      return;
+    }
+    var calc = 'tokens × US$\u00a0' + String(sv.inPerMtok).replace('.', ',') + '/Mtok';
+    var origem = 'preço de entrada do ' + sv.model + ', ' + (sv.source === 'cost.prices' ? 'cost.prices (configurada por você)' : 'tabela padrão');
+    [['hoje', sv.today], ['no total', sv.total]].forEach(function (it) {
+      body.appendChild(h('div', { class: 'usd-item' }, [
+        h('span', { class: 'usd-per', text: it[0] }),
+        h('p', { class: 'usd-val' }, [h('span', { class: 'usd-approx', text: 'aprox.' }), h('span', { class: 'usd-amount', text: usd(it[1]) })]),
+        h('code', { class: 'usd-calc', text: calc }),
+        h('span', { class: 'usd-src', text: origem })
+      ]));
+    });
+  }
+
+  function setPill(kind) {
+    var p = $('cost-pill');
+    var m = { calc: 'Calculando', erro: 'Erro', aviso: 'Incompleto' }[kind];
+    p.hidden = !m;
+    p.className = 'r-pill' + (m ? ' ' + kind : '');
+    p.textContent = m || '';
+  }
+  function setFoot(c) {
+    var f = $('cost-foot');
+    f.hidden = !c;
+    if (c) f.textContent = 'Calculado com os transcripts das sessões × tabela de preços (' + (c.prices && c.prices.source === 'cost.prices' ? 'cost.prices' : 'tabela padrão') + '); aproximado.';
+  }
+  function stopCostTimer() { if (costTimer) { clearInterval(costTimer); costTimer = null; } }
+
+  function costSkeleton() {
+    var t = h('table', { class: 'rtable', 'aria-hidden': 'true' });
+    var head = h('thead', {}, [h('tr', {}, [h('th', { text: 'Repositório' }), h('th', { class: 'n', text: 'Sessões' }), h('th', { class: 'n', text: 'Chamadas' }), h('th', { class: 'n', text: 'US$ aprox.' })])]);
+    var tb = h('tbody');
+    for (var i = 0; i < 4; i++) {
+      tb.appendChild(h('tr', { class: 'skel-row' }, [
+        h('td', { class: 'rc' }, [h('span', { class: 'skel nm' }), h('span', { class: 'skel br' })]),
+        h('td', { class: 'n' }, [h('span', { class: 'skel nn' })]), h('td', { class: 'n' }, [h('span', { class: 'skel nn' })]), h('td', { class: 'n' }, [h('span', { class: 'skel nn' })])
+      ]));
+    }
+    t.appendChild(head); t.appendChild(tb);
+    return t;
+  }
+
+  function showCalculating() {
+    stopCostTimer();
+    var msg = period === '7d' ? 'Calculando… a primeira consulta de 7 dias leva de 40 segundos a alguns minutos'
+      : period === '30d' ? 'Calculando… lendo as sessões dos últimos 30 dias' : 'Calculando… lendo as sessões das últimas 24 horas';
+    var secs = h('span', { id: 'elapsed', text: '0' });
+    var box = h('div', { class: 'progress', role: 'status' }, [
+      h('div', { class: 'ptrack', 'aria-hidden': 'true' }, [h('div', { class: 'pseg' })]),
+      h('p', { text: msg }),
+      h('p', { class: 'pcount', 'aria-live': 'off' }, [secs, document.createTextNode(' s decorridos')])
+    ]);
+    var body = $('cost-body');
+    body.textContent = '';
+    body.appendChild(box); body.appendChild(costSkeleton());
+    var start = Date.now();
+    costTimer = setInterval(function () { secs.textContent = num(Math.floor((Date.now() - start) / 1000)); }, 1000);
+    $('cost-card').setAttribute('aria-busy', 'true');
+    setPill('calc'); setFoot(null);
+  }
+
+  function showCostError(status, message) {
+    stopCostTimer();
+    $('cost-card').removeAttribute('aria-busy');
+    var expired = status === 401;
+    var extra = null;
+    if (!expired) {
+      extra = h('button', { type: 'button', class: 'btn', text: 'Tentar de novo' });
+      extra.addEventListener('click', loadCost);
+    }
+    var body = $('cost-body');
+    body.textContent = '';
+    body.appendChild(notice('erro', ICON_ALERT, expired ? 'Sessão expirada' : 'Erro no cálculo',
+      expired ? 'Sessão expirada. Feche esta aba e abra de novo pelo ícone da bandeja ou por token-guard setup.'
+        : 'Não foi possível calcular o custo: ' + (message || 'erro desconhecido') + '.', extra));
+    setPill('erro'); setFoot(null);
+  }
+
+  function costTable(c) {
+    var repos = c.repos.slice().sort(function (a, b) { return b.usd - a.usd || a.name.localeCompare(b.name, 'pt-BR'); });
+    var max = repos.length ? repos[0].usd : 0;
+    var t = h('table', { class: 'rtable' });
+    t.appendChild(h('caption', { text: 'Custo por repositório ' + PERIOD_TXT[period] + ', em ordem decrescente de US$ aprox.' }));
+    t.appendChild(h('thead', {}, [h('tr', {}, [
+      h('th', { scope: 'col', text: 'Repositório' }), h('th', { scope: 'col', class: 'n', text: 'Sessões' }),
+      h('th', { scope: 'col', class: 'n', text: 'Chamadas' }), h('th', { scope: 'col', class: 'n', text: 'US$ aprox.' })])]));
+    var tb = h('tbody');
+    repos.forEach(function (r) {
+      var pct = max > 0 ? r.usd / max * 100 : 0;
+      var heavy = r.usd > 0 ? r.usdHeavy / r.usd * 100 : 0;
+      var sem = r.name === '(sem pasta)' || !r.root;
+      var fill = h('div', { class: 'rf' }, [h('span', { class: 'rn' }), heavy > 0 ? h('span', { class: 'rh' }) : null]);
+      fill.style.width = pct.toFixed(2) + '%';
+      fill.firstChild.style.width = (100 - heavy).toFixed(2) + '%';
+      if (heavy > 0) fill.lastChild.style.width = heavy.toFixed(2) + '%';
+      tb.appendChild(h('tr', {}, [
+        h('td', { class: 'rc' }, [h('span', { class: 'rname' + (sem ? ' sem' : ''), title: r.root || 'sem pasta de repositório', text: r.name }),
+          h('div', { class: 'rbar', 'aria-hidden': 'true' }, [fill])]),
+        h('td', { class: 'n', 'data-label': 'Sessões', text: num(r.sessions) }),
+        h('td', { class: 'n', 'data-label': 'Chamadas', text: num(r.calls) }),
+        h('td', { class: 'n', 'data-label': 'US$ aprox.', text: usd(r.usd) })
+      ]));
+    });
+    t.appendChild(tb);
+    t.appendChild(h('tfoot', {}, [h('tr', { class: 'tot' }, [
+      h('th', { scope: 'row', text: 'Total (aprox.)' }),
+      h('td', { class: 'n', 'data-label': 'Sessões', text: num(c.total.sessions) }),
+      h('td', { class: 'n', 'data-label': 'Chamadas', text: num(c.total.calls) }),
+      h('td', { class: 'n', 'data-label': 'US$ aprox.', text: usd(c.total.usd) })])]));
+    return t;
+  }
+
+  function showCost(c) {
+    stopCostTimer();
+    $('cost-card').removeAttribute('aria-busy');
+    var body = $('cost-body');
+    body.textContent = '';
+    if (!c.repos.length || c.total.sessions === 0) {
+      var empty = h('div', { class: 'vazio' }, [svg(ICON_EMPTY), h('p', { text: 'Nenhuma sessão registrada ' + PERIOD_TXT[period] + '.' })]);
+      body.appendChild(empty);
+      setPill(null); setFoot(c);
+      return;
+    }
+    var sess = c.total.sessions === 1 ? 'sessão' : 'sessões';
+    var calls = c.total.calls === 1 ? 'chamada' : 'chamadas';
+    var sum = h('div', { class: 'sum' }, [
+      h('p', { class: 'sum-row' }, [h('span', { class: 'usd-approx', text: 'aprox.' }), h('span', { class: 'sum-total', text: usd(c.total.usd) })]),
+      h('p', { class: 'sum-meta', text: num(c.total.sessions) + ' ' + sess + ' · ' + num(c.total.calls) + ' ' + calls })
+    ]);
+    if (c.total.usdHeavy > 0) {
+      sum.appendChild(h('p', { class: 'sum-heavy' }, [h('span', { class: 'swatch heavy', 'aria-hidden': 'true' }),
+        h('span', {}, [h('strong', { text: 'aprox. ' + usd(c.total.usdHeavy) }), document.createTextNode(' com contexto acima de 200 mil tokens')])]));
+      sum.appendChild(h('p', { class: 'sum-explain', text: 'Chamadas com contexto acima de 200 mil tokens custam mais por token; é a parte que mais vale enxugar.' }));
+    }
+    var gen = h('time', { datetime: new Date(c.generatedAt).toISOString(), text: clock(c.generatedAt) });
+    sum.appendChild(h('p', { class: 'sum-time' }, [document.createTextNode('gerado às '), gen]));
+    body.appendChild(sum);
+    var um = c.unpricedModels || [];
+    if (um.length) {
+      var names = h('span', {});
+      um.forEach(function (m, i) { if (i) names.appendChild(document.createTextNode(', ')); names.appendChild(h('code', { class: 'usd-calc', text: m })); });
+      var n = notice('aviso', ICON_ALERT, 'Custo incompleto', um.length === 1 ? 'Este modelo não tem preço e o custo dele não está contado: ' : 'Estes modelos não têm preço e o custo deles não está contado: ');
+      n.querySelector('p:last-child').appendChild(names);
+      n.querySelector('p:last-child').appendChild(document.createTextNode('. O total pode estar subestimado.'));
+      body.appendChild(n);
+    }
+    body.appendChild(h('ul', { class: 'legend', 'aria-label': 'Legenda das barras' }, [
+      h('li', {}, [h('span', { class: 'swatch normal', 'aria-hidden': 'true' }), document.createTextNode('contexto até 200 mil')]),
+      h('li', {}, [h('span', { class: 'swatch heavy', 'aria-hidden': 'true' }), document.createTextNode('contexto acima de 200 mil')])]));
+    body.appendChild(costTable(c));
+    setPill(um.length ? 'aviso' : null); setFoot(c);
+  }
+
+  function loadCost() {
+    if (costCtrl) costCtrl.abort();
+    var ctrl = new AbortController();
+    costCtrl = ctrl;
+    showCalculating();
+    fetch('/token-guard/ui/api/cost?since=' + period, { signal: ctrl.signal })
+      .then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }); })
+      .then(function (r) {
+        if (costCtrl !== ctrl) return;
+        if (!r.j || !r.j.ok) { showCostError(r.status, r.j && r.j.error); return; }
+        showCost(r.j);
+      })
+      .catch(function (e) {
+        if (e.name === 'AbortError' || costCtrl !== ctrl) return;
+        showCostError(0, 'sem resposta do daemon (' + e.message + ')');
+      });
+  }
+
+  $('period-seg').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-periodo]');
+    if (!b) return;
+    period = b.getAttribute('data-periodo');
+    Array.prototype.forEach.call($('period-seg').querySelectorAll('button'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    loadCost();
+    b.focus();
+  });
 
   function connect() {
     var es = new EventSource('/token-guard/ui/stream');

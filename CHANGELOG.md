@@ -14,8 +14,14 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   entrada do primeiro modelo de `cost.prices` (na tabela padrão, Opus 5.5 a US$ 4/Mtok) e mostram a conta usada. É
   estimativa sobre estimativa: os tokens já são estimados, lidos do cache custariam menos e, se ficassem no contexto,
   seriam relidos a cada turno.
+- **A tela de setup mostra o custo por repositório.** Seletor de 24 h, 7 dias ou 30 dias, total, parte gasta com
+  contexto acima de 200 mil tokens e aviso de modelo sem preço. O cálculo roda fora do daemon (rota
+  `GET /token-guard/ui/api/cost`, resultado guardado por 60 s) e a leitura dos transcripts só decodifica as linhas
+  de uso: 7 dias passaram de mais de 10 minutos para cerca de 40 segundos.
 
 ### Corrigido
+- **Contraste da tela de setup.** No tema claro o verde e o âmbar do texto ficavam abaixo de 4,5:1 (WCAG 1.4.3), e o
+  cinza do estado "daemon fora" também; os três foram escurecidos e os dois temas passaram a ser medidos pelo teste.
 - **Reinstalar no Codex não desloca mais os hooks de terceiros.** A entrada do token-guard em `hooks.json` é
   atualizada no lugar; antes ela ia para o fim e empurrava os hooks seguintes, e a aprovação do Codex, que é por
   posição, passava a valer para o hook errado.

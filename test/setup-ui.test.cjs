@@ -150,6 +150,23 @@ const csrfOf = (html) => /name="tg-csrf" content="([^"]+)"/.exec(html)?.[1];
     check('a página não puxa nada de fora (nenhum http(s):// carregado)', !/(src|href)=["']https?:/.test(page.body) && !/url\(https?:/.test(page.body));
     check('a página não usa estilo inline (a CSP o barraria)', !/ style="/.test(page.body));
     check('sem cache e sem placeholder sobrando', page.headers['cache-control'] === 'no-store' && !/__NONCE__|__CSRF__/.test(page.body));
+    check('a página consulta a rota de custo e mostra o dólar com a conta', /\/token-guard\/ui\/api\/cost\?since=/.test(page.body) && /id="usd-body"/.test(page.body) && /id="cost-body"/.test(page.body) && /data-periodo="24h"/.test(page.body) && /data-periodo="30d"/.test(page.body));
+
+    console.log('\n  [contraste da página, WCAG 1.4.3]');
+    const lum = (hex) => {
+      const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    const contrast = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+    const block = (re) => Object.fromEntries([...re.exec(page.body)[1].matchAll(/--([\w-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2]]));
+    const themes = { claro: block(/:root \{([^}]*)\}/), escuro: block(/prefers-color-scheme: dark\) \{\s*:root \{([^}]*)\}/) };
+    const pairs = [['ink', 'bg'], ['ink', 'card'], ['muted', 'bg'], ['muted', 'card'], ['muted', 'alt'], ['on', 'on-bg'], ['partial', 'partial-bg'], ['off', 'off-bg'], ['down', 'down-bg'], ['accent', 'card'], ['partial', 'card'], ['off', 'card']];
+    for (const [name, t] of Object.entries(themes)) {
+      const low = pairs.map(([f, b]) => [`${f}/${b}`, contrast(t[f], t[b])]).filter(([, r]) => r < 4.5);
+      check(`tema ${name}: todo par de texto passa de 4,5:1`, low.length === 0, low.map(([n, r]) => `${n}=${r.toFixed(2)}`).join(' '));
+    }
+    check('o verde e o âmbar do tema claro são os medidos (#1a7a4b, #8f5a05)', themes.claro.on === '#1a7a4b' && themes.claro.accent === '#1a7a4b' && themes.claro.partial === '#8f5a05');
+
     const rebind = await req('GET', '/token-guard/ui', { headers: { cookie }, host: `evil.example:${port}` });
     check('Host fora do loopback (DNS rebinding) → 403', rebind.status === 403, rebind.status);
     check('Host localhost da própria porta vale', (await req('GET', '/token-guard/ui/api/state', { headers: { cookie }, host: `localhost:${port}` })).status === 200);
