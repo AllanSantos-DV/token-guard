@@ -19,9 +19,11 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   (0,05× no Opus e no Sonnet 5.5, 0,025× no Fable 5.1). Antes tudo saía a 5/25, 3/15 ou 1/5 com cache a 0,1×, o que
   inflava o `token-guard cost` e o custo do aviso de contexto. Modelos anteriores seguem a tabela da família;
   `cost.prices` aceita `cacheRead` e `long` por modelo.
+- **`token-guard cost` não conta mais cada resposta várias vezes.** Versões recentes do Claude Code gravam o
+  transcript sem `requestId`, e cada linha do streaming de uma mesma resposta entrava como uma chamada à parte, com o
+  uso acumulado; o custo saía perto do dobro. Agora a resposta conta uma vez, pela última linha. O total cai.
 - **`token-guard cost` conta os subagentes.** As chamadas dos subagentes ficam num transcript à parte
-  (`<sessão>/subagents/`) e não entravam no custo; agora somam na sessão que os disparou, sem contar duas vezes as
-  linhas repetidas do streaming. O total sobe nas sessões que usam subagentes.
+  (`<sessão>/subagents/`) e não entravam no custo; agora somam na sessão que os disparou.
 
 ### Alterado
 - **Metadados do pacote sem nome pessoal.** `author` (package.json, plugin.json) e o aviso de copyright da licença

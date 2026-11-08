@@ -81,6 +81,17 @@ async function main() {
   const s2 = r2.sessions.find((x) => x.sessionId === 's2');
   check('escrita de cache sem quebra por TTL conta como 5 min (não superestima)', near(s2.agg.usd, 2 * 1.25), String(s2.agg.usd));
 
+  console.log('\n  [transcript sem requestId (Claude Code recente grava requestRef)]');
+  const refRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-ref-'));
+  fs.mkdirSync(path.join(refRoot, 'proj-c'));
+  const ref = (usage) => rec('c1', undefined, 'claude-sonnet-5', usage, undefined, { sessionId: 'r1', requestRef: 'ref-1' });
+  fs.writeFileSync(path.join(refRoot, 'proj-c', 'r1.jsonl'), [
+    ref({ input_tokens: 100, output_tokens: 0 }),
+    ref({ input_tokens: 500000, output_tokens: 0 }),
+  ].join('\n'), 'utf8');
+  const rr = await COST.analyze({ dir: refRoot, prices: PRICES });
+  check('streaming sem requestId no transcript principal conta uma vez (a última linha)', rr.total.calls === 1 && near(rr.total.usd, 1), JSON.stringify(rr.total));
+
   console.log('\n  [subagentes entram na sessão do pai]');
   const subRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-sub-'));
   const subProj = path.join(subRoot, 'proj-b');
