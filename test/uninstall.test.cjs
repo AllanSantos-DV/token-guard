@@ -75,6 +75,10 @@ console.log('\n  dry-run e remoção real (todos os alvos)');
   fs.writeFileSync(path.join(tgDir, 'events.jsonl'), '{"t":1,"kind":"deny"}\n', 'utf8');
   fs.writeFileSync(path.join(tgDir, 'token-guard.config.json'), '{"mode":"warn"}', 'utf8');
   const claudeRuntime = path.join(home, '.claude', 'token-guard');
+  fs.writeFileSync(path.join(home, '.claude', 'token-guard.config.json'), '{"mode":"warn"}', 'utf8');
+  const legacy = readJson(settings);
+  legacy.hooks.PostToolUse = [...(legacy.hooks.PostToolUse || []), { hooks: [{ type: 'command', command: 'node C:/Users/x/AppData/Roaming/token-guard/adapters/post-hook.cjs' }] }];
+  fs.writeFileSync(settings, JSON.stringify(legacy, null, 2), 'utf8');
 
   const snap = () => ({ settings: read(settings), toml: fs.existsSync(toml) ? read(toml) : '', rt: fs.existsSync(claudeRuntime) });
   const before = snap();
@@ -95,6 +99,8 @@ console.log('\n  dry-run e remoção real (todos os alvos)');
   check('settings: hooks do token-guard saíram', !/127\.0\.0\.1:\d+\/token-guard|hook-origin=token-guard|\.claude\/token-guard\//.test(left.replace(/\\\\/g, '/')), left);
   check('settings: hook de terceiro e outras chaves ficam', left.includes('token-guard-parecido') && out.theme === 'dark');
   check('settings: cópia ao lado com o conteúdo anterior', read(settings + '.token-guard-uninstall.bak') === before.settings);
+  check('hook de layout antigo (pasta token-guard/adapters fora do runtime atual) também sai', !JSON.stringify(out).includes('Roaming'), left);
+  check('o aviso lista a config por harness que fica e a cópia com o token antigo', /preservado:.*\.claude[\\/]token-guard\.config\.json/.test(real.stdout) && /token antigo/.test(real.stdout), real.stdout);
   check('runtime do Claude removido', !fs.existsSync(claudeRuntime));
   check('runtimes dos outros harnesses removidos', !fs.existsSync(path.join(home, '.codex', 'token-guard')) && !fs.existsSync(path.join(home, '.cursor', 'token-guard')) && !fs.existsSync(path.join(home, '.copilot', 'extensions', 'token-guard')));
   if (fs.existsSync(toml)) {

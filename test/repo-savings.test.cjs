@@ -60,6 +60,18 @@ check('forRepo conta o "hoje" separado', here.today.blocks === 1 && here.today.t
 const none = EV.forRepo(path.join(base, 'nunca-visto'));
 check('forRepo de pasta sem eventos é zero, sem erro', none.total.blocks === 0 && none.total.tokensSaved === 0);
 
+console.log('\n  [poupança medida grava no mesmo formato em qualquer caminho]');
+{
+  const ctx = { root: cwdA, target: 'copilot', name: 'Read', input: { file_path: 'x.log' }, charsPerToken: 4 };
+  const cut = EV.recordTrim(ctx, { replaced: true, originalChars: 10000, modifiedResult: 'x'.repeat(2000) });
+  check('recordTrim conta os caracteres que deixaram de entrar, com raiz, alvo e caminho', cut.kind === 'trim' && cut.rule === 'bigResult' && cut.tokens === 2000 && cut.root === A && cut.target === 'copilot' && cut.detail === 'x.log', JSON.stringify(cut));
+  const copy = EV.recordTrim(ctx, { replaced: false, originalChars: 10000, modifiedResult: 'x' });
+  check('corte que o harness não aplica (só cópia em disco) não conta tokens', copy.tokens === 0);
+  const dup = EV.recordSaving(ctx, 'dup', 'dupRead', 400);
+  const sug = EV.recordSaving(ctx, 'scout', 'scout', 0);
+  check('dup mede os caracteres; scout fica sem tokens medidos', dup.tokens === 100 && dup.kind === 'dup' && sug.kind === 'scout' && sug.tokens === null, JSON.stringify([dup, sug]));
+}
+
 console.log('\n  [status mostra o repositório atual]');
 {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-reposav-home-'));

@@ -17,6 +17,7 @@ const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
 const { dedupe, isRead } = require('../lib/dupread.cjs');
 const SCOUT = require('../lib/scout.cjs');
+const EV = require('../lib/events.cjs');
 const { postProcess } = require('../lib/postresult.cjs');
 const { tryDaemon } = require('../lib/daemon-client.cjs');
 const H = require('../lib/claude-hooks.cjs');
@@ -39,14 +40,21 @@ async function main() {
     const cfg = CFG.load(root, 'claude');
     // Guard desligado (global ou só para o Claude Code): nem corta, nem registra, nem sugere.
     if (cfg.mode !== 'off') {
+      const ctx = { root, target: 'claude', name, input: inp, charsPerToken: cfg.charsPerToken };
       trimmed = postProcess({ name, input: inp, result, root, cfg, target: 'claude' });
+      if (trimmed && !lost) EV.recordTrim(ctx, trimmed);
       if (!lost) {
         // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o
         // daemon serviu este postprocess, ele já fez isso (dispatchPostprocess).
         if (!trimmed && sid && isRead(name)) {
-          try { trimmed = dedupe({ name, input: inp, result, root, sessionId: win, cfg }); } catch { /* evidência */ }
+          try {
+            trimmed = dedupe({ name, input: inp, result, root, sessionId: win, cfg });
+            if (trimmed) EV.recordSaving(ctx, 'dup', 'dupRead', trimmed.savedChars);
+          } catch { /* evidência */ }
         }
+        const before = trimmed;
         trimmed = SCOUT.withBurst(trimmed, { name, input: inp, root, sessionId: win, cfg });
+        if (trimmed !== before) EV.recordSaving(ctx, 'scout', 'scout', 0);
       }
     }
   }

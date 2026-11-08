@@ -187,6 +187,7 @@ const session = await joinSession({
           target: "copilot",
         });
         if (!out) return null;
+        EV.recordTrim({ root, target: "copilot", name: input?.toolName, input: input?.toolArgs, charsPerToken: cfg.charsPerToken }, out);
         trimmed += 1;
         return {
           modifiedResult: out.modifiedResult,

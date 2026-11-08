@@ -91,7 +91,7 @@ npx @allansantos-dev/token-guard uninstall --dry-run   # lista o que removeria, 
 npx @allansantos-dev/token-guard uninstall             # remove
 ```
 
-Só sai o que é do token-guard: hooks de terceiros e as demais chaves dos arquivos de configuração ficam, e cada arquivo reescrito deixa a cópia `<arquivo>.token-guard-uninstall.bak` ao lado. Ficam também, em `~/.token-guard/`, a configuração, o histórico de eventos e o cache. O alvo `repo` (`.github/`) viaja no git e não é tocado: use a lista abaixo. No Windows, feche o ícone da bandeja (botão direito › *Fechar o ícone*) e reinicie as sessões abertas dos agentes.
+Só sai o que é do token-guard: hooks de terceiros e as demais chaves dos arquivos de configuração ficam, e cada arquivo reescrito deixa a cópia `<arquivo>.token-guard-uninstall.bak` ao lado. Ficam também, em `~/.token-guard/`, a configuração, o histórico de eventos e o cache, e as configs globais por harness (`~/.claude|.copilot|.cursor/token-guard.config.json`): o comando as lista ao final, e um `init` posterior as reaproveita. A cópia `settings.json.token-guard-uninstall.bak` guarda o token antigo do hook, que já não vale; apague-a quando conferir. O bloco do MCP que você colou na config de uma IDE (`.vscode/mcp.json`, `~/.cursor/mcp.json`, Claude Desktop) não é tocado: remova-o à mão. O alvo `repo` (`.github/`) viaja no git e não é tocado: use a lista abaixo. No Windows, feche o ícone da bandeja (botão direito › *Fechar o ícone*) e reinicie as sessões abertas dos agentes.
 
 Tudo que o instalador cria, em um lugar só (a lista manual, para o alvo `repo` ou se preferir conferir):
 

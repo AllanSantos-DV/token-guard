@@ -38,6 +38,9 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   MCP, com a conta e a fonte do preço.
 
 ### Corrigido
+- **O plugin do Copilot e o hook sem daemon passam a registrar a poupança.** O corte do resultado grande no plugin do
+  Copilot, e o corte, a leitura repetida e a sugestão do scout quando o hook roda sem daemon, não entravam em
+  `events.jsonl`; a contagem do `status`, da tela e da poupança por repositório ficava abaixo do real nesses caminhos.
 - **Contraste da tela de setup.** No tema claro o verde e o âmbar do texto ficavam abaixo de 4,5:1 (WCAG 1.4.3), e o
   cinza do estado "daemon fora" também; os três foram escurecidos e os dois temas passaram a ser medidos pelo teste.
 - **Reinstalar no Codex não desloca mais os hooks de terceiros.** A entrada do token-guard em `hooks.json` é

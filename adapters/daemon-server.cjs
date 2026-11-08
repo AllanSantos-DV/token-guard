@@ -164,16 +164,9 @@ function dispatchPostprocess(params) {
     // Guard desligado (global ou só para este IDE): nem corta, nem registra, nem sugere.
     if (cfg.mode === 'off') return { ok: true, trimmed: null };
     const win = windowKey(sessionId, agentId);
-    const note = (kind, rule, chars) => EV.record({
-      root, kind, rule, target, tool: name, detail: P.inputPath(input || {}) || P.inputCommand(input || {}) || P.inputPattern(input || {}),
-      tokens: chars > 0 ? chars / cfg.charsPerToken : 0,
-    });
+    const note = (kind, rule, chars) => EV.recordSaving({ root, target, name, input, charsPerToken: cfg.charsPerToken }, kind, rule, chars);
     let trimmed = postProcess({ name, input, result, root, cfg, target });
-    if (trimmed) {
-      // Só conta como poupado o que o harness aplica de fato (replaced); o resto só ganhou uma cópia em disco.
-      const kept = typeof trimmed.modifiedResult === 'string' ? trimmed.modifiedResult.length : JSON.stringify(trimmed.modifiedResult || '').length;
-      note('trim', 'bigResult', trimmed.replaced ? trimmed.originalChars - kept : 0);
-    }
+    if (trimmed) EV.recordTrim({ root, target, name, input, charsPerToken: cfg.charsPerToken }, trimmed);
     if (!trimmed && sessionId && isRead(name)) {
       try {
         trimmed = dedupe({ name, input, result, root, sessionId: win, cfg });
