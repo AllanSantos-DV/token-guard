@@ -51,6 +51,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
+const { runQuiet } = require('./lib/run-quiet.cjs');
 
 const SRC = __dirname;
 const HOME = os.homedir();
@@ -442,15 +443,6 @@ function stableWindowsSid() {
     return sanitizeSid(os.userInfo().username);
   } catch {
     return sanitizeSid(process.env.USERNAME || process.env.USER);
-  }
-}
-
-function runQuiet(cmd, args) {
-  try {
-    execFileSync(cmd, args, { stdio: 'pipe' });
-    return true;
-  } catch {
-    return false;
   }
 }
 
