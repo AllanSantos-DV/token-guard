@@ -43,6 +43,7 @@ async function main() {
     rec('m3', 'r3', 'modelo-novo-x', { input_tokens: 1000000, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }),
     rec('m4', 'r4', '<synthetic>', { input_tokens: 5, output_tokens: 5 }),
     'linha quebrada {',
+    '{"type":"assistant","message":{"usage": {',
     JSON.stringify({ type: 'user', message: { content: 'oi' } }),
   ].join('\n'), 'utf8');
 
@@ -60,7 +61,22 @@ async function main() {
   check('fração acima de 200k contada na chamada de contexto grande', son.usdHeavy > 0 && near(son.usdHeavy, son.usd));
   check('modelo sem preço: listado, custo não inventado', r.unpricedModels.includes('modelo-novo-x') &&
     r.models['modelo-novo-x'].usd === 0 && r.models['modelo-novo-x'].unpricedCalls === 1);
-  check('linha ilegível contada, não engolida', r.badLines === 1);
+  check('linha de uso ilegível contada, não engolida; linha sem "usage" nem lida', r.badLines === 1, String(r.badLines));
+
+  console.log('\n  [leitura em blocos]');
+  const big = path.join(root, 'big.jsonl');
+  const pad = 'x'.repeat(2.5 * (1 << 20));
+  fs.writeFileSync(big, [
+    JSON.stringify({ type: 'user', message: { content: pad } }),
+    rec('b1', 'rb1', 'claude-opus-5', { input_tokens: 7, output_tokens: 0 }),
+    JSON.stringify({ type: 'user', message: { content: pad } }),
+    rec('b3', 'rb3', 'claude-opus-5', { input_tokens: 11, output_tokens: 0 }),
+  ].join('\r\n'), 'utf8');
+  const bt = await COST.readTranscript(big);
+  check('linhas maiores que o bloco de leitura, CRLF e última linha sem quebra: as 2 chamadas lidas',
+    bt.calls.length === 2 && bt.calls.map((c) => c.input).join(',') === '7,11' && bt.bad === 0,
+    JSON.stringify({ n: bt.calls.length, bad: bt.bad }));
+  fs.unlinkSync(big);
   check('relatório avisa o modelo sem preço', /sem preço configurado.*modelo-novo-x/.test(COST.renderText(r, { prices: PRICES })));
 
   console.log('\n  [janela --since]');

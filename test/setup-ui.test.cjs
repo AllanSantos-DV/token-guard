@@ -161,6 +161,31 @@ const csrfOf = (html) => /name="tg-csrf" content="([^"]+)"/.exec(html)?.[1];
       st.version && st.port === port && st.state === 'on' && st.config.mode === 'block' && st.catalog.rules.length === 7 && st.catalog.targets.length === 5, Object.keys(st));
     check('as 7 regras estão ligadas por padrão', Object.values(st.config.rules).every(Boolean) && Object.keys(st.config.rules).length === 7);
 
+    console.log('\n  [custo por repositório]');
+    const repoA = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-ui-repo-'));
+    fs.mkdirSync(path.join(repoA, '.git'));
+    fs.mkdirSync(path.join(repoA, 'sub'));
+    const projDir = path.join(os.homedir(), '.claude', 'projects', 'p');
+    fs.mkdirSync(projDir, { recursive: true });
+    const line = (sid, cwd, id, input) => JSON.stringify({ type: 'assistant', sessionId: sid, cwd, timestamp: new Date().toISOString(),
+      message: { id, model: 'claude-sonnet-5-5', usage: { input_tokens: input, output_tokens: 0 } } });
+    fs.writeFileSync(path.join(projDir, 'a1.jsonl'), line('a1', repoA, 'm1', 1000000));
+    fs.writeFileSync(path.join(projDir, 'a2.jsonl'), line('a2', path.join(repoA, 'sub'), 'm2', 500000));
+    fs.writeFileSync(path.join(projDir, 'b1.jsonl'), line('b1', os.tmpdir(), 'm3', 250000));
+    check('custo sem sessão → 401', (await req('GET', '/token-guard/ui/api/cost')).status === 401);
+    const badSince = await req('GET', '/token-guard/ui/api/cost?since=ontem', { headers: { cookie } });
+    check('janela inválida → 400 com a causa', badSince.status === 400 && /since inválido/.test(badSince.body), badSince.body);
+    const costRes = await req('GET', '/token-guard/ui/api/cost?since=1d', { headers: { cookie } });
+    const cost = costRes.status === 200 ? JSON.parse(costRes.body) : {};
+    const top = (cost.repos || [])[0] || {};
+    check('custo agrupa as sessões pela raiz do repositório (raiz e subpasta somam juntas)',
+      cost.ok === true && top.root === repoA && top.sessions === 2 && top.calls === 2 && Math.abs(top.usd - 3) < 1e-9, costRes.body);
+    check('custo traz o total, a janela, a fonte dos preços e a marca de aproximado',
+      cost.total && cost.total.sessions === 3 && Math.abs(cost.total.usd - 3.5) < 1e-9 && cost.since === '1d' &&
+      cost.prices.source === 'tabela padrão' && cost.approximate === true && cost.repos.length === 2, costRes.body);
+    const cached = JSON.parse((await req('GET', '/token-guard/ui/api/cost?since=1d', { headers: { cookie } })).body);
+    check('segunda leitura dentro de 60 s vem do cache (mesmo generatedAt)', cached.generatedAt === cost.generatedAt);
+
     const noCsrf = await req('POST', '/token-guard/ui/api/config', { headers: { cookie }, body: { mode: 'off' } });
     check('escrever sem o token anti-CSRF → 403 e nada muda', noCsrf.status === 403 && !fs.existsSync(cfgFile), noCsrf);
     const badOrigin = await req('POST', '/token-guard/ui/api/config', { headers: { cookie, 'x-tg-csrf': csrf, origin: 'http://evil.example' }, body: { mode: 'off' } });

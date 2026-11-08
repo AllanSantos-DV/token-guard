@@ -21,6 +21,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { execFile } = require('child_process');
 const CFG = require('../lib/config.cjs');
 const CE = require('../lib/config-edit.cjs');
 const EV = require('../lib/events.cjs');
@@ -35,6 +36,9 @@ const HEARTBEAT_MS = 25 * 1000;
 const COALESCE_MS = 100;
 const MAX_BODY = 16 * 1024;
 const COOKIE = 'tg_ui';
+const COST_TTL_MS = 60 * 1000;
+const COST_TIMEOUT_MS = 120 * 1000;
+const COST_SINCE = /^\d{1,3}[dh]$/;
 
 const rand = (n = 24) => crypto.randomBytes(n).toString('base64url');
 
@@ -85,6 +89,7 @@ function create({ token, version, getPort, startedAt = Date.now(), onSaved }) {
   let pending = false;
   let heartbeat = null;
   let watcher = null;
+  const costCache = new Map();
 
   function snapshot() {
     const cfg = CFG.load(os.homedir());
@@ -123,6 +128,32 @@ function create({ token, version, getPort, startedAt = Date.now(), onSaved }) {
     };
   }
   const trayView = () => trayOf(snapshot());
+
+  /**
+   * Custo por repositório (`cost.cjs --repos`), num processo à parte: ler os transcripts de dias ocuparia o
+   * daemon que responde aos hooks. Um cálculo por janela de cada vez; o resultado vale COST_TTL_MS.
+   */
+  function costReport(since) {
+    const hit = costCache.get(since);
+    if (hit && hit.pending) return hit.pending;
+    if (hit && Date.now() - hit.at < COST_TTL_MS) return Promise.resolve(hit.body);
+    const pending = new Promise((resolve) => {
+      execFile(process.execPath, [path.join(__dirname, '..', 'cost.cjs'), '--repos', '--since', since],
+        { cwd: os.homedir(), windowsHide: true, timeout: COST_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          let body;
+          try {
+            if (err) throw new Error(String(stderr || err.message).trim());
+            body = { ...JSON.parse(stdout), since, generatedAt: Date.now() };
+          } catch (e) { body = { ok: false, error: `custo indisponível: ${e.message}` }; }
+          if (body.ok) costCache.set(since, { at: Date.now(), body });
+          else costCache.delete(since);
+          resolve(body);
+        });
+    });
+    costCache.set(since, { pending });
+    return pending;
+  }
 
   function send(res, event, data) {
     try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch { /* cliente caiu: o close remove */ }
@@ -294,6 +325,12 @@ function create({ token, version, getPort, startedAt = Date.now(), onSaved }) {
     }
     if (route === `${BASE}/ui/api/state` && req.method === 'GET') { json(res, 200, snapshot()); return true; }
     if (route === `${BASE}/ui/stream` && req.method === 'GET') { openStream(req, res, 'ui'); return true; }
+    if (route === `${BASE}/ui/api/cost` && req.method === 'GET') {
+      const since = url.searchParams.get('since') || '7d';
+      if (!COST_SINCE.test(since)) { json(res, 400, { ok: false, error: `since inválido: "${since}" (use 7d ou 12h)` }); return true; }
+      costReport(since).then((body) => json(res, body.ok ? 200 : 500, body));
+      return true;
+    }
     if (route === `${BASE}/ui/api/config` && req.method === 'POST') {
       if (!originOk(req) || !sameToken(req.headers['x-tg-csrf'], session.csrf)) {
         json(res, 403, { ok: false, error: 'pedido recusado (origem ou token anti-CSRF)' });

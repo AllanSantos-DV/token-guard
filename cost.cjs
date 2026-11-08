@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * cost.cjs — `token-guard cost [--here] [--since 7d|AAAA-MM-DD] [--top N] [--dir PASTA] [--json]`
+ * cost.cjs — `token-guard cost [--here] [--since 7d|AAAA-MM-DD] [--top N] [--dir PASTA] [--json | --repos]`
  * Custo por sessão e por modelo a partir dos transcripts do Claude Code. `--here`: só as sessões
  * do repositório atual (a pasta com `.git` acima de onde o comando roda, senão a própria pasta).
+ * `--repos`: JSON com o total e o custo por repositório, o formato que a tela de setup recebe do daemon.
  */
 
 const path = require('path');
@@ -23,7 +24,18 @@ async function main() {
   const dir = flag(argv, '--dir');
   const within = argv.includes('--here') ? COST.repoRoot(process.cwd()) : null;
   const r = await COST.analyze({ since: COST.parseSince(flag(argv, '--since')), prices, within, ...(dir ? { dir: path.resolve(dir) } : {}) });
-  if (argv.includes('--json')) {
+  if (argv.includes('--repos')) {
+    console.log(JSON.stringify({
+      ok: true,
+      approximate: true,
+      total: { sessions: r.sessions.length, calls: r.total.calls, usd: r.total.usd, usdHeavy: r.total.usdHeavy },
+      repos: COST.byRepo(r.sessions),
+      unpricedModels: r.unpricedModels,
+      prices: { source: prices === COST.DEFAULT_PRICES ? 'tabela padrão' : 'cost.prices' },
+      transcripts: r.transcripts,
+      badLines: r.badLines,
+    }));
+  } else if (argv.includes('--json')) {
     console.log(JSON.stringify(r, null, 2));
   } else {
     console.log(COST.renderText(r, { top, prices }));

@@ -73,6 +73,11 @@ tela é empurrada quando o arquivo muda. **Cortes e duplicatas** só são regist
 ## 6. Empurrado, não consultado
 
 - Tela: `GET /token-guard/ui/stream` (SSE, cookie). Recebe um snapshot na conexão e outro a cada evento ou mudança de config.
+  O snapshot traz `stats` (bloqueios e tokens poupados, hoje e total) e `savings`: os tokens poupados em US$, sempre com
+  `approximate: true`, o modelo e o preço de entrada usados (`model`, `inPerMtok`) e a fonte (`cost.prices` ou tabela padrão).
+- Exceção: o custo por repositório não é empurrado. `GET /token-guard/ui/api/cost?since=7d` (cookie; janela `Nd` ou `Nh`)
+  roda `cost.cjs --repos` num processo à parte, porque ler dias de transcripts ocuparia o daemon que responde aos hooks; um
+  cálculo por janela de cada vez, resultado guardado por 60 s, falha devolvida como `{ok:false, error}`.
 - Ícone: `GET /token-guard/stream` (SSE, token do dono). Recebe estado, rótulo, contagem do dia e `show`.
 - A mudança de config feita **por fora** (CLI, editor) também chega: o daemon observa a pasta `~/.token-guard` (`fs.watch`).
 - Rajadas viram um empurrão só (coalescência de 100 ms). Heartbeat de 25 s mantém o fluxo vivo.
