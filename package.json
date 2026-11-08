@@ -1,6 +1,6 @@
 {
   "name": "@allansantos-dev/token-guard",
-  "version": "2.18.1",
+  "version": "2.18.2",
   "publishConfig": {
     "access": "public"
   },
@@ -77,7 +77,7 @@
     "guardrails",
     "cost"
   ],
-  "author": "Allan Santos",
+  "author": "token-guard contributors",
   "license": "MIT",
   "repository": {
     "type": "git",

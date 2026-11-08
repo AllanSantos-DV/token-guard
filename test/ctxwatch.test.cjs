@@ -58,6 +58,12 @@ fs.writeFileSync(tpath, 'lixo{{\n"usage"\n');
 check('transcript corrompido: fail-open', CW.check({ ...args, sessionId: 's3' }) === null);
 check('modelo desconhecido: avisa sem custo', !/US\$/.test(CW.check({ ...args, sessionId: 's4', transcriptPath: (write(turn(150000, 'x-y')), tpath) }) || 'US$'));
 
+const priced = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-ctxwatch-prices-'));
+fs.writeFileSync(path.join(priced, 'token-guard.config.json'), JSON.stringify({ cost: { prices: { opus: { in: 10, out: 50 } } } }));
+write(turn(130000));
+check('custo do aviso segue cost.prices da config', /US\$ 0\.13/.test(CW.check({ ...args, root: priced, sessionId: 's5' }) || ''));
+fs.rmSync(priced, { recursive: true, force: true });
+
 check('envelope: warning vira systemMessage, sem additionalContext', (() => {
   const e = H.promptEnvelope('', 'aviso');
   return e.systemMessage === 'aviso' && !e.hookSpecificOutput;

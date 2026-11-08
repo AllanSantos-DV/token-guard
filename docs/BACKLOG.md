@@ -26,6 +26,25 @@ Nenhum é item técnico em aberto. L2, L3 e L4 foram feitos na 2.15.1 (tabela ab
 | L1 | Reenvio de `postprocess` devolvendo a mesma resposta guardada por `requestKey` | **Decidido (Jarvis, 03/11):** não feito. O contrato da 2.15.1 é entregar o `postprocess` no máximo uma vez por pedido; repetir uma resposta guardada mudaria o que o usuário vê |
 | L5 | `token_guard_check` (MCP) não gravar `deny` para consulta que não bloqueia | **Decidido (Jarvis, 03/11):** não feito agora. O check do MCP continua gravando como hoje e a contagem que o usuário vê não muda |
 
+## Candidatos da lente irmã (2.18.2)
+
+Decisão do dono (mudam o que o usuário vê; não entram sem ele). Nenhum item técnico aberto: o único técnico (L9) foi feito.
+
+| # | Candidato | Esforço |
+|---|-----------|---------|
+| L6 | `token-guard status` mostrar bloqueios e tokens poupados (hoje e total), que hoje só aparecem na tela de setup e no ícone. Peças: `lib/events.cjs:summary`, `cli.cjs` | S |
+| L7 | `token-guard cost --here`: custo só das sessões cujo `cwd` está dentro do repositório atual. Peças: `lib/cost.cjs:analyze`/`readTranscript` (já guardam o `cwd`) | S |
+| L8 | Tokens poupados também em US$ estimados na tela de setup e no `status` (tokens × preço de entrada de `cost.prices`); o texto precisa dizer que é estimativa sobre estimativa | S–M |
+
+## Fechado na release 2.18.2
+
+| # | Item | Resolução |
+|---|------|-----------|
+| C7 | Reinstalar no Codex movia a entrada do token-guard em `hooks.json` para o fim e deslocava a aprovação posicional dos hooks de terceiros | entrada atualizada no lugar; `test/install.test.cjs` falha sem a correção |
+| C8 | Reinstalar no Codex engolia o comentário colado abaixo de `[mcp_servers.token-guard]` (marcador de bloco gerenciado de terceiro) | comentários finais ficam com o bloco seguinte; `test/install.test.cjs` falha sem a correção |
+| L9 | Lente irmã: `ctxwatch` tinha tabela de preços própria e ignorava `cost.prices` | usa `COST.priceOf` × fator de leitura de cache; `test/ctxwatch.test.cjs` falha sem a correção |
+| C9 | Metadados com nome pessoal (`author`, copyright da licença) | "token-guard contributors" |
+
 ## Fechado na release 2.17.1
 
 Investigação: `docs/research/quedas-com-daemon-saudavel-2026-11-04.md`.

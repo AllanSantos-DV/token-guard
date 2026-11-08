@@ -3,6 +3,22 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.18.2] — 2026-11-08
+
+### Corrigido
+- **Reinstalar no Codex não desloca mais os hooks de terceiros.** A entrada do token-guard em `hooks.json` é
+  atualizada no lugar; antes ela ia para o fim e empurrava os hooks seguintes, e a aprovação do Codex, que é por
+  posição, passava a valer para o hook errado.
+- **Reinstalar no Codex não apaga mais o começo do bloco que vem depois da tabela do token-guard.** A tabela
+  `[mcp_servers.token-guard]` engolia o comentário colado logo abaixo dela, como o marcador de abertura de um
+  bloco gerenciado por outra ferramenta. Agora os comentários finais ficam com o que vem depois, intactos.
+- **O aviso de contexto pesado usa os preços da config.** O custo por turno do aviso vinha de uma tabela fixa e
+  ignorava `cost.prices`; agora segue a mesma tabela do `token-guard cost`.
+
+### Alterado
+- **Metadados do pacote sem nome pessoal.** `author` (package.json, plugin.json) e o aviso de copyright da licença
+  passam a dizer "token-guard contributors".
+
 ## [2.18.1] — 2026-11-07
 
 ### Corrigido

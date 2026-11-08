@@ -33,7 +33,7 @@ Escape hatch por ambiente (vence tudo): `TOKEN_GUARD=off` (ou `0`, `false`) desl
 | `targets` | objeto, `{}` | Modo por IDE: `{"claude":"off"}` desliga só ali. Chaves: `claude`, `codex`, `cursor`, `copilot`, `mcp`; valores `block` ou `off`; ausente = segue o geral. Geral `off` vence. |
 | `ui.tray` | boolean, `true` | Ícone na bandeja do Windows, subido pelo daemon. `false` fecha o ícone e impede que suba. |
 | `limits.scoutBurst` | número, `8` | Quantas leituras/buscas seguidas formam a rajada. Medido: 6 → 470 rajadas em 7 dias; 8 → 256; 10 → 157. |
-| `cost.prices` | objeto | Preço por família de modelo em US$/Mtok para `token-guard cost`, ex.: `{"opus":{"in":5,"out":25}}`. Premissa, não fatura; modelo sem preço é listado e não contado. |
+| `cost.prices` | objeto | Preço por família de modelo em US$/Mtok para `token-guard cost` e para o custo estimado no aviso de contexto pesado, ex.: `{"opus":{"in":5,"out":25}}`. Premissa, não fatura; modelo sem preço é listado e não contado. |
 | `limits.readBytesWithoutRange` | número, `51200` | Acima disso (50 KB), ler sem faixa é barrado. Imagem raster (`.png/.jpg/.jpeg/.gif/.webp`) fica de fora: o Read a entrega como imagem, sem linhas. PDF conta `pages` como faixa. Em `.ipynb`, `offset/limit` não contam (o Read do Claude Code os ignora); só `view_range`. |
 | `limits.minRepoFilesForScanGuard` | número, `400` | Repos menores ficam livres dos guards de varredura. |
 | `limits.resultCharsWithoutTrim` | número, `25000` | Acima disso (caracteres de texto), o resultado de ferramenta é truncado pós-execução. |
