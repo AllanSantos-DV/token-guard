@@ -107,7 +107,7 @@ async function main() {
       // saiu e só a resposta se perdeu, então o daemon pode já ter gravado o bloqueio.
       const viaDaemon = await tryDaemon('check', { root: P.cwd(canonical), payload: canonical, target: 'cursor' });
       verdict = viaDaemon.ok ? viaDaemon.result.verdict : decide(canonical, { target: 'cursor' });
-      if (!viaDaemon.ok && !viaDaemon.sent) EV.recordDeny(verdict, 'cursor', canonical);
+      if (!viaDaemon.ok && !viaDaemon.sent) EV.recordDeny(verdict, 'cursor', canonical, P.cwd(canonical));
     }
   } catch {
     return respond(ALLOW); // fail-open, sempre

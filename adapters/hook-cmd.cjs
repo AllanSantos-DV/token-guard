@@ -42,7 +42,7 @@ async function main() {
   // Com o daemon, ele já registrou o evento; sem ele, registra aqui (a tela enxerga os dois caminhos).
   // sent: o pedido saiu e só a resposta se perdeu, então o daemon pode já ter gravado: não duplica.
   const verdict = viaDaemon.ok ? viaDaemon.result.verdict : decide(payload, { target });
-  if (!viaDaemon.ok && !viaDaemon.sent) EV.recordDeny(verdict, target, payload);
+  if (!viaDaemon.ok && !viaDaemon.sent) EV.recordDeny(verdict, target, payload, root);
   const out = H.preEnvelope(verdict);
   if (out) process.stdout.write(JSON.stringify(out));
 }

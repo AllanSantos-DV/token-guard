@@ -112,7 +112,7 @@ const TOOLS = [
       const root = args?.path ? path.resolve(args.path) : process.cwd();
       checked += 1;
       const verdict = decide({ toolName: args?.tool, toolInput: args?.input || {}, cwd: root }, { target: 'mcp' });
-      EV.recordDeny(verdict, 'mcp', { toolName: args?.tool, toolInput: args?.input || {} });
+      EV.recordDeny(verdict, 'mcp', { toolName: args?.tool, toolInput: args?.input || {}, cwd: root });
       if (!verdict) return { text: `OK — \`${args?.tool}\` com esses argumentos não desperdiça contexto. Pode executar.` };
       byRule[verdict.rule] = (byRule[verdict.rule] || 0) + 1;
       return {

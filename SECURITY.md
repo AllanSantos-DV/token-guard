@@ -58,7 +58,7 @@ faz com a sua máquina e os seus dados:
   versão descrita abaixo.
 - `~/.token-guard/daemon-http.token` — token do hook http e da tela (gravado com `--target claude` ou por `token-guard setup`).
 - `~/.token-guard/events.jsonl` — um evento por bloqueio ou poupança (quando, IDE, regra, ferramenta, e o caminho ou comando
-  limitado a 120 caracteres, tokens poupados quando medidos). Fica só na máquina; aparado acima de 2 MB. Pode conter um comando
+  limitado a 120 caracteres, tokens poupados quando medidos, e a raiz do repositório da sessão, para a poupança por repositório). Fica só na máquina; aparado acima de 2 MB. Pode conter um comando
   que a ferramenta tentou rodar.
 - `~/.token-guard/token-guard.config.json` — o que a tela de setup grava (`mode`, `targets`, `rules`, `ui.tray`).
 - `~/.token-guard/daemon-http.json` — `{ port, url, pid, version }` de onde o hook http

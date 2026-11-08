@@ -84,7 +84,16 @@ No agente, peça: *"mostre o status do token guard"*.
 
 ## Desinstalando
 
-Tudo que o instalador cria, em um lugar só:
+O caminho curto é o comando, que desfaz o que o `init` gravou nos alvos de máquina (`claude`, `codex`, `cursor`, `copilot`, `mcp`), o autostart e o daemon:
+
+```bash
+npx @allansantos-dev/token-guard uninstall --dry-run   # lista o que removeria, sem remover
+npx @allansantos-dev/token-guard uninstall             # remove
+```
+
+Só sai o que é do token-guard: hooks de terceiros e as demais chaves dos arquivos de configuração ficam, e cada arquivo reescrito deixa a cópia `<arquivo>.token-guard-uninstall.bak` ao lado. Ficam também, em `~/.token-guard/`, a configuração, o histórico de eventos e o cache. O alvo `repo` (`.github/`) viaja no git e não é tocado: use a lista abaixo. No Windows, feche o ícone da bandeja (botão direito › *Fechar o ícone*) e reinicie as sessões abertas dos agentes.
+
+Tudo que o instalador cria, em um lugar só (a lista manual, para o alvo `repo` ou se preferir conferir):
 
 | Alvo | Runtime | Registro | Config global |
 |---|---|---|---|

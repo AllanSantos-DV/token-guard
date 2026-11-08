@@ -165,7 +165,7 @@ function dispatchPostprocess(params) {
     if (cfg.mode === 'off') return { ok: true, trimmed: null };
     const win = windowKey(sessionId, agentId);
     const note = (kind, rule, chars) => EV.record({
-      kind, rule, target, tool: name, detail: P.inputPath(input || {}) || P.inputCommand(input || {}) || P.inputPattern(input || {}),
+      root, kind, rule, target, tool: name, detail: P.inputPath(input || {}) || P.inputCommand(input || {}) || P.inputPattern(input || {}),
       tokens: chars > 0 ? chars / cfg.charsPerToken : 0,
     });
     let trimmed = postProcess({ name, input, result, root, cfg, target });
@@ -260,13 +260,13 @@ function routeMessage(msg, ctx) {
     const first = firstDelivery(ctx, msg.requestKey);
     const cached = ctx.cache.get(key);
     if (cached !== undefined) {
-      if (first) { ctx.hits++; EV.recordDeny(cached, target, params.payload); }
+      if (first) { ctx.hits++; EV.recordDeny(cached, target, params.payload, params.root); }
       return { id: msg.id, result: { ok: true, verdict: cached, cached: true } };
     }
     const out = dispatch(params);
     if (out.ok) {
       ctx.cache.set(key, out.verdict);
-      if (first) { ctx.misses++; EV.recordDeny(out.verdict, target, params.payload); }
+      if (first) { ctx.misses++; EV.recordDeny(out.verdict, target, params.payload, params.root); }
     }
     return { id: msg.id, result: out };
   }

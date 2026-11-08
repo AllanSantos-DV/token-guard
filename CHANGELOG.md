@@ -23,6 +23,15 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   volta), com o quanto somam os escondidos; o total sempre conta todos.
 - **`token-guard cost` em texto lista o custo por repositório** e diz o que o guard poupou na mesma janela
   (`--since`), em US$ aproximado com a conta; `cost --json` traz `saved`.
+- **Poupança por repositório.** Cada evento novo grava a raiz do repositório (a pasta com `.git` acima de onde a
+  sessão roda). A tela de setup ganha o cartão "Poupança por repositório" (os 10 que mais pouparam, com o US$
+  aproximado e a conta), e o `status` mostra a linha "neste repositório" (`--json`: `savedHere`). Só conta eventos
+  novos: o histórico anterior não é repartido e a tela e o `status` dizem isso.
+- **`token-guard uninstall [--dry-run]`.** Desfaz o que o `init` gravou: os hooks do token-guard em
+  `settings.json` (Claude Code), `hooks.json` (Cursor e Codex), a tabela `[mcp_servers.token-guard]` do Codex, o
+  agente scout, os runtimes copiados, o autostart (tarefas agendadas e `TOKEN_GUARD_SID` no Windows, unit do systemd,
+  plist do launchd) e o daemon. Hooks de terceiros, a configuração e o histórico de eventos ficam; cada arquivo
+  reescrito deixa a cópia `*.token-guard-uninstall.bak` ao lado. `--dry-run` só lista o que removeria.
 - **`token-guard status --json`.** O mesmo estado do texto (modo, regras, bloqueios, poupança em US$, daemon, scout)
   para script.
 - **`token-audit` e `mcp-cost` mostram o preço de entrada** da lista de nomes de arquivo e do preâmbulo dos servidores

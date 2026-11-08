@@ -71,6 +71,20 @@ function savingsLines(s, prices) {
   ];
 }
 
+/** Linha do repositório atual: só eventos gravados com a pasta; o histórico anterior não é repartido. */
+function repoLines(r, prices) {
+  const t = r.total;
+  if (!t.blocks && !t.trims && !t.dups && !t.scouts) {
+    return ['  neste repositório: nada registrado ainda (a conta por repositório só inclui eventos novos; o histórico anterior não é repartido)'];
+  }
+  const u = require('./lib/cost.cjs').savingsUsd({ today: r.today.tokensSaved, total: t.tokensSaved }, prices);
+  return [
+    `  neste repositório: barrados hoje ${r.today.blocks} · total ${t.blocks}; tokens poupados hoje ${approxTokens(r.today.tokensSaved)} · total ${approxTokens(t.tokensSaved)}`
+      + (u ? ` ≈ US$ ${twoDecimals(u.total)} no total (mesma conta do US$ acima; aproximado)` : '')
+      + ' — só eventos novos',
+  ];
+}
+
 function usdLine(u) {
   if (!u) return '  em US$:          sem estimativa (o primeiro modelo de cost.prices não tem preço de entrada "in")';
   return `  em US$ (aprox.): hoje ≈ US$ ${twoDecimals(u.today)} · total ≈ US$ ${twoDecimals(u.total)} — estimativa: tokens × US$ ${String(u.inPerMtok).replace('.', ',')}/Mtok (entrada de ${u.model}, ${u.source})`;
@@ -92,6 +106,10 @@ async function status(args) {
       repoStats: stats ? { totalFiles: stats.totalFiles } : null,
       saved: s.error ? s : { since: s.since, today: s.today, total: s.total,
         usd: require('./lib/cost.cjs').savingsUsd({ today: s.today.tokensSaved, total: s.total.tokensSaved }, require('./lib/cost.cjs').pricesFrom(cfg)) },
+      savedHere: await attempt(() => {
+        const r = require('./lib/events.cjs').forRepo(root);
+        return { ...r, usd: require('./lib/cost.cjs').savingsUsd({ today: r.today.tokensSaved, total: r.total.tokensSaved }, require('./lib/cost.cjs').pricesFrom(cfg)) };
+      }),
       daemon: await attempt(() => require('./lib/daemon-status.cjs').inspect()),
       scout: await attempt(() => require('./lib/daemon-status.cjs').inspectScout()),
     };
@@ -117,7 +135,9 @@ async function status(args) {
     console.log('  ATENÇÃO: o guard está DESLIGADO (mode "off" ou TOKEN_GUARD=off).');
   }
   try {
-    for (const line of savingsLines(require('./lib/events.cjs').summary(), require('./lib/cost.cjs').pricesFrom(cfg))) console.log(line);
+    const prices = require('./lib/cost.cjs').pricesFrom(cfg);
+    for (const line of savingsLines(require('./lib/events.cjs').summary(), prices)) console.log(line);
+    for (const line of repoLines(require('./lib/events.cjs').forRepo(root), prices)) console.log(line);
   } catch (e) {
     console.log(`  economia:        não foi possível ler os eventos (${e.message})`);
   }
@@ -220,6 +240,11 @@ function help() {
                           --json        dados crus
                           Preços: premissa em cost.prices do token-guard.config.json.
 
+    uninstall [--dry-run] Desfaz o que o init gravou: hooks, MCP, runtimes copiados,
+                          autostart e daemon. Só sai o que é do token-guard; hooks de
+                          terceiros, a configuração e o histórico de eventos ficam.
+                          --dry-run     só lista o que removeria, sem remover
+
     test                  Roda a bateria de testes contra o hook real.
 
   COMEÇANDO
@@ -242,6 +267,8 @@ if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
 
 if (cmd === 'status') {
   status(rest).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+} else if (cmd === 'uninstall') {
+  require('./lib/uninstall.cjs').main(rest).then((code) => process.exit(code)).catch((e) => { console.error(e); process.exit(1); });
 } else if (cmd === 'setup') {
   setup(rest).then((code) => process.exit(code)).catch((e) => { console.error(e); process.exit(1); });
 } else if (cmd === '--version' || cmd === '-v' || cmd === 'version') {

@@ -271,6 +271,11 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
       <h3>Por regra</h3>
       <div class="bars" id="byrule"></div>
     </div>
+    <div class="card mt" id="byrepo-card">
+      <h3>Poupança por repositório</h3>
+      <div class="bars" id="byrepo"></div>
+      <p class="foot-note" id="byrepo-foot"></p>
+    </div>
     <div class="card mt">
       <h3>Últimos acontecimentos</h3>
       <ul class="log" id="log"></ul>
@@ -430,6 +435,7 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
     $('foot').textContent = 'Suas escolhas ficam em ' + c.file + '.';
 
     renderStats(s);
+    renderRepoSavings(s.stats, s.savings);
     renderSavings(s.savings);
     if (!costStarted) { costStarted = true; loadCost(); }
   }
@@ -485,6 +491,29 @@ footer code { font-family: var(--mono); font-size: 12.5px; }
   }
 
   function usd(n) { return 'US$\u00a0' + usdFmt.format(n); }
+
+  function renderRepoSavings(st, sv) {
+    var box = $('byrepo');
+    box.textContent = '';
+    var repos = st.repos || [];
+    $('byrepo-card').style.display = repos.length ? '' : 'none';
+    if (!repos.length) return;
+    var priced = sv && Number.isFinite(sv.inPerMtok);
+    var max = 1;
+    repos.forEach(function (r) { max = Math.max(max, r.tokensSaved, r.blocks); });
+    repos.forEach(function (r) {
+      var fill = h('div', { class: 'fill' });
+      fill.style.width = Math.max(3, Math.round((r.tokensSaved || r.blocks) / max * 100)) + '%';
+      var txt = num(r.blocks) + ' barrados · ~' + num(r.tokensSaved) + ' tok' + (priced && r.tokensSaved ? ' · aprox. ' + usd(r.tokensSaved / 1e6 * sv.inPerMtok) : '');
+      var name = h('span', { text: r.name });
+      name.title = r.root;
+      box.appendChild(h('div', { class: 'bar' }, [name, h('div', { class: 'track' }, [fill]), h('span', { class: 'n', text: txt })]));
+    });
+    var foot = 'Conta só os eventos gravados com a pasta do repositório; o histórico anterior' + (st.noRepo && (st.noRepo.blocks + st.noRepo.trims + st.noRepo.dups + st.noRepo.scouts) ? ' (' + num(st.noRepo.blocks + st.noRepo.trims + st.noRepo.dups + st.noRepo.scouts) + ' eventos)' : '') + ' não é repartido.'
+      + (st.reposTotal > repos.length ? ' Mostrando os ' + repos.length + ' que mais pouparam de ' + st.reposTotal + '.' : '')
+      + (priced ? ' US$ = tokens × US$\u00a0' + String(sv.inPerMtok).replace('.', ',') + '/Mtok (preço de entrada do ' + sv.model + '), aproximado.' : '');
+    $('byrepo-foot').textContent = foot;
+  }
   function svg(paths, cls) {
     var el = document.createElementNS(SVG, 'svg');
     el.setAttribute('viewBox', '0 0 24 24'); el.setAttribute('aria-hidden', 'true'); el.setAttribute('focusable', 'false');

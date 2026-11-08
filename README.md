@@ -84,7 +84,7 @@ e é exatamente ela que este kit governa.
 | `mcp-cost.cjs` | Mede o custo fixo de preâmbulo dos servidores MCP declarados, por handshake real. |
 | `agents/scout.agent.md` | Sub-agente de investigação com contexto descartável. No alvo `claude` o instalador o grava em `~/.claude/agents/`: somente leitura (`disallowedTools`), até 30 turnos e `effort: medium`. O alvo `repo` o grava em `.github/agents/` sem esses campos, que só o Claude Code entende. Um scout seu, de outro conteúdo, é preservado; um scout nosso editado é substituído a cada instalação (edite uma cópia com outro nome). |
 | `skills/token-economy/SKILL.md` | O procedimento, em divulgação progressiva. |
-| `cli.cjs` | `init`, `audit`, `status`, `mcp`, `mcp-cost`, `contract`, `test` — a porta de entrada do `npx`. |
+| `cli.cjs` | `init`, `uninstall`, `audit`, `status`, `mcp`, `mcp-cost`, `contract`, `test` — a porta de entrada do `npx`. |
 | `install.cjs` | Instala em 6 alvos, com **merge** seguro de todo arquivo de config. |
 | `selftest.cjs` + `test/` | as suítes, em Node puro — descritas em [Testes](#testes). |
 
@@ -120,7 +120,8 @@ Depois:
 ```bash
 npx @allansantos-dev/token-guard audit     # veja o tamanho do problema neste repo
 npx @allansantos-dev/token-guard test      # o núcleo, contra o hook real
-npx @allansantos-dev/token-guard status    # configuração ativa, bloqueios e tokens poupados (--json para script)
+npx @allansantos-dev/token-guard status    # configuração ativa, bloqueios e tokens poupados, também neste repositório (--json para script)
+npx @allansantos-dev/token-guard uninstall --dry-run   # lista o que o init gravou e seria removido; sem --dry-run remove
 ```
 
 Reinicie a sessão do agente para carregar o hook.
