@@ -332,6 +332,16 @@ console.log('\n  [codex] ponte mcp_tool -> servidor MCP do token-guard');
     (cfg2.match(/\[mcp_servers\.token-guard\]/g) || []).length === 1 && !cfg2.includes('C:/velho') &&
     !cfg2.includes('token-guard.env') && cfg2.includes('[profiles.fim]\r\nmodel = "y"') && cfg2.startsWith(cfgBefore), cfg2);
 
+  // Bloco gerenciado de terceiro colado na nossa tabela: o comentário de abertura
+  // é dele e sobrevive a toda reinstalação.
+  const foreign = '# >>> client-harness (gerenciado; não edite) >>>\r\n[mcp_servers.client-harness]\r\nurl = "http://127.0.0.1:1/mcp"\r\n# <<< client-harness <<<\r\n';
+  fs.writeFileSync(cfgPath, cfgBefore + '\r\n[mcp_servers.token-guard]\r\ncommand = "node"\r\nargs = ["C:/velho/mcp-server.cjs"]\r\n' + foreign, 'utf8');
+  runInstall(['--target', 'codex', repo], ENV);
+  runInstall(['--target', 'codex', repo], ENV);
+  const cfg3 = fs.readFileSync(cfgPath, 'utf8');
+  check('bloco de terceiro colado na tabela: byte a byte após reinstalar duas vezes',
+    cfg3.endsWith(foreign) && (cfg3.match(/\[mcp_servers\.token-guard\]/g) || []).length === 1 && !cfg3.includes('C:/velho'), cfg3);
+
   // --mode: ~/.codex não é home de config — vai para ~/.token-guard, que o loader lê.
   runInstall(['--target', 'codex', '--mode', 'off', repo], ENV);
   const tgCfg = path.join(home, '.token-guard', 'token-guard.config.json');

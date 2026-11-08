@@ -883,7 +883,8 @@ function upsertTomlTable(file, table, bodyLines, base, label) {
       break;
     }
     let blockEnd = end;
-    while (blockEnd > start + 1 && lines[blockEnd - 1].trim() === '') blockEnd--; // brancos ficam fora do bloco
+    // Brancos e comentários finais pertencem ao que vem depois (ex.: marcador de bloco gerenciado de terceiro).
+    while (blockEnd > start + 1 && /^\s*(#.*)?$/.test(lines[blockEnd - 1])) blockEnd--;
     next = [...lines.slice(0, start), ...wanted, ...lines.slice(blockEnd)].join(eol);
   }
   if (next === prev) { skipped.push(`${rel(base, file)} ([${table}] ja registrado)`); return; }
