@@ -10,6 +10,10 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   os mesmos números da tela de setup e do ícone.
 - **`token-guard cost --here`.** Custo só das sessões do repositório atual (a pasta com `.git` acima de onde o
   comando roda, e as subpastas dela), em vez de todos os projetos da máquina num total só.
+- **Tokens poupados em US$ aproximados.** O `status` e a tela de setup convertem os tokens poupados pelo preço de
+  entrada do primeiro modelo de `cost.prices` (na tabela padrão, Opus 5.5 a US$ 4/Mtok) e mostram a conta usada. É
+  estimativa sobre estimativa: os tokens já são estimados, lidos do cache custariam menos e, se ficassem no contexto,
+  seriam relidos a cada turno.
 
 ### Corrigido
 - **Reinstalar no Codex não desloca mais os hooks de terceiros.** A entrada do token-guard em `hooks.json` é

@@ -203,6 +203,10 @@ const csrfOf = (html) => /name="tg-csrf" content="([^"]+)"/.exec(html)?.[1];
     await postJson('/token-guard/post', { tool_name: 'Grep', tool_input: {}, tool_response: 'g'.repeat(90000), cwd: TMP, session_id: 'ui-t' });
     const trim = await screen.waitFor((e) => e.event === 'snapshot' && e.data.stats.total.tokensSaved > 10000);
     check('o corte do bigResult entra nos tokens poupados (medidos)', Boolean(trim), trim && trim.data.stats.total);
+    const sv = trim && trim.data.savings;
+    check('a tela recebe os tokens poupados em US$, marcados como aproximados, com a conta (modelo, preço de entrada, fonte)',
+      sv && sv.approximate === true && sv.model === 'opus-5-5' && sv.inPerMtok === 4 && sv.source === 'tabela padrão' &&
+      Math.abs(sv.total - (trim.data.stats.total.tokensSaved * 4) / 1e6) < 1e-9 && Math.abs(sv.today - (trim.data.stats.today.tokensSaved * 4) / 1e6) < 1e-9, sv);
 
     await req('POST', '/token-guard/ui/api/config', { headers: { cookie, 'x-tg-csrf': csrf }, body: { mode: 'off' } });
     const trayOff = await tray.waitFor((e) => e.event === 'tray' && e.data.state === 'off');

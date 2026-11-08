@@ -34,12 +34,13 @@ Candidatos da lente irmã da 2.18.2, aprovados pelo dono (pergunta 674497) e con
 |---|-----------|-----------|
 | L6 | `token-guard status` mostrar bloqueios e tokens poupados (hoje e total), que só apareciam na tela de setup e no ícone | `cli.cjs` lê `lib/events.cjs:summary` e imprime as linhas "barrados" e "tokens poupados"; `test/status.test.cjs` falha sem a mudança |
 | L7 | `token-guard cost --here`: custo só das sessões cujo `cwd` está dentro do repositório atual | `lib/cost.cjs`: `repoRoot` (pasta com `.git` acima do diretório atual) e `analyze({within})` filtra por `isWithin`; `test/cost.test.cjs` falha sem a mudança |
+| L8 | Tokens poupados também em US$ estimados na tela de setup e no `status` (tokens × preço de entrada de `cost.prices`); o texto precisa dizer que é estimativa sobre estimativa | `lib/cost.cjs`: `pricesFrom` (uma só leitura de `cost.prices`, reusada por `cost.cjs` e `ctxwatch`) e `savingsUsd` (preço de entrada do primeiro modelo da tabela, marcado `approximate`); `status` imprime a conta e a fonte, o estado da tela traz `savings`; `test/status.test.cjs` e `test/setup-ui.test.cjs` falham sem a mudança |
 
 ## Em construção (aprovados, pergunta 674497)
 
-| # | Candidato | Esforço | Decisão |
-|---|-----------|---------|---------|
-| L8 | Tokens poupados também em US$ estimados na tela de setup e no `status` (tokens × preço de entrada de `cost.prices`); o texto precisa dizer que é estimativa sobre estimativa | S–M | aprovado, em construção |
+| # | Item | Esforço | Situação |
+|---|------|---------|----------|
+| P1 | Paridade da tela de setup com L6/L7/L8: o daemon expõe os dados (estado com `savings`, rota de custo por repositório) e a tela integra o desenho da Smart Design | M | API em construção; desenho pedido ao orquestrador |
 
 ## Fechado na release 2.18.2
 

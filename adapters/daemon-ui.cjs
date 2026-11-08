@@ -25,6 +25,7 @@ const CFG = require('../lib/config.cjs');
 const CE = require('../lib/config-edit.cjs');
 const EV = require('../lib/events.cjs');
 const CAT = require('../lib/catalog.cjs');
+const COST = require('../lib/cost.cjs');
 
 const BASE = '/token-guard';
 const TICKET_TTL_MS = 60 * 1000;
@@ -109,6 +110,7 @@ function create({ token, version, getPort, startedAt = Date.now(), onSaved }) {
         fileError: user.ok ? null : user.error,
       },
       stats,
+      savings: COST.savingsUsd({ today: stats.today.tokensSaved, total: stats.total.tokensSaved }, COST.pricesFrom(cfg)),
       catalog: { rules: CAT.RULES, targets: CAT.TARGETS },
     };
   }

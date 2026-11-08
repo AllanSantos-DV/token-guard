@@ -18,7 +18,7 @@ function flag(argv, name) {
 async function main() {
   const argv = process.argv.slice(2);
   const cfg = CFG.load(process.cwd());
-  const prices = (cfg.cost && cfg.cost.prices && typeof cfg.cost.prices === 'object') ? cfg.cost.prices : COST.DEFAULT_PRICES;
+  const prices = COST.pricesFrom(cfg);
   const top = Number(flag(argv, '--top')) > 0 ? Number(flag(argv, '--top')) : 10;
   const dir = flag(argv, '--dir');
   const within = argv.includes('--here') ? COST.repoRoot(process.cwd()) : null;

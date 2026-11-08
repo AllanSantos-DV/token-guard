@@ -58,14 +58,22 @@ async function printUpdateNotice(prefix) {
 
 const approxTokens = (n) => (n >= 1e6 ? `~${(n / 1e6).toFixed(1).replace('.', ',')}M` : n >= 1e3 ? `~${Math.round(n / 1e3)}k` : String(n));
 
-/** Linhas de bloqueios e tokens poupados, hoje e total, de `events.summary()`. */
-function savingsLines(s) {
+const twoDecimals = (n) => n.toFixed(2).replace('.', ',');
+
+/** Linhas de bloqueios e tokens poupados, hoje e total, de `events.summary()`, com a estimativa em US$ e a conta usada. */
+function savingsLines(s, prices) {
   if (!s.since) return ['  barrados:        nenhum registrado ainda (todas as sessões desta máquina)'];
   const since = new Date(s.since).toLocaleDateString('pt-BR');
   return [
     `  barrados:        hoje ${s.today.blocks} · total ${s.total.blocks} desde ${since} (todas as sessões desta máquina)`,
     `  tokens poupados: hoje ${approxTokens(s.today.tokensSaved)} · total ${approxTokens(s.total.tokensSaved)} (cortes e releituras evitadas, a 4 caracteres por token)`,
+    usdLine(require('./lib/cost.cjs').savingsUsd({ today: s.today.tokensSaved, total: s.total.tokensSaved }, prices)),
   ];
+}
+
+function usdLine(u) {
+  if (!u) return '  em US$:          sem estimativa (o primeiro modelo de cost.prices não tem preço de entrada "in")';
+  return `  em US$ (aprox.): hoje ≈ US$ ${twoDecimals(u.today)} · total ≈ US$ ${twoDecimals(u.total)} — estimativa: tokens × US$ ${String(u.inPerMtok).replace('.', ',')}/Mtok (entrada de ${u.model}, ${u.source})`;
 }
 
 async function status(args) {
@@ -93,7 +101,7 @@ async function status(args) {
     console.log('  ATENÇÃO: o guard está DESLIGADO (mode "off" ou TOKEN_GUARD=off).');
   }
   try {
-    for (const line of savingsLines(require('./lib/events.cjs').summary())) console.log(line);
+    for (const line of savingsLines(require('./lib/events.cjs').summary(), require('./lib/cost.cjs').pricesFrom(cfg))) console.log(line);
   } catch (e) {
     console.log(`  economia:        não foi possível ler os eventos (${e.message})`);
   }
