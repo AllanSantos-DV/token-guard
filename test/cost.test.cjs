@@ -81,6 +81,22 @@ async function main() {
   const s2 = r2.sessions.find((x) => x.sessionId === 's2');
   check('escrita de cache sem quebra por TTL conta como 5 min (não superestima)', near(s2.agg.usd, 2 * 1.25), String(s2.agg.usd));
 
+  console.log('\n  [tabela padrão: preços oficiais por modelo]');
+  const use = (f) => ({ input: 0, output: 0, cacheRead: 0, cacheWrite5m: 0, cacheWrite1h: 0, ...f });
+  const usd = (model, f) => COST.callCost(use(f), COST.priceOf(model, COST.DEFAULT_PRICES));
+  check('Opus 5.5: entrada 4, saída 20, cache lido 0,05× (0,20)', near(usd('claude-opus-5-5', { input: 1e6 }), 4) &&
+    near(usd('claude-opus-5-5', { output: 1e6 }), 20) && near(usd('claude-opus-5-5', { cacheRead: 1e6 }), 0.2),
+    String(usd('claude-opus-5-5', { cacheRead: 1e6 })));
+  check('Sonnet 5.5 (id do Vertex): entrada 2, cache lido 0,10', near(usd('vertex_ai.anthropic.claude-sonnet-5-5', { input: 1e6 }), 2) &&
+    near(usd('vertex_ai.anthropic.claude-sonnet-5-5', { cacheRead: 1e6 }), 0.1));
+  check('Fable 5.1: entrada 10, saída 50, cache lido 0,025× (0,25)', near(usd('claude-fable-5-1', { input: 1e6, output: 1e6 }), 60) &&
+    near(usd('claude-fable-5-1', { cacheRead: 1e6 }), 0.25));
+  check('Haiku 5.5 até 100k de prompt: 0,10 de entrada e 0,01 de cache lido', near(usd('claude-haiku-5-5', { input: 50000 }), 0.005) &&
+    near(usd('claude-haiku-5-5', { cacheRead: 100000 }), 0.001));
+  check('Haiku 5.5 acima de 100k de prompt: faixa 0,50/2,50 na chamada inteira', near(usd('claude-haiku-5-5', { input: 150000, output: 1000 }), 0.075 + 0.0025));
+  check('modelo anterior da família segue a tabela da família (Opus 4.7: 5/25, cache 0,1×)', near(usd('claude-opus-4-7', { input: 1e6, cacheRead: 1e6 }), 5.5));
+  check('relatório mostra o fator de cache próprio do modelo', /opus-5-5 4\/20 \(cache 0,05×\)/.test(COST.renderText(r, { prices: COST.DEFAULT_PRICES })));
+
   console.log('');
   console.log(`  ${pass} passaram · ${fail} falharam`);
   try { fs.rmSync(root, { recursive: true, force: true }); } catch { /* ignore */ }

@@ -14,6 +14,11 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   bloco gerenciado por outra ferramenta. Agora os comentários finais ficam com o que vem depois, intactos.
 - **O aviso de contexto pesado usa os preços da config.** O custo por turno do aviso vinha de uma tabela fixa e
   ignorava `cost.prices`; agora segue a mesma tabela do `token-guard cost`.
+- **Tabela padrão de preços atualizada para a página oficial.** Opus 5.5 4/20, Sonnet 5.5 2/10, Fable 5.1 10/50 e
+  Haiku 5.5 em duas faixas (0,10/0,50 até 100k de prompt, 0,50/2,50 acima), com a leitura de cache de cada modelo
+  (0,05× no Opus e no Sonnet 5.5, 0,025× no Fable 5.1). Antes tudo saía a 5/25, 3/15 ou 1/5 com cache a 0,1×, o que
+  inflava o `token-guard cost` e o custo do aviso de contexto. Modelos anteriores seguem a tabela da família;
+  `cost.prices` aceita `cacheRead` e `long` por modelo.
 
 ### Alterado
 - **Metadados do pacote sem nome pessoal.** `author` (package.json, plugin.json) e o aviso de copyright da licença

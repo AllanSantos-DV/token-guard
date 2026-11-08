@@ -39,7 +39,7 @@ check('abaixo do limite: sem aviso', CW.check(args) === null);
 
 write(turn(50000), turn(130000));
 const first = CW.check(args);
-check('cruzou 120k: avisa com tamanho e custo', /~130k/.test(first || '') && /US\$ 0\.07/.test(first), String(first));
+check('cruzou 120k: avisa com tamanho e custo de cache lido do Opus 5.5', /~130k/.test(first || '') && /US\$ 0\.03/.test(first), String(first));
 check('mesmo degrau: não repete', CW.check(args) === null);
 
 write(turn(130000), turn(200000));
