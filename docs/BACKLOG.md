@@ -26,15 +26,20 @@ Nenhum é item técnico em aberto. L2, L3 e L4 foram feitos na 2.15.1 (tabela ab
 | L1 | Reenvio de `postprocess` devolvendo a mesma resposta guardada por `requestKey` | **Decidido (Jarvis, 03/11):** não feito. O contrato da 2.15.1 é entregar o `postprocess` no máximo uma vez por pedido; repetir uma resposta guardada mudaria o que o usuário vê |
 | L5 | `token_guard_check` (MCP) não gravar `deny` para consulta que não bloqueia | **Decidido (Jarvis, 03/11):** não feito agora. O check do MCP continua gravando como hoje e a contagem que o usuário vê não muda |
 
-## Awaiting owner decision (pending question 674497)
+## Decidido (Jarvis, 2026-11-08)
 
-Candidatos da lente irmã da 2.18.2. Decisão do dono (mudam o que o usuário vê; não entram sem ele); não são backlog técnico e não afetam a 2.18.2. O único técnico da lente (L9) foi feito; a decisão está no board `boards/backlog-l6-l7-l8.html` (gerado por `boards/backlog-l6-l7-l8.gen.mjs`).
+Candidatos da lente irmã da 2.18.2, aprovados pelo dono (pergunta 674497) e construídos na mesma versão; a tela de setup mostra os mesmos dados que a CLI. Base da decisão: board `boards/backlog-l6-l7-l8.html` (gerado por `boards/backlog-l6-l7-l8.gen.mjs`).
+
+| # | Candidato | Resolução |
+|---|-----------|-----------|
+| L6 | `token-guard status` mostrar bloqueios e tokens poupados (hoje e total), que só apareciam na tela de setup e no ícone | `cli.cjs` lê `lib/events.cjs:summary` e imprime as linhas "barrados" e "tokens poupados"; `test/status.test.cjs` falha sem a mudança |
+
+## Em construção (aprovados, pergunta 674497)
 
 | # | Candidato | Esforço | Decisão |
 |---|-----------|---------|---------|
-| L6 | `token-guard status` mostrar bloqueios e tokens poupados (hoje e total), que hoje só aparecem na tela de setup e no ícone. Peças: `lib/events.cjs:summary`, `cli.cjs` | S | aguarda o dono (pergunta 674497) |
-| L7 | `token-guard cost --here`: custo só das sessões cujo `cwd` está dentro do repositório atual. Peças: `lib/cost.cjs:analyze`/`readTranscript` (já guardam o `cwd`) | S | aguarda o dono (pergunta 674497) |
-| L8 | Tokens poupados também em US$ estimados na tela de setup e no `status` (tokens × preço de entrada de `cost.prices`); o texto precisa dizer que é estimativa sobre estimativa | S–M | aguarda o dono (pergunta 674497) |
+| L7 | `token-guard cost --here`: custo só das sessões cujo `cwd` está dentro do repositório atual. Peças: `lib/cost.cjs:analyze`/`readTranscript` (já guardam o `cwd`) | S | aprovado, em construção |
+| L8 | Tokens poupados também em US$ estimados na tela de setup e no `status` (tokens × preço de entrada de `cost.prices`); o texto precisa dizer que é estimativa sobre estimativa | S–M | aprovado, em construção |
 
 ## Fechado na release 2.18.2
 

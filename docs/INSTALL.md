@@ -76,7 +76,7 @@ node install.cjs --target all
 ```bash
 npm test                       # todas as suítes (no clone do repositório)
 npx @allansantos-dev/token-guard test           # o núcleo, contra o hook real
-npx @allansantos-dev/token-guard status         # config ativa
+npx @allansantos-dev/token-guard status         # config ativa, bloqueios e tokens poupados
 node install.cjs --target all --dry-run   # simulação sem escrever nada
 ```
 

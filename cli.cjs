@@ -56,6 +56,18 @@ async function printUpdateNotice(prefix) {
   } catch { /* aviso de update é best-effort, nunca pode quebrar status/--version */ }
 }
 
+const approxTokens = (n) => (n >= 1e6 ? `~${(n / 1e6).toFixed(1).replace('.', ',')}M` : n >= 1e3 ? `~${Math.round(n / 1e3)}k` : String(n));
+
+/** Linhas de bloqueios e tokens poupados, hoje e total, de `events.summary()`. */
+function savingsLines(s) {
+  if (!s.since) return ['  barrados:        nenhum registrado ainda (todas as sessões desta máquina)'];
+  const since = new Date(s.since).toLocaleDateString('pt-BR');
+  return [
+    `  barrados:        hoje ${s.today.blocks} · total ${s.total.blocks} desde ${since} (todas as sessões desta máquina)`,
+    `  tokens poupados: hoje ${approxTokens(s.today.tokensSaved)} · total ${approxTokens(s.total.tokensSaved)} (cortes e releituras evitadas, a 4 caracteres por token)`,
+  ];
+}
+
 async function status(args) {
   const root = path.resolve(args.find((a) => !a.startsWith('--')) || process.cwd());
   const CFG = require('./lib/config.cjs');
@@ -79,6 +91,11 @@ async function status(args) {
   if (cfg.mode === 'off') {
     console.log('');
     console.log('  ATENÇÃO: o guard está DESLIGADO (mode "off" ou TOKEN_GUARD=off).');
+  }
+  try {
+    for (const line of savingsLines(require('./lib/events.cjs').summary())) console.log(line);
+  } catch (e) {
+    console.log(`  economia:        não foi possível ler os eventos (${e.message})`);
   }
   try {
     const d = await require('./lib/daemon-status.cjs').inspect();

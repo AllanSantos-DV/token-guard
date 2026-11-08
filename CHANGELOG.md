@@ -5,6 +5,10 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [2.18.2] — 2026-11-08
 
+### Adicionado
+- **`token-guard status` mostra o que o guard barrou e poupou.** Bloqueios e tokens poupados de hoje e do total,
+  os mesmos números da tela de setup e do ícone.
+
 ### Corrigido
 - **Reinstalar no Codex não desloca mais os hooks de terceiros.** A entrada do token-guard em `hooks.json` é
   atualizada no lugar; antes ela ia para o fim e empurrava os hooks seguintes, e a aprovação do Codex, que é por
