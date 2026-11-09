@@ -175,6 +175,8 @@ function create({ token, version, getPort, startedAt = Date.now(), onSaved }) {
     const dir = path.dirname(CE.userConfigPath());
     fs.mkdirSync(dir, { recursive: true });
     watcher = fs.watch(dir, { persistent: false }, (_t, name) => {
+      // No Windows a pasta apagada vira uma enxurrada de eventos `rename` sem fim, sem `error`: um núcleo a 100%.
+      if (!fs.existsSync(dir)) { try { watcher.close(); } catch { /* já fechado */ } return; }
       if (name === CFG.CONFIG_NAME) { CFG.clearMemo(); schedulePush(); }
       // Bloqueio registrado por outro processo (hook sem daemon, plugin do Copilot, Cursor, MCP).
       else if (name === 'events.jsonl') schedulePush();
@@ -182,8 +184,17 @@ function create({ token, version, getPort, startedAt = Date.now(), onSaved }) {
     watcher.on('error', () => {});
   } catch { /* sem watch, a tela ainda atualiza quando ela mesma grava */ }
 
-  heartbeat = setInterval(() => { for (const c of clients) { try { c.res.write(': ping\n\n'); } catch { /* idem */ } } }, HEARTBEAT_MS);
-  if (heartbeat.unref) heartbeat.unref();
+  /** O ping só existe enquanto há alguém ouvindo: sem cliente, o daemon ocioso não acorda. */
+  function startHeartbeat() {
+    if (heartbeat) return;
+    heartbeat = setInterval(() => { for (const c of clients) { try { c.res.write(': ping\n\n'); } catch { /* idem */ } } }, HEARTBEAT_MS);
+    if (heartbeat.unref) heartbeat.unref();
+  }
+
+  function dropClient(client) {
+    clients.delete(client);
+    if (!clients.size && heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+  }
 
   function hostOk(req) {
     const port = getPort();
@@ -228,7 +239,8 @@ function create({ token, version, getPort, startedAt = Date.now(), onSaved }) {
     res.write('retry: 2000\n\n');
     const client = { res, kind };
     clients.add(client);
-    req.on('close', () => clients.delete(client));
+    startHeartbeat();
+    req.on('close', () => dropClient(client));
     if (kind === 'tray') send(res, 'tray', trayView());
     else send(res, 'snapshot', snapshot());
   }

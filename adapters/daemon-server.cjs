@@ -302,27 +302,28 @@ function createServer(ctxOverride) {
   return server;
 }
 
-/** Sem `.unref()` de propósito: este timer é o que mantém o daemon vivo até decidir morrer. */
+/**
+ * Um único timer, reagendado para o instante exato em que a ociosidade venceria: o daemon acorda uma vez por
+ * janela de atividade, não a cada minuto. Sem `.unref()` de propósito: é ele que mantém o daemon vivo até decidir morrer.
+ */
 function scheduleIdleShutdown(server, lockFile, idleTimeoutMs, depsOverride) {
   const deps = {
     nowFn: Date.now,
-    setIntervalFn: setInterval,
-    clearIntervalFn: clearInterval,
+    setTimeoutFn: setTimeout,
     unlinkFn: (p) => { try { fs.unlinkSync(p); } catch { /* best-effort */ } },
     exitFn: (code) => process.exit(code),
     ...depsOverride,
   };
   if (!(idleTimeoutMs > 0)) return null;
-  const checkEveryMs = Math.min(idleTimeoutMs, 60000);
-  const timer = deps.setIntervalFn(() => {
-    if (deps.nowFn() - server.ctx.lastActivity < idleTimeoutMs) return;
-    deps.clearIntervalFn(timer);
+  const arm = (waitMs) => deps.setTimeoutFn(() => {
+    const idleFor = deps.nowFn() - server.ctx.lastActivity;
+    if (idleFor < idleTimeoutMs) { arm(idleTimeoutMs - idleFor); return; }
     process.stderr.write(`token-guard daemon ocioso por ${idleTimeoutMs}ms — encerrando.\n`);
     DL.noteExitReason(`ocioso por ${idleTimeoutMs}ms`);
     deps.unlinkFn(lockFile);
     server.close(() => deps.exitFn(0));
-  }, checkEveryMs);
-  return timer;
+  }, waitMs);
+  return arm(idleTimeoutMs - (deps.nowFn() - server.ctx.lastActivity));
 }
 
 /**

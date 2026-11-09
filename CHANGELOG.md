@@ -3,6 +3,15 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Corrigido
+- **Daemon ocioso não gasta mais CPU.** Com a pasta do perfil apagada, o `fs.watch` da tela de setup disparava
+  `rename` em laço no Windows (um núcleo a 100%); agora o watcher se fecha quando a pasta some.
+- **Sem timers de polling no daemon.** O autoencerramento por ociosidade é um único `setTimeout` reagendado para
+  o que falta da janela (antes um `setInterval` de 60 s) e o batimento do stream da tela só roda com clientes
+  conectados.
+
 ## [2.19.0] — 2026-11-08
 
 ### Adicionado

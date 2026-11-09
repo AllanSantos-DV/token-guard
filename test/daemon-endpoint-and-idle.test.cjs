@@ -63,34 +63,36 @@ function main() {
   // --- scheduleIdleShutdown ---
   {
     let now = 1_000_000;
-    let intervalCb = null;
-    let cleared = false;
+    let timeoutCb = null;
+    let armedFor = null;
+    let armedCount = 0;
     let exitedWith = null;
     let unlinkedPath = null;
-    let closeCb = null;
-    const fakeServer = { ctx: { lastActivity: now }, close: (cb) => { closeCb = cb; if (cb) cb(); } };
+    const fakeServer = { ctx: { lastActivity: now }, close: (cb) => { if (cb) cb(); } };
     const deps = {
       nowFn: () => now,
-      setIntervalFn: (cb) => { intervalCb = cb; return 'fake-timer'; },
-      clearIntervalFn: (t) => { if (t === 'fake-timer') cleared = true; },
+      setTimeoutFn: (cb, ms) => { timeoutCb = cb; armedFor = ms; armedCount++; return 'fake-timer'; },
       unlinkFn: (p) => { unlinkedPath = p; },
       exitFn: (code) => { exitedWith = code; },
     };
 
     const timer = scheduleIdleShutdown(fakeServer, '/tmp/fake.lock', 5000, deps);
-    check('scheduleIdleShutdown agenda um interval', timer === 'fake-timer');
-    check('checkEveryMs nunca excede idleTimeoutMs', typeof intervalCb === 'function');
+    check('scheduleIdleShutdown agenda um único timer', timer === 'fake-timer' && armedCount === 1);
+    check('o primeiro despertar é no instante em que a ociosidade venceria, não num intervalo fixo', armedFor === 5000, armedFor);
 
-    // Tick com atividade recente: não deve encerrar.
+    // Atividade no meio da janela: acorda, não encerra e reagenda só o que falta.
+    now += 3000;
     fakeServer.ctx.lastActivity = now;
-    intervalCb();
-    check('não encerra enquanto está dentro da janela de atividade', exitedWith === null && !cleared);
+    now += 2000;
+    timeoutCb();
+    check('não encerra enquanto está dentro da janela de atividade', exitedWith === null);
+    check('reagenda para o que falta da janela, sem polling', armedCount === 2 && armedFor === 3000, { armedCount, armedFor });
 
     // Avança o tempo além do idle timeout: deve encerrar.
     now += 6000;
-    intervalCb();
+    timeoutCb();
     check('encerra após exceder o idle timeout', exitedWith === 0);
-    check('cancela o próprio interval antes de encerrar', cleared === true);
+    check('não reagenda ao encerrar', armedCount === 2);
     check('remove o lockfile antes de encerrar', unlinkedPath === '/tmp/fake.lock');
   }
 
