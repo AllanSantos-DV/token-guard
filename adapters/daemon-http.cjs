@@ -33,13 +33,6 @@ function fixedPort() {
   return Number.isInteger(override) && override > 0 && override < 65536 ? override : null;
 }
 
-/** Porta preferida, estável por conta de usuário. */
-function defaultPort() {
-  let user;
-  try { user = os.userInfo().username; } catch { user = process.env.USERNAME || process.env.USER || 'default'; }
-  return 41000 + (crypto.createHash('sha1').update(String(user)).digest().readUInt32BE(0) % 8000);
-}
-
 /** Onde o daemon registra a porta em que o HTTP subiu de fato. */
 function endpointPath() {
   return path.join(os.homedir(), '.token-guard', 'daemon-http.json');
@@ -59,18 +52,18 @@ function writeJsonAtomic(file, obj) {
   fs.renameSync(tmp, file);
 }
 
-/** Porta que os clientes devem usar: a fixada, senão a registrada pelo daemon, senão a preferida. */
+/** Porta que os clientes devem usar: a fixada, senão a registrada pelo daemon; null = nenhum daemon subiu o http ainda. */
 function httpPort() {
   const rec = readEndpoint();
-  return fixedPort() || (rec && rec.port) || defaultPort();
+  return fixedPort() || (rec && rec.port) || null;
 }
 
-/** Ordem de bind: preferida, última registrada, qualquer livre (0). Fixada: só ela. */
+/** Ordem de bind: a última registrada, depois qualquer livre (0). Fixada: só ela. */
 function candidatePorts() {
   const fixed = fixedPort();
   if (fixed) return [fixed];
   const rec = readEndpoint();
-  return [...new Set([defaultPort(), rec && rec.port, 0].filter((p) => p !== null && p !== undefined))];
+  return rec ? [rec.port, 0] : [0];
 }
 
 /**
@@ -103,11 +96,20 @@ function claudeSettingsPath() {
   return path.join(os.homedir(), '.claude', 'settings.json');
 }
 
-const TG_URL_RE = /^http:\/\/127\.0\.0\.1:(\d+)(\/token-guard\/[a-z]+)$/;
+const TG_URL_RE = /^http:\/\/127\.0\.0\.1:(\d+)\/token-guard\/([a-z]+)(?:\?[^#]*)?$/;
+
+/**
+ * URL do hook http: a origem declarada (`hook-origin`) e o arquivo de execução que é dono da porta
+ * (`port-file`, relativo ao perfil) vão na query, que o roteador ignora. Porta 0 = ainda sem daemon;
+ * o daemon reescreve a URL com a porta em que subiu.
+ */
+function hookUrl(port, route) {
+  return `http://127.0.0.1:${port || 0}/token-guard/${route}?hook-origin=token-guard&port-file=~/.token-guard/daemon-http.json`;
+}
 
 /**
  * Reaponta os hooks http do token-guard no settings.json do Claude Code para
- * `port` — só esses, só se a porta mudou, gravação atômica. O watcher do
+ * `port` — só esses, só se a URL difere da canônica, gravação atômica. O watcher do
  * Claude Code relê hooks alterados no arquivo, então a sessão aberta segue o
  * daemon que voltou em outra porta.
  * @returns {{ok:true, changed:number} | {ok:false, error:string}}
@@ -124,7 +126,7 @@ function syncClaudeSettings(port, file = claudeSettingsPath()) {
     for (const entry of Array.isArray(entries) ? entries : []) {
       for (const h of Array.isArray(entry && entry.hooks) ? entry.hooks : []) {
         const m = h && h.type === 'http' && typeof h.url === 'string' ? TG_URL_RE.exec(h.url) : null;
-        if (m && Number(m[1]) !== port) { h.url = `http://127.0.0.1:${port}${m[2]}`; changed++; }
+        if (m && h.url !== hookUrl(port, m[2])) { h.url = hookUrl(port, m[2]); changed++; }
       }
     }
   }
@@ -228,6 +230,7 @@ function createHttpServer({ token, handle, onActivity, ui, version }) {
  */
 function probeHealth(port, token, timeoutMs = 500) {
   return new Promise((resolve) => {
+    if (!port) return resolve(null);
     const req = http.request({
       host: '127.0.0.1', port, path: HEALTH, method: 'GET', timeout: timeoutMs,
       headers: { 'x-token-guard': token },
@@ -250,6 +253,6 @@ function probeHealth(port, token, timeoutMs = 500) {
 
 module.exports = {
   probeHealth, createHttpServer, httpPort, httpTokenPath, readToken, sameToken,
-  fixedPort, defaultPort, candidatePorts, listenFirstFree,
+  fixedPort, candidatePorts, hookUrl, listenFirstFree,
   answer, endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
 };

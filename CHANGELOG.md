@@ -11,6 +11,16 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - **Sem timers de polling no daemon.** O autoencerramento por ociosidade é um único `setTimeout` reagendado para
   o que falta da janela (antes um `setInterval` de 60 s) e o batimento do stream da tela só roda com clientes
   conectados.
+- **Daemon de teste com http não fica órfão.** Com o hook http o daemon só se autoencerra se
+  `TOKEN_GUARD_DAEMON_IDLE_MS` for definido; a suíte define, então um `npm test` abortado não deixa processo vivo.
+  O daemon do usuário, sem a variável, segue sem ociosidade.
+
+### Alterado
+- **URL do hook http declara a origem e o dono da porta.** `?hook-origin=token-guard&port-file=~/.token-guard/daemon-http.json`;
+  o daemon reescreve a URL a cada início com a porta em que subiu, inclusive nas instalações antigas sem a query.
+- **Sem porta padrão no código.** O daemon sobe na porta registrada em `~/.token-guard/daemon-http.json` ou numa
+  livre escolhida pelo sistema (antes: uma porta preferida derivada do nome do usuário). Sem o arquivo, os clientes
+  não inventam porta e o `status` diz que ela não foi registrada.
 
 ## [2.19.0] — 2026-11-08
 

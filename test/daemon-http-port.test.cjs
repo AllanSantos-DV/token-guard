@@ -3,9 +3,11 @@
  * daemon-http-port.test.cjs — porta dinâmica do hook http (nada preso no endpoint antigo).
  *
  * Invariantes:
- *   · ordem de bind: preferida → última registrada → livre; fixada por env: só ela;
- *   · o daemon grava onde subiu (daemon-http.json) e reaponta os hooks http do
- *     token-guard no settings.json do Claude Code — só esses, só se mudou;
+ *   · ordem de bind: última registrada → livre; fixada por env: só ela; sem registro nem env
+ *     não há porta padrão (o sistema escolhe);
+ *   · o daemon grava onde subiu (daemon-http.json) e reescreve os hooks http do
+ *     token-guard no settings.json do Claude Code — só esses, só se a URL difere da canônica,
+ *     que declara hook-origin=token-guard e o port-file;
  *   · daemon que volta com a porta anterior ocupada sobe em outra e o
  *     settings.json acompanha; o SessionStart corrige settings.json defasado;
  *   · porta fixa ocupada: HTTP desligado com motivo registrado e o SessionStart
@@ -92,10 +94,13 @@ function writeSettings(port) {
   }, null, 2));
 }
 
-function tgPorts() {
+function tgUrls() {
   const s = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
-  return [s.hooks.PreToolUse[0].hooks[0].url, s.hooks.PostToolUse[0].hooks[0].url, s.hooks.UserPromptSubmit[0].hooks[0].url]
-    .map((u) => Number(/:(\d+)\//.exec(u)[1]));
+  return [s.hooks.PreToolUse[0].hooks[0].url, s.hooks.PostToolUse[0].hooks[0].url, s.hooks.UserPromptSubmit[0].hooks[0].url];
+}
+
+function tgPorts() {
+  return tgUrls().map((u) => Number(/:(\d+)\//.exec(u)[1]));
 }
 
 // Teto largo: com a máquina carregada o daemon leva mais de 6 s para subir, e ler o endpoint antigo daria falso negativo.
@@ -136,10 +141,11 @@ async function stop(child) {
 
   // 1 · ordem de candidatos
   fs.rmSync(DH.endpointPath(), { force: true });
-  check('sem registro: preferida e depois livre', JSON.stringify(DH.candidatePorts()) === JSON.stringify([DH.defaultPort(), 0]), DH.candidatePorts());
+  check('sem registro nem env: nenhuma porta padrão, o sistema escolhe', JSON.stringify(DH.candidatePorts()) === '[0]', DH.candidatePorts());
+  check('sem registro nem env: clientes não inventam porta', DH.httpPort() === null, DH.httpPort());
   DH.writeJsonAtomic(DH.endpointPath(), { port: 45678 });
-  check('com registro: preferida, registrada, livre',
-    JSON.stringify(DH.candidatePorts()) === JSON.stringify([DH.defaultPort(), 45678, 0]), DH.candidatePorts());
+  check('com registro: a registrada, depois livre',
+    JSON.stringify(DH.candidatePorts()) === JSON.stringify([45678, 0]), DH.candidatePorts());
   check('clientes usam a porta registrada', DH.httpPort() === 45678, DH.httpPort());
   process.env.TOKEN_GUARD_HTTP_PORT = '45999';
   check('porta fixada: só ela', JSON.stringify(DH.candidatePorts()) === '[45999]' && DH.httpPort() === 45999, DH.candidatePorts());
@@ -166,12 +172,16 @@ async function stop(child) {
     const r = DH.syncClaudeSettings(42222);
     const s = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
     check('reaponta os 3 hooks http do token-guard', r.ok && r.changed === 3 && tgPorts().every((p) => p === 42222), { r, ports: tgPorts() });
+    check('a URL reescrita declara a origem e o arquivo dono da porta', tgUrls().every((u, i) => u === DH.hookUrl(42222, ['pre', 'post', 'prompt'][i]) && /[?&]hook-origin=token-guard(&|$)/.test(u) && /[?&]port-file=~\/\.token-guard\/daemon-http\.json(&|$)/.test(u)), tgUrls());
     check('preserva hook http forasteiro, hook de comando e outras chaves',
       s.hooks.PreToolUse[0].hooks[1].url === 'http://127.0.0.1:41111/outro/pre' &&
       s.hooks.UserPromptSubmit[0].hooks[1].command === 'echo oi' && s.theme === 'dark', s);
     const before = fs.readFileSync(settingsFile, 'utf8');
     const again = DH.syncClaudeSettings(42222);
-    check('porta igual → não regrava', again.ok && again.changed === 0 && fs.readFileSync(settingsFile, 'utf8') === before, again);
+    check('URL já canônica → não regrava', again.ok && again.changed === 0 && fs.readFileSync(settingsFile, 'utf8') === before, again);
+    writeSettings(42222);
+    const legacy = DH.syncClaudeSettings(42222);
+    check('mesma porta sem a origem na URL → reescreve com a origem', legacy.ok && legacy.changed === 3 && tgUrls().every((u) => /hook-origin=token-guard/.test(u)), { legacy, urls: tgUrls() });
     fs.writeFileSync(settingsFile, '{ quebrado');
     const bad = DH.syncClaudeSettings(43333);
     check('JSON inválido → erro explícito, arquivo intocado', !bad.ok && /JSON/.test(bad.error) && fs.readFileSync(settingsFile, 'utf8') === '{ quebrado', bad);
@@ -192,16 +202,16 @@ async function stop(child) {
   fs.mkdirSync(path.dirname(DH.httpTokenPath()), { recursive: true });
   fs.writeFileSync(DH.httpTokenPath(), token);
   const sid = `http-port-${process.pid}`;
-  const defaultBlocker = await block(DH.defaultPort()); // null = já ocupada (ex.: daemon real da máquina)
   const recorded = await freePort();
   DH.writeJsonAtomic(DH.endpointPath(), { port: recorded });
-  writeSettings(DH.defaultPort());
+  writeSettings(await freePort());
 
   let d = startDaemon(sid);
   let ep = await waitEndpoint((e) => e.pid === d.pid);
-  check('preferida ocupada → sobe na última registrada', ep && ep.port === recorded && !ep.error, ep);
+  check('sobe na porta do arquivo de execução', ep && ep.port === recorded && !ep.error, ep);
   const p1 = await waitPorts(recorded);
   check('settings.json reapontado para a porta registrada', p1.every((p) => p === recorded), p1);
+  check('ao subir, o daemon reescreve a URL com a origem declarada', tgUrls().every((u, i) => u === DH.hookUrl(recorded, ['pre', 'post', 'prompt'][i])), tgUrls());
   let res = await post(recorded, claudeDeny, token);
   check('hook http responde na porta nova', res.status === 200 && /"deny"/.test(res.body), res);
   await stop(d);
@@ -211,7 +221,7 @@ async function stop(child) {
   d = startDaemon(sid);
   ep = await waitEndpoint((e) => e.pid === d.pid);
   const moved = ep && ep.port;
-  check('daemon volta com a porta anterior ocupada → sobe em outra livre', moved && moved !== recorded && moved !== DH.defaultPort() && !ep.error, ep);
+  check('daemon volta com a porta anterior ocupada → sobe em outra livre', moved && moved !== recorded && !ep.error, ep);
   const p2 = await waitPorts(moved);
   check('settings.json acompanha a porta nova (sessão aberta segue o daemon)', p2.every((p) => p === moved), p2);
   res = await post(moved, claudeDeny, token);
@@ -246,7 +256,6 @@ async function stop(child) {
   }
 
   recordedBlocker && recordedBlocker.close();
-  defaultBlocker && defaultBlocker.close();
   if (savedFixed !== undefined) process.env.TOKEN_GUARD_HTTP_PORT = savedFixed;
 
   console.log(`\n  daemon-http-port: ${pass} passaram · ${fail} falharam`);

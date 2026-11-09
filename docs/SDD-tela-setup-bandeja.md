@@ -21,7 +21,7 @@ Fora deste fluxo não entra nada no desenho principal. O que parece útil e não
 
 | Já existia | Uso |
 |---|---|
-| `adapters/daemon-http.cjs` (127.0.0.1, token `X-Token-Guard`, porta preferida com reserva) | a tela e o fluxo do ícone são rotas do mesmo servidor; nenhuma porta nova |
+| `adapters/daemon-http.cjs` (127.0.0.1, token `X-Token-Guard`, porta do arquivo de execução) | a tela e o fluxo do ícone são rotas do mesmo servidor; nenhuma porta nova |
 | `lib/config.cjs` (`load`, `activeRules`, `DEFAULTS`, cache de 2 s, merge dos homes globais) | ganhou `targets` e `ui.tray`; `load(root, target)` aplica o modo do IDE |
 | `lib/daemon-client.cjs` (`realSpawn`, `swapDaemon`), `lib/daemon-status.cjs` (`probeHealth`) | `token-guard setup` sobe o daemon, ou o reinicia por `swapDaemon` (espera o antigo sair), e confere a saúde |
 | `adapters/run-daemon.cmd` | o ícone sobe o daemon por ele quando o daemon está fora |

@@ -11,7 +11,7 @@ require('./bootstrap.cjs');
 const { spawnSync } = require('child_process');
 const path = require('path');
 const {
-  defaultEndpoint, defaultWindowsSid, scheduleIdleShutdown, idleTimeoutFromEnv,
+  defaultEndpoint, defaultWindowsSid, scheduleIdleShutdown, idleTimeoutFromEnv, idleTimeoutFor,
 } = require('../adapters/daemon-server.cjs');
 
 let pass = 0;
@@ -107,6 +107,13 @@ function main() {
   check('env vazio usa 10 min', idleTimeoutFromEnv('') === 600000);
   check('env inválido usa 10 min', idleTimeoutFromEnv('abc') === 600000);
   check('env numérico vale', idleTimeoutFromEnv('5000') === 5000);
+
+  // Com o hook http a ociosidade é opt-in: o daemon do usuário fica, o de teste (env explícito) sai.
+  check('com http e env ausente: não se autoencerra', idleTimeoutFor(undefined, true) === 0);
+  check('com http e env vazio: não se autoencerra', idleTimeoutFor('', true) === 0);
+  check('com http e env inválido: não se autoencerra', idleTimeoutFor('abc', true) === 0);
+  check('com http e env explícito: vale o env', idleTimeoutFor('15000', true) === 15000);
+  check('sem http e env ausente: 10 min', idleTimeoutFor(undefined, false) === 600000);
 
   console.log(`\n  daemon-endpoint-and-idle: ${pass} passaram · ${fail} falharam`);
   process.exit(fail ? 1 : 0);

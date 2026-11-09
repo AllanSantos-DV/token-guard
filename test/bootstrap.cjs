@@ -47,6 +47,7 @@ process.env.npm_config_cache = path.join(ISOLATED_HOME, 'npm-cache');
 process.env.USERPROFILE = ISOLATED_HOME;
 delete process.env.TOKEN_GUARD;
 process.env.TOKEN_GUARD_SID = `tg-test-${process.pid}`;
+// Explícito, vale também para o daemon com http: um `npm test` abortado não deixa daemon órfão.
 process.env.TOKEN_GUARD_DAEMON_IDLE_MS = SAVED.TOKEN_GUARD_DAEMON_IDLE_MS || '15000';
 // 4. Ícone da bandeja: a suíte nunca abre janela nem ícone; o teste do tray usa seams, nunca o helper real.
 process.env.TOKEN_GUARD_TRAY = 'off';

@@ -337,8 +337,7 @@ function ensureHttpToken() {
  */
 function registerClaudeHttp(settings, dir) {
   const token = ensureHttpToken();
-  const base = `http://127.0.0.1:${DH.httpPort()}/token-guard`;
-  const http = (route) => ({ type: 'http', url: `${base}/${route}`, headers: { 'X-Token-Guard': token }, timeout: 10 });
+  const http = (route) => ({ type: 'http', url: DH.hookUrl(DH.httpPort(), route), headers: { 'X-Token-Guard': token }, timeout: 10 });
   const wanted = {
     PreToolUse: { matcher: MATCHER_CLAUDE, hooks: [http('pre')] },
     PostToolUse: { hooks: [http('post')] },
@@ -349,7 +348,7 @@ function registerClaudeHttp(settings, dir) {
     settings.hooks[event] = [...withoutHooks(settings.hooks[event], isTokenGuardHook), entry];
   }
   if (Array.isArray(settings.allowedHttpHookUrls) && !settings.allowedHttpHookUrls.some((u) => String(u).includes('127.0.0.1'))) {
-    notes.push(`claude   · allowedHttpHookUrls está definido e não inclui ${base}/* — adicione, ou reinstale com --command-hooks.`);
+    notes.push(`claude   · allowedHttpHookUrls está definido e não inclui http://127.0.0.1:*/token-guard/* — adicione, ou reinstale com --command-hooks.`);
   }
 }
 

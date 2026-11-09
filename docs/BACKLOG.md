@@ -7,10 +7,12 @@
 
 ## Aberto
 
-Técnico, fora do escopo da correção de CPU ociosa (2026-11-09): daemon de teste com http (token no perfil) não tem
-autoencerramento por ociosidade, então um `npm test` abortado deixa o daemon vivo para sempre. Os dois órfãos
-medidos em 08/11 vieram de `test/daemon-http-port.test.cjs` (pipe `token-guard-http-port-<pid>`). Candidato: o
-`test/bootstrap.cjs` exportar `TOKEN_GUARD_DAEMON_IDLE_MS` curto, ou o daemon sair quando o pai de teste morrer.
+Fechado em develop (não lançado): daemon de teste com http não tinha autoencerramento por ociosidade, e um
+`npm test` abortado deixava o daemon vivo (os dois órfãos de 08/11 vieram de `test/daemon-http-port.test.cjs`).
+Agora o daemon com http honra `TOKEN_GUARD_DAEMON_IDLE_MS` explícito, que o `test/bootstrap.cjs` define.
+
+Fora do token-guard: o `tools/hook-audit.mjs` do orchestrador ainda marca os hooks http como `no-owner` e
+`literal-port`; a URL já declara `hook-origin=token-guard` e `port-file`, falta o audit ler essa declaração.
 
 Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 

@@ -35,6 +35,15 @@ function idleTimeoutFromEnv(raw) {
 const IDLE_TIMEOUT_MS = idleTimeoutFromEnv(process.env.TOKEN_GUARD_DAEMON_IDLE_MS);
 
 /**
+ * Ociosidade efetiva. Com o hook http o daemon é o único caminho dos hooks (conexão recusada é fail-open),
+ * então ele só sai por ociosidade se o env pedir um valor explícito, como a suíte de testes faz.
+ */
+function idleTimeoutFor(raw, http) {
+  const explicit = raw != null && String(raw).trim() !== '' && Number.isFinite(Number(raw));
+  return http && !explicit ? 0 : idleTimeoutFromEnv(raw);
+}
+
+/**
  * Fallback do SID no Windows: estável por usuário, equivalente ao
  * `process.uid` do ramo POSIX abaixo.
  * INVARIANTE: precisa render o MESMO valor que `stableWindowsSid()` de
@@ -496,9 +505,7 @@ function start(endpointOverride) {
     DL.writeLockRecord(lockFile, { pid: process.pid, protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION });
     sweepStaleLocks(path.dirname(lockFile), lockFile);
     // A16: com o token do usuário no perfil, serve também o hook http do
-    // Claude Code. Nesse modo o daemon é o ÚNICO caminho dos hooks — se ele
-    // saísse por ociosidade, a sessão seguiria sem guard (hook http com
-    // conexão recusada é fail-open). Então a ociosidade só vale sem HTTP.
+    // Claude Code; a ociosidade nesse modo segue idleTimeoutFor.
     const token = DH.readToken();
     if (token) {
       EV.trim();
@@ -549,7 +556,7 @@ function start(endpointOverride) {
       });
       server.once('close', () => { ui.close(); httpServer.close(); });
     }
-    scheduleIdleShutdown(server, lockFile, token ? 0 : IDLE_TIMEOUT_MS);
+    scheduleIdleShutdown(server, lockFile, idleTimeoutFor(process.env.TOKEN_GUARD_DAEMON_IDLE_MS, Boolean(token)));
   };
   // Já retried o listen uma vez após remover um socket órfão? Cobre o caso em
   // que o lock-record está ausente/corrompido (então `acquireLock` não marcou
@@ -647,5 +654,5 @@ module.exports = {
   createServer, dispatch, dispatchContract, dispatchPostprocess, handleMessage, start,
   scheduleIdleShutdown,
   defaultEndpoint, defaultWindowsSid, defaultLockPath, ruleSetHash, PROTOCOL_VERSION, PACKAGE_VERSION,
-  IDLE_TIMEOUT_MS, idleTimeoutFromEnv,
+  IDLE_TIMEOUT_MS, idleTimeoutFromEnv, idleTimeoutFor,
 };

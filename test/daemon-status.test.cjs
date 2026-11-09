@@ -57,7 +57,13 @@ async function main() {
   const r = await DS.inspect({ settingsFile: empty });
   check('inspect sem hook http registrado: veredito diz isso', /sem hook http registrado/.test(r.verdict), r.verdict);
   fs.writeFileSync(file, JSON.stringify({ hooks: { PreToolUse: [{ hooks: [{ type: 'http', url: 'http://127.0.0.1:1/token-guard/pre' }] }] } }));
+  const H = require('../adapters/daemon-http.cjs');
+  fs.rmSync(H.endpointPath(), { force: true });
+  const r0 = await DS.inspect({ settingsFile: file });
+  check('inspect sem arquivo de execução: diz que a porta não foi registrada, sem inventar uma', r0.http.port === null && /não registrou a porta/.test(r0.verdict), r0);
+  H.writeJsonAtomic(H.endpointPath(), { port: 45001 });
   const r2 = await DS.inspect({ settingsFile: file });
+  fs.rmSync(H.endpointPath(), { force: true });
   check('inspect com porta divergente: veredito aponta as duas portas', /aponta para 1 .* usa \d+/.test(r2.verdict), r2.verdict);
 
   console.log('\n  [inspectScout]');

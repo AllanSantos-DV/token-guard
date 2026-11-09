@@ -1,6 +1,7 @@
 'use strict';
 /**
- * daemon-idle-cpu.test.cjs — o daemon ocioso não gasta CPU, nem quando a pasta do perfil some.
+ * daemon-idle-cpu.test.cjs — o daemon ocioso não gasta CPU, nem quando a pasta do perfil some, e o
+ * daemon de teste com http sai sozinho por ociosidade (um `npm test` abortado não deixa órfão).
  *
  * Regressão da medição de 08/11: dois daemons de teste órfãos (HOME isolado apagado) usavam um núcleo
  * cada. No Windows o `fs.watch` da pasta de config, uma vez apagada a pasta, dispara `rename` em laço.
@@ -58,6 +59,22 @@ function cpuSeconds(pid) {
   } finally {
     try { d.kill(); } catch { /* já saiu */ }
     fs.rmSync(home, { recursive: true, force: true });
+  }
+  {
+    const home2 = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-idleexit-home-'));
+    fs.mkdirSync(path.join(home2, '.token-guard'), { recursive: true });
+    fs.writeFileSync(path.join(home2, '.token-guard', 'daemon-http.token'), 'tok-idle-exit\n');
+    const d2 = spawn(process.execPath, [DAEMON], {
+      env: { ...process.env, HOME: home2, USERPROFILE: home2, TOKEN_GUARD_SID: `idleexit-${process.pid}`, TOKEN_GUARD_DAEMON_IDLE_MS: '1500' },
+      stdio: 'ignore',
+    });
+    const exited = await Promise.race([new Promise((r) => d2.once('exit', () => r(true))), sleep(20000).then(() => false)]);
+    let httpUp = false;
+    try { httpUp = JSON.parse(fs.readFileSync(path.join(home2, '.token-guard', 'daemon-http.json'), 'utf8')).pid === d2.pid; } catch { /* checado abaixo */ }
+    check('o daemon de teste subiu o http', httpUp);
+    check('daemon com http e TOKEN_GUARD_DAEMON_IDLE_MS explícito sai sozinho por ociosidade', exited);
+    try { d2.kill(); } catch { /* já saiu */ }
+    fs.rmSync(home2, { recursive: true, force: true });
   }
   console.log(`\n  daemon-idle-cpu: ${pass} passaram · ${fail} falharam`);
   process.exit(fail ? 1 : 0);

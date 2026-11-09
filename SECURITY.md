@@ -19,12 +19,13 @@ faz com a sua máquina e os seus dados:
   que serve a mesma decisão por IPC, para os hooks não pagarem um `spawn` por evento.
   Escuta em named pipe local (`\\.\pipe\token-guard-<sid>`) no Windows ou socket UNIX
   (`$XDG_RUNTIME_DIR|/tmp/token-guard-<uid>.sock`, `chmod 700`) no POSIX. Autoencerra após
-  10 min sem requisição (`TOKEN_GUARD_DAEMON_IDLE_MS`; `0` ou negativo desativa) — exceto com o hook http
-  ligado (abaixo), quando ele é o único caminho dos hooks. Verificação da ACL do pipe:
+  10 min sem requisição (`TOKEN_GUARD_DAEMON_IDLE_MS`; `0` ou negativo desativa). Com o hook http
+  ligado (abaixo) ele é o único caminho dos hooks e só se autoencerra se `TOKEN_GUARD_DAEMON_IDLE_MS` for definido. Verificação da ACL do pipe:
   `scripts/verify-daemon-security.ps1`.
 - **Hook http do Claude Code** (desde a 2.6.0, `init --target claude`): o daemon também
-  escuta em **TCP `127.0.0.1`** (nunca em outra interface), numa porta preferida estável por usuário, com reserva (a última registrada,
-  depois uma livre) gravada em `~/.token-guard/daemon-http.json`.
+  escuta em **TCP `127.0.0.1`** (nunca em outra interface), na última porta registrada em `~/.token-guard/daemon-http.json`
+  (ou numa livre, que passa a ser a registrada). A cada início o daemon reescreve a URL dos hooks do token-guard no
+  `~/.claude/settings.json` com essa porta; a URL declara `hook-origin=token-guard` e `port-file`, o arquivo dono da porta.
   Toda requisição precisa do header `X-Token-Guard` com o token de
   `~/.token-guard/daemon-http.token` (32 bytes aleatórios, gravado pelo instalador com
   permissão só do dono, copiado para o `~/.claude/settings.json`); sem ele, 401 e nada é

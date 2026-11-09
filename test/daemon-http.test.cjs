@@ -51,8 +51,7 @@ const claudeDeny = { tool_name: 'Read', tool_input: { file_path: BIG }, cwd: TMP
 (async () => {
   console.log('\n  [daemon-http · hook http do Claude Code]');
 
-  check('porta estável e fora da faixa privilegiada',
-    DH.httpPort() === DH.httpPort() && DH.httpPort() >= 1024 && DH.httpPort() < 65536, DH.httpPort());
+  check('sem arquivo de execução, nenhuma porta padrão é inventada', DH.httpPort() === null, DH.httpPort());
 
   const token = 'tok-' + Math.random().toString(36).slice(2);
   const server = DH.createHttpServer({ token, handle: (msg) => DS.handleMessage(msg, { cache: new Map(), hits: 0, misses: 0, lastActivity: Date.now() }) });

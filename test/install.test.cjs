@@ -238,7 +238,10 @@ console.log('\n  [claude] hook http no daemon (A16) + SessionStart (A17)');
     const hs = tg(ev);
     check(`${ev}: exatamente 1 hook do token-guard, tipo http na rota /token-guard/${route}`,
       hs.length === 1 && hs[0].type === 'http' && /^http:\/\/127\.0\.0\.1:\d+\/token-guard\//.test(hs[0].url) &&
-      hs[0].url.endsWith(`/token-guard/${route}`), hs);
+      new URL(hs[0].url).pathname === `/token-guard/${route}`, hs);
+    check(`${ev}: a URL declara hook-origin=token-guard e o arquivo dono da porta`,
+      Boolean(hs[0]) && new URL(hs[0].url).searchParams.get('hook-origin') === 'token-guard' &&
+      new URL(hs[0].url).searchParams.get('port-file') === '~/.token-guard/daemon-http.json', hs[0]);
     check(`${ev}: header X-Token-Guard igual ao token do perfil`, Boolean(hs[0] && hs[0].headers && hs[0].headers['X-Token-Guard'] === token), hs[0]);
   }
   const preEntry = st.hooks.PreToolUse.find((e) => JSON.stringify(e).includes('/token-guard/pre'));

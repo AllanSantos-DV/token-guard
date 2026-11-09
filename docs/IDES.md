@@ -83,7 +83,7 @@ No hook de comando o Claude Code abre um processo Node a cada chamada — numa
 máquina com antivírus que inspeciona cada processo novo, é isso, não a decisão,
 que custa. Desde a 2.6.0 o `init --target claude` registra os três eventos como
 hook `type: "http"`: o Claude Code faz POST do mesmo JSON para o daemon em
-`127.0.0.1` (porta preferida estável por usuário, com reserva; token no header `X-Token-Guard`) e lê a
+`127.0.0.1` (porta registrada em `~/.token-guard/daemon-http.json`; token no header `X-Token-Guard`) e lê a
 resposta no mesmo formato. Um hook `SessionStart` de comando — um processo por
 **sessão** — deixa o daemon de pé antes da primeira ferramenta.
 
