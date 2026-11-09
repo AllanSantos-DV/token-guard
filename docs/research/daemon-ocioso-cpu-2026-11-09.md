@@ -5,8 +5,11 @@
    token http não tem autoencerramento por ociosidade, então nunca saem sozinhos.
 2. **CPU parada:** com a pasta do perfil apagada, o `fs.watch` da pasta de config (daemon-ui) recebe `rename` em
    laço no Windows, sem `error`. Reprodução isolada em `watch.cjs`: o laço só termina fechando o watcher.
-3. **Spawns de node:** os hooks reais do Claude Code já são `type: http` (porta lida do `daemon-http.json`); os
-   spawns `token-guard.cjs`/`post-hook.cjs` vêm da suíte de testes.
+3. **Spawns de node:** nenhum harness instalado chama `token-guard.cjs` ou `post-hook.cjs` por chamada: Claude Code
+   usa hooks `type: http`, Codex usa `mcp_tool` no servidor token-guard, e os dispatchers do Copilot não citam o
+   token-guard. Os spawns vêm da suíte de testes: 13.076 / 302 ≈ 43 e 8.483 / 138 ≈ 61 execuções completas,
+   compatível com 03/11 (dez releases, 2.16.0 a 2.17.0, cada uma com `npm test` local e gate). Os órfãos de
+   `test/daemon-http-port.test.cjs` (pipe `token-guard-http-port-<pid>`) eram os dois daemons.
 
 ## Antes e depois (daemon com http, perfil apagado, 4 s de amostra)
 - Antes: 3,48 s de CPU em 4 s. Depois: abaixo de 0,5 s (teste `daemon-idle-cpu.test.cjs`, 2 passaram).

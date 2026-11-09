@@ -7,6 +7,11 @@
 
 ## Aberto
 
+Técnico, fora do escopo da correção de CPU ociosa (2026-11-09): daemon de teste com http (token no perfil) não tem
+autoencerramento por ociosidade, então um `npm test` abortado deixa o daemon vivo para sempre. Os dois órfãos
+medidos em 08/11 vieram de `test/daemon-http-port.test.cjs` (pipe `token-guard-http-port-<pid>`). Candidato: o
+`test/bootstrap.cjs` exportar `TOKEN_GUARD_DAEMON_IDLE_MS` curto, ou o daemon sair quando o pai de teste morrer.
+
 Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 
 | # | Item | Esforço |
