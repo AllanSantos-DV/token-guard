@@ -25,3 +25,13 @@
 ## Como os docs anteriores foram aplicados
 - Investigação do orquestrador: forneceu a amostra de CPU e a atribuição node←node.
 - `tela-setup-bandeja-2026-10-30.md`: descreve o `fs.watch` da pasta de config e o stream da tela, onde está a causa.
+
+## Hook http em conformidade com o hook-audit
+- Fonte: documentação dos hooks do Claude Code (https://code.claude.com/docs/en/hooks, acesso 2026-11-09). O hook
+  `type: "http"` aceita uma URL arbitrária e não restringe a query; o roteador do daemon ignora a query.
+- A URL declara `hook-origin=token-guard` e `port-file=~/.token-guard/daemon-http.json`. A porta vem desse arquivo
+  ou é uma porta livre escolhida pelo sistema; o daemon reescreve a URL a cada início. O código não tem porta padrão.
+- O `hook-audit` do orchestrador lê a origem só de `--hook-origin=` num comando. Para o hook http ele precisa ler
+  a query da URL e aceitar a porta quando o `port-file` declarado existe e registra a mesma porta.
+- Um daemon com http só sai por ociosidade com `TOKEN_GUARD_DAEMON_IDLE_MS` explícito. A suíte define essa variável
+  em `test/bootstrap.cjs`, então uma execução abortada não deixa órfão; o daemon do usuário não tem a variável.
