@@ -13,21 +13,18 @@ Fechado na 2.19.1:
 
 Fechado na 2.19.2: L15, o dupRead no plugin do Copilot CLI/App (paridade técnica; zera a janela no início da sessão, em compactação, truncamento e rewind).
 
-Itens de negócio da lente irmã da 2.19.1, para o dono. Mudam o uso, então não foram construídos; nada técnico aberto. Recomendação em cada linha:
-
-| # | Proposta | Ganho | Esforço | Reusa | Recomendação |
-|---|----------|-------|---------|-------|--------------|
-| L16 | `token_guard_status` (MCP) com bloqueios e tokens poupados | Quem só usa o MCP (VS Code, Windsurf, Zed, JetBrains, Claude Desktop) vê a poupança | S | `adapters/mcp-server.cjs`, `lib/events.cjs:summary`/`forRepo`, `lib/cost.cjs:savingsUsd`, textos de `cli.cjs` movidos para `lib/` | sim: maior ganho por esforço |
-| L17 | `status` (CLI) com bloqueios por regra e por IDE | Ver quais regras trabalham sem abrir a tela | S | `lib/events.cjs:summary` (`byRule`, `byTarget`), `cli.cjs:status` | sim: dados já em `summary().byRule`/`byTarget` |
-| L18 | `token-guard check <ferramenta> '<json>'` | Testar o veredito e a reescrita de uma chamada no terminal | S | `adapters/mcp-server.cjs:token_guard_check`, `lib/decide.cjs:decide` | talvez: duplica o `token_guard_check` do MCP |
-| L19 | `token-guard replay` sobre os transcripts do usuário | Mostra o que o guard teria barrado, por regra, e os candidatos a falso positivo | M | `bench/replay-transcripts.cjs`, `lib/cost.cjs:listTranscripts`/`parseSince`, `lib/decide.cjs` | depois: estimativa heurística |
-| L20 | `audit` com a variação em relação à medição anterior | Mostra o crescimento do custo de varredura entre execuções | S | `lib/audit.cjs:writeCache`/`renderText`, `lib/config.cjs:repoStats` | talvez: só ajuda monorrepos |
+Itens de negócio da lente irmã da 2.19.1 (L16 a L20) entram na tabela abaixo: mudam o uso, esperam o dono e não têm parte técnica aberta.
 
 Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 
 | # | Item | Esforço |
 |---|------|---------|
 | B5 | **Decidido (Jarvis, 03/11):** o aviso, na sessão seguinte, de que existe uma instalação global antiga do token-guard (`npm i -g`) que o auto-update não gere é feature nova visível ao usuário e espera o dono. **Item de negócio, nada técnico aberto:** a parte técnica (a cópia global velha nesta máquina, trazida à versão candidata) está corrigida | S |
+| L16 | **Item de negócio, nada técnico aberto:** `token_guard_status` (MCP) com bloqueios e tokens poupados; Quem só usa o MCP (VS Code, Windsurf, Zed, JetBrains, Claude Desktop) vê a poupança. Recomendação: sim: maior ganho por esforço | S |
+| L17 | **Item de negócio, nada técnico aberto:** `status` (CLI) com bloqueios por regra e por IDE; Ver quais regras trabalham sem abrir a tela. Recomendação: sim: dados já em `summary().byRule`/`byTarget` | S |
+| L18 | **Item de negócio, nada técnico aberto:** `token-guard check <ferramenta> '<json>'`; Testar o veredito e a reescrita de uma chamada no terminal. Recomendação: talvez: duplica o `token_guard_check` do MCP | S |
+| L19 | **Item de negócio, nada técnico aberto:** `token-guard replay` sobre os transcripts do usuário; Mostra o que o guard teria barrado, por regra, e os candidatos a falso positivo. Recomendação: depois: estimativa heurística | M |
+| L20 | **Item de negócio, nada técnico aberto:** `audit` com a variação em relação à medição anterior; Mostra o crescimento do custo de varredura entre execuções. Recomendação: talvez: só ajuda monorrepos | S |
 
 Decidido pelo dono (2.19.0): poupança por repositório e `token-guard uninstall --dry-run` entram; zerar o contador de bloqueios e poupança (antigo B8) não entra, porque apagaria o histórico que a tela e o `status` mostram e o `trim` já limita o arquivo.
 
