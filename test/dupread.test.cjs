@@ -102,6 +102,32 @@ console.log('\n  [camada B · checkRepeat]');
     DR.dedupe({ ...a, result: res() }) === null);
 }
 
+// A24 — plugin do Copilot: ToolResultObject, reset da janela, fiação do adapter
+{
+  const inp = { path: path.join(TMP, 'Cop.md') };
+  const body = 'linha\n'.repeat(1000);
+  const res = () => ({ textResultForLlm: body, resultType: 'success' });
+  const a = { name: 'view', input: inp, root: TMP, sessionId: 'a24', cfg: cfg() };
+  check('A24a: primeira leitura (ToolResultObject) não é substituída', DR.dedupe({ ...a, result: res() }) === null);
+  const r2 = DR.dedupe({ ...a, result: res() });
+  check('A24b: releitura vira stub mantendo resultType e o formato do Copilot',
+    Boolean(r2) && r2.modifiedResult.resultType === 'success' &&
+    r2.modifiedResult.textResultForLlm.startsWith('[dupRead]') && r2.modifiedResult.textResultForLlm.length < 600,
+    JSON.stringify(r2 && r2.modifiedResult).slice(0, 200));
+  check('A24c: savedChars é o corpo trocado', r2.savedChars === body.length);
+  DR.resetSession(TMP, 'a24');
+  check('A24d: após compactação/nova sessão a releitura não vira stub', DR.dedupe({ ...a, result: res() }) === null);
+
+  const src = fs.readFileSync(path.join(__dirname, '..', 'adapters', 'copilot-cli.mjs'), 'utf8');
+  check('A24e: o adapter chama dedupe e registra a poupança dupRead',
+    /dedupe\(\{ \.\.\.call, sessionId: sid \}\)/.test(src) && /recordSaving\(ctx, "dup", "dupRead"/.test(src));
+  check('A24f: o adapter zera as leituras no início da sessão',
+    /onSessionStart:[\s\S]*?resetReads\(invocation\?\.sessionId\)/.test(src));
+  check('A24g: o adapter zera as leituras em compactação, truncamento e rewind',
+    /session\.compaction_complete/.test(src) && /session\.truncation/.test(src) && /session\.snapshot_rewind/.test(src) &&
+    /session\.on\(/.test(src));
+}
+
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch {}
 
 console.log('');

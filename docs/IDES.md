@@ -60,7 +60,9 @@ A força varia por harness:
 
 O dedupe de leitura (`dupRead`, `lib/dupread.cjs`) troca a releitura idêntica
 (≥ 2000 caracteres) na mesma janela por um ponteiro para a leitura anterior; no
-Claude Code o ponteiro substitui o resultado (`updatedToolOutput`).
+Claude Code o ponteiro substitui o resultado (`updatedToolOutput`) e no plugin do
+Copilot CLI/App ele substitui via `modifiedResult`; o plugin zera o mapa de leituras
+no início da sessão e em compactação, truncamento e rewind.
 
 Fonte externa que motivou a regra: outputs de ferramenta são apontados como o
 maior custo escondido de sessões agentivas; a Context Editing API da Anthropic

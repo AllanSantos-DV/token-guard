@@ -11,16 +11,17 @@ Fechado na 2.19.1:
 - O daemon de teste com http não se encerrava por ociosidade, e um `npm test` abortado deixava o processo vivo. Os dois órfãos de 08/11 vieram de `test/daemon-http-port.test.cjs`. Agora o daemon com http honra `TOKEN_GUARD_DAEMON_IDLE_MS` explícito, e `test/bootstrap.cjs` o define.
 - O `hook-audit` do orchestrador passou a ler `hook-origin` e `port-file` da URL do hook http.
 
-Propostas da lente irmã da 2.19.1, para o dono. Todas mudam o uso, então não foram construídas e não entram na 2.19.1:
+Fechado na 2.19.2: L15, o dupRead no plugin do Copilot CLI/App (paridade técnica; zera a janela no início da sessão, em compactação, truncamento e rewind).
 
-| # | Proposta | Ganho | Esforço | Reusa |
-|---|----------|-------|---------|-------|
-| L15 | dupRead no plugin do Copilot CLI/App | Releitura idêntica vira stub no harness em que o `modifiedResult` substitui o corpo | S/M | `adapters/copilot-cli.mjs:onPostToolUse`, `lib/dupread.cjs`, `lib/postresult.cjs:isToolResultObject`, `lib/events.cjs:recordSaving` |
-| L16 | `token_guard_status` (MCP) com bloqueios e tokens poupados | Quem só usa o MCP (VS Code, Windsurf, Zed, JetBrains, Claude Desktop) vê a poupança | S | `adapters/mcp-server.cjs`, `lib/events.cjs:summary`/`forRepo`, `lib/cost.cjs:savingsUsd`, textos de `cli.cjs` movidos para `lib/` |
-| L17 | `status` (CLI) com bloqueios por regra e por IDE | Ver quais regras trabalham sem abrir a tela | S | `lib/events.cjs:summary` (`byRule`, `byTarget`), `cli.cjs:status` |
-| L18 | `token-guard check <ferramenta> '<json>'` | Testar o veredito e a reescrita de uma chamada no terminal | S | `adapters/mcp-server.cjs:token_guard_check`, `lib/decide.cjs:decide` |
-| L19 | `token-guard replay` sobre os transcripts do usuário | Mostra o que o guard teria barrado, por regra, e os candidatos a falso positivo | M | `bench/replay-transcripts.cjs`, `lib/cost.cjs:listTranscripts`/`parseSince`, `lib/decide.cjs` |
-| L20 | `audit` com a variação em relação à medição anterior | Mostra o crescimento do custo de varredura entre execuções | S | `lib/audit.cjs:writeCache`/`renderText`, `lib/config.cjs:repoStats` |
+Itens de negócio da lente irmã da 2.19.1, para o dono. Mudam o uso, então não foram construídos; nada técnico aberto. Recomendação em cada linha:
+
+| # | Proposta | Ganho | Esforço | Reusa | Recomendação |
+|---|----------|-------|---------|-------|--------------|
+| L16 | `token_guard_status` (MCP) com bloqueios e tokens poupados | Quem só usa o MCP (VS Code, Windsurf, Zed, JetBrains, Claude Desktop) vê a poupança | S | `adapters/mcp-server.cjs`, `lib/events.cjs:summary`/`forRepo`, `lib/cost.cjs:savingsUsd`, textos de `cli.cjs` movidos para `lib/` | sim: maior ganho por esforço |
+| L17 | `status` (CLI) com bloqueios por regra e por IDE | Ver quais regras trabalham sem abrir a tela | S | `lib/events.cjs:summary` (`byRule`, `byTarget`), `cli.cjs:status` | sim: dados já em `summary().byRule`/`byTarget` |
+| L18 | `token-guard check <ferramenta> '<json>'` | Testar o veredito e a reescrita de uma chamada no terminal | S | `adapters/mcp-server.cjs:token_guard_check`, `lib/decide.cjs:decide` | talvez: duplica o `token_guard_check` do MCP |
+| L19 | `token-guard replay` sobre os transcripts do usuário | Mostra o que o guard teria barrado, por regra, e os candidatos a falso positivo | M | `bench/replay-transcripts.cjs`, `lib/cost.cjs:listTranscripts`/`parseSince`, `lib/decide.cjs` | depois: estimativa heurística |
+| L20 | `audit` com a variação em relação à medição anterior | Mostra o crescimento do custo de varredura entre execuções | S | `lib/audit.cjs:writeCache`/`renderText`, `lib/config.cjs:repoStats` | talvez: só ajuda monorrepos |
 
 Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 

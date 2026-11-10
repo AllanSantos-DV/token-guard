@@ -3,6 +3,14 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.19.2] — 2026-11-10
+
+### Corrigido
+- **Releitura idêntica vira ponteiro também no plugin do Copilot CLI/App.** O `dupRead` já valia no Claude Code;
+  agora o plugin troca a releitura (≥ 2000 caracteres) pelo stub via `modifiedResult` e registra a poupança. O
+  mapa de leituras é zerado no início da sessão e quando a janela perde conteúdo (compactação, truncamento,
+  rewind), para o stub nunca apontar para uma leitura que já saiu do contexto.
+
 ## [2.19.1] — 2026-11-10
 
 ### Corrigido

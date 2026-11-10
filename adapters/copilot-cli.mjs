@@ -35,6 +35,13 @@ const EV = require("../lib/events.cjs");
 const AUDIT = require("../lib/audit.cjs");
 const CT = require("../lib/contract.cjs");
 const { postProcess } = require("../lib/postresult.cjs");
+const { dedupe, resetSession, isRead } = require("../lib/dupread.cjs");
+
+/** Raízes onde o dedupe gravou mapa de leitura: o reset da janela apaga todas. */
+const dupRoots = new Set();
+function resetReads(sessionId) {
+  for (const root of dupRoots) resetSession(root, sessionId || "plugin");
+}
 
 let blocked = 0;
 let trimmed = 0;
@@ -142,6 +149,13 @@ const session = await joinSession({
      * teve bugs ignorando additionalContext em lifecycle hooks (#2142) —
      * se isso voltar, o sintoma é contrato ausente, jamais bloqueio.
      */
+    onSessionStart: async (input, invocation) => {
+      try {
+        dupRoots.add(input?.workingDirectory || process.cwd());
+        resetReads(invocation?.sessionId);
+      } catch { /* fail-open */ }
+    },
+
     onUserPromptSubmitted: async (_input, invocation) => {
       try {
         const root = process.cwd();
@@ -178,16 +192,18 @@ const session = await joinSession({
         // Evidência para o contrato (gatilhos codigo/teste/docs).
         CT.noteTouched(root, invocation?.sessionId || "plugin", input?.toolArgs);
 
-        const out = postProcess({
-          name: input?.toolName,
-          input: input?.toolArgs || {},
-          result: input?.toolResult,
-          root,
-          cfg,
-          target: "copilot",
-        });
+        const sid = invocation?.sessionId || "plugin";
+        const call = { name: input?.toolName, input: input?.toolArgs || {}, result: input?.toolResult, root, cfg };
+        const ctx = { root, target: "copilot", name: call.name, input: input?.toolArgs, charsPerToken: cfg.charsPerToken };
+        let out = postProcess({ ...call, target: "copilot" });
+        if (out) {
+          EV.recordTrim(ctx, out);
+        } else if (isRead(call.name)) {
+          out = dedupe({ ...call, sessionId: sid });
+          dupRoots.add(root);
+          if (out) EV.recordSaving(ctx, "dup", "dupRead", out.savedChars);
+        }
         if (!out) return null;
-        EV.recordTrim({ root, target: "copilot", name: input?.toolName, input: input?.toolArgs, charsPerToken: cfg.charsPerToken }, out);
         trimmed += 1;
         return {
           modifiedResult: out.modifiedResult,
@@ -199,6 +215,15 @@ const session = await joinSession({
     },
   },
 });
+
+const WINDOW_LOST = new Set(["session.compaction_complete", "session.truncation", "session.snapshot_rewind"]);
+try {
+  session.on((event) => {
+    if (WINDOW_LOST.has(event?.type)) {
+      try { resetReads(session.sessionId); } catch { /* fail-open */ }
+    }
+  });
+} catch { /* sem assinatura de eventos o stub só perde o reset, nunca derruba */ }
 
 try {
   const cfg = CFG.load(process.cwd(), "copilot");
