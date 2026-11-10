@@ -15,12 +15,12 @@ Propostas da lente irmã da 2.19.1, para o dono. Todas mudam o uso, então não 
 
 | # | Proposta | Ganho | Esforço | Reusa |
 |---|----------|-------|---------|-------|
-| L12 | dupRead no plugin do Copilot CLI/App | Releitura idêntica vira stub no harness em que o `modifiedResult` substitui o corpo | S/M | `adapters/copilot-cli.mjs:onPostToolUse`, `lib/dupread.cjs`, `lib/postresult.cjs:isToolResultObject`, `lib/events.cjs:recordSaving` |
-| L13 | `token_guard_status` (MCP) com bloqueios e tokens poupados | Quem só usa o MCP (VS Code, Windsurf, Zed, JetBrains, Claude Desktop) vê a poupança | S | `adapters/mcp-server.cjs`, `lib/events.cjs:summary`/`forRepo`, `lib/cost.cjs:savingsUsd`, textos de `cli.cjs` movidos para `lib/` |
-| L14 | `status` (CLI) com bloqueios por regra e por IDE | Ver quais regras trabalham sem abrir a tela | S | `lib/events.cjs:summary` (`byRule`, `byTarget`), `cli.cjs:status` |
-| L15 | `token-guard check <ferramenta> '<json>'` | Testar o veredito e a reescrita de uma chamada no terminal | S | `adapters/mcp-server.cjs:token_guard_check`, `lib/decide.cjs:decide` |
-| L16 | `token-guard replay` sobre os transcripts do usuário | Mostra o que o guard teria barrado, por regra, e os candidatos a falso positivo | M | `bench/replay-transcripts.cjs`, `lib/cost.cjs:listTranscripts`/`parseSince`, `lib/decide.cjs` |
-| L17 | `audit` com a variação em relação à medição anterior | Mostra o crescimento do custo de varredura entre execuções | S | `lib/audit.cjs:writeCache`/`renderText`, `lib/config.cjs:repoStats` |
+| L15 | dupRead no plugin do Copilot CLI/App | Releitura idêntica vira stub no harness em que o `modifiedResult` substitui o corpo | S/M | `adapters/copilot-cli.mjs:onPostToolUse`, `lib/dupread.cjs`, `lib/postresult.cjs:isToolResultObject`, `lib/events.cjs:recordSaving` |
+| L16 | `token_guard_status` (MCP) com bloqueios e tokens poupados | Quem só usa o MCP (VS Code, Windsurf, Zed, JetBrains, Claude Desktop) vê a poupança | S | `adapters/mcp-server.cjs`, `lib/events.cjs:summary`/`forRepo`, `lib/cost.cjs:savingsUsd`, textos de `cli.cjs` movidos para `lib/` |
+| L17 | `status` (CLI) com bloqueios por regra e por IDE | Ver quais regras trabalham sem abrir a tela | S | `lib/events.cjs:summary` (`byRule`, `byTarget`), `cli.cjs:status` |
+| L18 | `token-guard check <ferramenta> '<json>'` | Testar o veredito e a reescrita de uma chamada no terminal | S | `adapters/mcp-server.cjs:token_guard_check`, `lib/decide.cjs:decide` |
+| L19 | `token-guard replay` sobre os transcripts do usuário | Mostra o que o guard teria barrado, por regra, e os candidatos a falso positivo | M | `bench/replay-transcripts.cjs`, `lib/cost.cjs:listTranscripts`/`parseSince`, `lib/decide.cjs` |
+| L20 | `audit` com a variação em relação à medição anterior | Mostra o crescimento do custo de varredura entre execuções | S | `lib/audit.cjs:writeCache`/`renderText`, `lib/config.cjs:repoStats` |
 
 Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 
