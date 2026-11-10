@@ -35,3 +35,16 @@
   a query da URL e aceitar a porta quando o `port-file` declarado existe e registra a mesma porta.
 - Um daemon com http só sai por ociosidade com `TOKEN_GUARD_DAEMON_IDLE_MS` explícito. A suíte define essa variável
   em `test/bootstrap.cjs`, então uma execução abortada não deixa órfão; o daemon do usuário não tem a variável.
+
+## Prova da 2.19.1 no ambiente real (2026-11-10)
+- Artefato: o tarball do `npm pack` (o mesmo que o `npm publish` envia), extraído e instalado com
+  `init --target claude,codex`, os alvos registrados em `~/.token-guard/install-state.json`.
+- Depois da instalação: o arquivo de execução e as três URLs do hook http têm a mesma porta, e a URL traz
+  `hook-origin` e `port-file`. Um `ls -R` da sessão real foi barrado com a reescrita (`shellDump`). O servidor MCP
+  instalado do Codex nega pelo `token_guard_hook`, e o daemon parado mediu 0 a 0,02 s de CPU em 3 s.
+- O `hook-audit` do orchestrador lê a origem e o `port-file` da URL: os hooks http do token-guard saem com dono
+  e sem porta literal.
+- O hook `mcp_tool` não tem linha de comando, então a convenção do orchestrador (`src/hook-origin.mjs`, `IN_OUTPUT`)
+  pede a origem no começo da saída de erro. A falha do `token_guard_hook` passou a começar com
+  `[hook-origin=token-guard]`. O Codex trata erro de hook `mcp_tool` como falha do hook e deixa a chamada seguir
+  (ver `refusal-hook-decisions-2026-10.md`), então o comportamento continua fail-open.
