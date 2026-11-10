@@ -7,12 +7,20 @@
 
 ## Aberto
 
-Fechado em develop (não lançado): daemon de teste com http não tinha autoencerramento por ociosidade, e um
-`npm test` abortado deixava o daemon vivo (os dois órfãos de 08/11 vieram de `test/daemon-http-port.test.cjs`).
-Agora o daemon com http honra `TOKEN_GUARD_DAEMON_IDLE_MS` explícito, que o `test/bootstrap.cjs` define.
+Fechado na 2.19.1:
+- O daemon de teste com http não se encerrava por ociosidade, e um `npm test` abortado deixava o processo vivo. Os dois órfãos de 08/11 vieram de `test/daemon-http-port.test.cjs`. Agora o daemon com http honra `TOKEN_GUARD_DAEMON_IDLE_MS` explícito, e `test/bootstrap.cjs` o define.
+- O `hook-audit` do orchestrador passou a ler `hook-origin` e `port-file` da URL do hook http.
 
-Fora do token-guard: o `tools/hook-audit.mjs` do orchestrador ainda marca os hooks http como `no-owner` e
-`literal-port`; a URL já declara `hook-origin=token-guard` e `port-file`, falta o audit ler essa declaração.
+Propostas da lente irmã da 2.19.1, para o dono. Todas mudam o uso, então não foram construídas e não entram na 2.19.1:
+
+| # | Proposta | Ganho | Esforço | Reusa |
+|---|----------|-------|---------|-------|
+| L12 | dupRead no plugin do Copilot CLI/App | Releitura idêntica vira stub no harness em que o `modifiedResult` substitui o corpo | S/M | `adapters/copilot-cli.mjs:onPostToolUse`, `lib/dupread.cjs`, `lib/postresult.cjs:isToolResultObject`, `lib/events.cjs:recordSaving` |
+| L13 | `token_guard_status` (MCP) com bloqueios e tokens poupados | Quem só usa o MCP (VS Code, Windsurf, Zed, JetBrains, Claude Desktop) vê a poupança | S | `adapters/mcp-server.cjs`, `lib/events.cjs:summary`/`forRepo`, `lib/cost.cjs:savingsUsd`, textos de `cli.cjs` movidos para `lib/` |
+| L14 | `status` (CLI) com bloqueios por regra e por IDE | Ver quais regras trabalham sem abrir a tela | S | `lib/events.cjs:summary` (`byRule`, `byTarget`), `cli.cjs:status` |
+| L15 | `token-guard check <ferramenta> '<json>'` | Testar o veredito e a reescrita de uma chamada no terminal | S | `adapters/mcp-server.cjs:token_guard_check`, `lib/decide.cjs:decide` |
+| L16 | `token-guard replay` sobre os transcripts do usuário | Mostra o que o guard teria barrado, por regra, e os candidatos a falso positivo | M | `bench/replay-transcripts.cjs`, `lib/cost.cjs:listTranscripts`/`parseSince`, `lib/decide.cjs` |
+| L17 | `audit` com a variação em relação à medição anterior | Mostra o crescimento do custo de varredura entre execuções | S | `lib/audit.cjs:writeCache`/`renderText`, `lib/config.cjs:repoStats` |
 
 Decisão do dono (muda como o usuário usa o produto; não entra sem ele):
 
