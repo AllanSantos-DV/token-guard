@@ -3,7 +3,7 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [2.19.1] — 2026-11-10
 
 ### Corrigido
 - **Daemon ocioso não gasta mais CPU.** Com a pasta do perfil apagada, o `fs.watch` da tela de setup disparava
