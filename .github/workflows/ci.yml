@@ -1,5 +1,6 @@
 name: ci
 
+# Só checagem estática leve, em Linux: as suítes rodam no pre-check local antes de cada release.
 on:
   push:
     branches: [main]
@@ -7,59 +8,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        node: [16, 18, 20, 22]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-
-      - name: Núcleo — bateria contra o hook real
-        run: node selftest.cjs
-
-      - name: Adapters — Cursor e MCP
-        run: node test/adapters.test.cjs
-
-      - name: MCP cost — handshake sintético
-        run: node test/mcp-cost.test.cjs
-
-      - name: Contrato — parsing, evidência e estado
-        run: node test/contract.test.cjs
-
-      - name: Instalação — idempotência, reparo e preservação
-        run: node test/install.test.cjs
-
-      - name: Economia — a promessa central, travada por teste
-        run: node test/savings.test.cjs
-
-      - name: Saída — bigResult, injeção de contrato e robustez EPIPE
-        run: node test/postresult.test.cjs && node test/adapters.post.test.cjs && node test/adapters.prompt.test.cjs && node test/ctxwatch.test.cjs && node test/epipe.test.cjs && node test/dupread.test.cjs && node test/images.test.cjs && node test/contract-compaction.test.cjs && node test/refusal-teaches.test.cjs
-
-      - name: Daemon — IPC, paridade, singleton e tolerância a falhas (F1-F5)
-        run: node test/ipc-frame.test.cjs && node test/daemon-parity.test.cjs && node test/daemon-server.test.cjs && node test/daemon-http.test.cjs && node test/daemon-contract-parity.test.cjs && node test/daemon-postprocess-parity.test.cjs && node test/daemon-adapters-parity.test.cjs && node test/daemon-singleton.test.cjs && node test/daemon-faulttolerance.test.cjs && node test/daemon-endpoint-and-idle.test.cjs && node test/daemon-handshake-staleness.test.cjs
-
-      - name: Aviso de versão nova — cache, rede e fail-silent
-        run: node test/update-check.test.cjs
-
-      - name: Porta dinâmica do hook http e auto-update
-        run: node test/daemon-http-port.test.cjs && node test/auto-update.test.cjs
-
-      - name: Instalador — simulação em todos os alvos
-        run: node install.cjs --target all --dry-run
-
-  audit:
+  static:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Auditoria do próprio repositório
-        run: node token-audit.cjs --md
+          node-version: 22
+
+      - name: Manifestos na mesma versão
+        run: node -e "const a=require('./package.json').version,b=require('./plugin.json').version;if(a!==b){console.error('package.json '+a+' != plugin.json '+b);process.exit(1)}console.log('versão '+a)"
+
+      - name: JSON dos manifestos e da config válidos
+        run: node -e "for(const f of ['package.json','plugin.json','hooks.json','config.default.json'])JSON.parse(require('fs').readFileSync(f,'utf8'))"

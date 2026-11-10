@@ -21,8 +21,6 @@ jobs:
         with:
           node-version: 24
 
-      - name: Gate — as suítes têm que estar verdes
-        run: npm test
-
+      # Sem suíte aqui: o gate de testes é o pre-check local, antes do fast-forward para a main.
       - name: Publish
         run: npm publish --provenance

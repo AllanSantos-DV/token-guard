@@ -36,9 +36,12 @@ daemon próprios: os testes não falam com o daemon do usuário. Nunca derrube o
 
 - Trabalho nasce em `develop`. Release: suítes verdes + backlog sem item técnico aberto, depois
   `develop` avança por fast-forward para `main`.
-- Versão em `package.json` + seção no `CHANGELOG.md`; tag `vX.Y.Z` criada **só em `main`**. O push da tag
-  dispara `.github/workflows/publish.yml` (gate `npm test` + `npm publish --provenance` por OIDC). Não
+- Versão em `package.json` e `plugin.json` + seção no `CHANGELOG.md`; tag `vX.Y.Z` criada **só em `main`**.
+  O push da tag dispara `.github/workflows/publish.yml` (só `npm publish --provenance` por OIDC). Não
   publique à mão.
+- GitHub Actions hospedado não roda suíte de teste nem usa runner Windows ou macOS: o gate de testes é o
+  `npm test` local, antes do fast-forward. No Actions fica só checagem estática leve em Linux (`ci.yml`) e a
+  publicação. `test/workflows.test.cjs` falha se um workflow ganhar runner fora de Linux ou passo de teste.
 - Cada tag ganha um GitHub Release com as notas da seção do CHANGELOG.
 - Pages: editar `index.html` no branch `gh-pages` e dar push; só conteúdo de produto (o que é, para quem,
   como usa, números medidos), nunca fases, revisões, testes internos ou backlog.
