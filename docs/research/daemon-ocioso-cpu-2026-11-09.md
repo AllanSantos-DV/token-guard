@@ -48,3 +48,15 @@
   pede a origem no começo da saída de erro. A falha do `token_guard_hook` passou a começar com
   `[hook-origin=token-guard]`. O Codex trata erro de hook `mcp_tool` como falha do hook e deixa a chamada seguir
   (ver `refusal-hook-decisions-2026-10.md`), então o comportamento continua fail-open.
+
+## Publicação da 2.19.1: pacote publicado e cópia instalada
+- O `publish.yml` publicou com `npm publish --provenance` (149 arquivos; declaração de provenance no transparency log
+  do sigstore). O `dist-tags.latest` passou a 2.19.1.
+- O tarball do `npm pack` feito no checkout do Windows difere do publicado só no fim de linha. O checkout local tem
+  `core.autocrlf=true` e grava CRLF; o CI em Linux empacota LF. Normalizado o fim de linha, o conteúdo é idêntico.
+- Para a cópia instalada ser a publicada, a instalação final vem do registry pelo mesmo caminho do auto-update:
+  `npx --yes @allansantos-dev/token-guard@<versão> init --target <alvos de install-state.json>`. Depois disso, todos
+  os arquivos de código do runtime do Claude e do Codex são iguais byte a byte aos do pacote publicado.
+- `agents/scout.agent.md` e `skills/token-economy/SKILL.md` na pasta de runtime do Claude não são reescritos, por
+  desenho: `installUserAssets` (`install.cjs`) os trata como arquivos do usuário depois da primeira instalação, e só
+  `--force` os atualiza.
