@@ -142,7 +142,8 @@ TOOLS.push({
     required: ['tool_name'],
   },
   handler: (args) => {
-    const hookPayload = { tool_name: args?.tool_name, tool_input: args?.tool_input || {}, cwd: args?.cwd || process.cwd() };
+    if (!args?.tool_name) throw new Error('token_guard_hook: evento sem tool_name');
+    const hookPayload = { tool_name: args.tool_name, tool_input: args?.tool_input || {}, cwd: args?.cwd || process.cwd() };
     const verdict = decide(hookPayload, { target: 'codex' });
     EV.recordDeny(verdict, 'codex', hookPayload);
     checked += 1;
@@ -204,9 +205,11 @@ function handle(msg) {
         if (out.structured !== undefined) result.structuredContent = out.structured;
         return reply(id, result);
       } catch (err) {
-        // Fail-open também aqui: o erro vira conteúdo, não derruba a sessão.
+        // Fail-open também aqui: o erro vira conteúdo, não derruba a sessão. O hook mcp_tool não tem linha
+        // de comando, então a origem vai no começo da saída de erro, onde a mensagem de falha a procura.
+        const origin = tool.name === 'token_guard_hook' ? '[hook-origin=token-guard] ' : '';
         return reply(id, {
-          content: [{ type: 'text', text: `token-guard falhou: ${err && err.message ? err.message : err}` }],
+          content: [{ type: 'text', text: `${origin}token-guard falhou: ${err && err.message ? err.message : err}` }],
           isError: true,
         });
       }

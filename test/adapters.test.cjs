@@ -265,6 +265,10 @@ function mcp(messages) {
   check('token_guard_hook não marca a negação como erro de ferramenta', deny && deny.result && deny.result.isError === false);
   const allow = call(11, { tool_name: 'Bash', tool_input: { command: 'git status' }, cwd: TMP });
   check('token_guard_hook libera com {}', Boolean(allow && allow.result && allow.result.content[0].text === '{}'), JSON.stringify(allow));
+  const broken = call(12, { tool_input: {} });
+  const brokenText = broken && broken.result ? broken.result.content[0].text : '';
+  check('token_guard_hook com falha começa a saída de erro com a origem declarada',
+    broken && broken.result && broken.result.isError === true && brokenText.startsWith('[hook-origin=token-guard] '), brokenText);
 }
 
 {

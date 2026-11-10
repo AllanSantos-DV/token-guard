@@ -14,6 +14,8 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - **Daemon de teste com http não fica órfão.** Com o hook http o daemon só se autoencerra se
   `TOKEN_GUARD_DAEMON_IDLE_MS` for definido; a suíte define, então um `npm test` abortado não deixa processo vivo.
   O daemon do usuário, sem a variável, segue sem ociosidade.
+- **Falha do hook do Codex diz a origem.** A saída de erro do `token_guard_hook` (hook `mcp_tool`) começa com
+  `[hook-origin=token-guard]`, e um evento sem `tool_name` falha com essa causa em vez de passar sem avaliação.
 
 ### Alterado
 - **URL do hook http declara a origem e o dono da porta.** `?hook-origin=token-guard&port-file=~/.token-guard/daemon-http.json`;
