@@ -3,6 +3,12 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [2.19.3] — 2026-11-11
+
+### Alterado
+- **O pacote deixa de levar as notas internas do mantenedor.** `docs/BACKLOG.md` sai do tarball do npm; o
+  restante de `docs/` segue incluído. Sem mudança de comportamento.
+
 ## [2.19.2] — 2026-11-10
 
 ### Corrigido
