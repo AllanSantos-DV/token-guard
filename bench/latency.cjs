@@ -41,6 +41,7 @@ const { tryDaemon } = require(path.join(ROOT, 'lib', 'daemon-client.cjs'));
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-bench-'));
 fs.writeFileSync(path.join(TMP, 'Big.java'), 'x'.repeat(120000));
+fs.mkdirSync(path.join(TMP, '.git'), { recursive: true });
 fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
 fs.writeFileSync(path.join(TMP, '.token-guard', 'repo-stats.json'),
   JSON.stringify({ totalFiles: 215112, pathChars: 26726490 }));

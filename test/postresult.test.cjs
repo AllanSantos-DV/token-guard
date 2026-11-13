@@ -38,6 +38,7 @@ function cfg(over = {}) {
 }
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-post-'));
+fs.mkdirSync(path.join(TMP, '.git'));
 
 console.log('\n  [bigResult]');
 
@@ -279,6 +280,8 @@ console.log('\n  [bigResult]');
 {
   // .token-guard/results não cresce sem limite.
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-post-cap-'));
+
+  fs.mkdirSync(path.join(root, '.git'));
   for (let i = 0; i < PR.MAX_SAVED_RESULTS + 15; i++) {
     PR.postProcess({ name: 'Grep', input: {}, result: `${i}-` + 'q'.repeat(5000), root, cfg: cfg() });
   }

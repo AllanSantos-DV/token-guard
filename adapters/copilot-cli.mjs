@@ -195,7 +195,7 @@ const session = await joinSession({
         const sid = invocation?.sessionId || "plugin";
         const call = { name: input?.toolName, input: input?.toolArgs || {}, result: input?.toolResult, root, cfg };
         const ctx = { root, target: "copilot", name: call.name, input: input?.toolArgs, charsPerToken: cfg.charsPerToken };
-        let out = postProcess({ ...call, target: "copilot" });
+        let out = postProcess({ ...call, target: "copilot", sessionId: sid });
         if (out) {
           EV.recordTrim(ctx, out);
         } else if (isRead(call.name)) {

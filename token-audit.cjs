@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const CFG = require('./lib/config.cjs');
 const AUDIT = require('./lib/audit.cjs');
+const { stateDir } = require('./lib/statedir.cjs');
 
 const argv = process.argv.slice(2);
 const flag = (f) => argv.includes(f);
@@ -35,7 +36,7 @@ const result = AUDIT.scan(ROOT, cfg, { top: TOP });
 
 let cachePath = null;
 if (!flag('--no-cache') && AUDIT.writeCache(ROOT, result)) {
-  cachePath = path.join(ROOT, '.token-guard', 'repo-stats.json');
+  cachePath = path.join(stateDir(ROOT), 'repo-stats.json');
 }
 
 if (flag('--json')) {

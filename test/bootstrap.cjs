@@ -39,12 +39,17 @@ const SAVED = {
   TOKEN_GUARD_NO_AUTOSTART: process.env.TOKEN_GUARD_NO_AUTOSTART,
   TOKEN_GUARD_NO_DAEMON_SWAP: process.env.TOKEN_GUARD_NO_DAEMON_SWAP,
   npm_config_cache: process.env.npm_config_cache,
+  LOCALAPPDATA: process.env.LOCALAPPDATA,
+  XDG_STATE_HOME: process.env.XDG_STATE_HOME,
 };
 
 process.env.HOME = ISOLATED_HOME;
 // O auto-update poda _npx/ do cache do npm: a suíte nunca aponta para o cache real do usuário.
 process.env.npm_config_cache = path.join(ISOLATED_HOME, 'npm-cache');
 process.env.USERPROFILE = ISOLATED_HOME;
+// Estado fora de projeto vai para a pasta de dados do usuário: a suíte nunca toca a real.
+process.env.LOCALAPPDATA = path.join(ISOLATED_HOME, 'AppData', 'Local');
+process.env.XDG_STATE_HOME = path.join(ISOLATED_HOME, 'state');
 delete process.env.TOKEN_GUARD;
 process.env.TOKEN_GUARD_SID = `tg-test-${process.pid}`;
 // Explícito, vale também para o daemon com http: um `npm test` abortado não deixa daemon órfão.

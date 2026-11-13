@@ -41,7 +41,7 @@ async function main() {
     // Guard desligado (global ou só para o Claude Code): nem corta, nem registra, nem sugere.
     if (cfg.mode !== 'off') {
       const ctx = { root, target: 'claude', name, input: inp, charsPerToken: cfg.charsPerToken };
-      trimmed = postProcess({ name, input: inp, result, root, cfg, target: 'claude' });
+      trimmed = postProcess({ name, input: inp, result, root, cfg, target: 'claude', sessionId: sid });
       if (trimmed && !lost) EV.recordTrim(ctx, trimmed);
       if (!lost) {
         // dupRead — registra o hash da leitura e substitui a duplicata grande. Se o

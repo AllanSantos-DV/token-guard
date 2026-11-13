@@ -19,6 +19,7 @@ const os = require('os');
 const CT = require('../lib/contract.cjs');
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-contract-'));
+fs.mkdirSync(path.join(TMP, '.git'));
 const ROOT = path.join(__dirname, '..');
 
 let pass = 0;
@@ -188,7 +189,7 @@ console.log('\n  [carga]');
 console.log('\n  [estado]');
 {
   const root = path.join(TMP, 'estado');
-  fs.mkdirSync(root, { recursive: true });
+  fs.mkdirSync(path.join(root, '.git'), { recursive: true });
 
   check('sessão desconhecida começa sem nada injetado',
     CT.readState(root, 'nova').injected.length === 0);

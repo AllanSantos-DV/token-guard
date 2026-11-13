@@ -31,6 +31,7 @@ function check(label, ok, detail) {
 
 /* fixture mínimo compartilhado */
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-sav-test-'));
+fs.mkdirSync(path.join(TMP, '.git'));
 fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
 fs.writeFileSync(path.join(TMP, '.token-guard', 'repo-stats.json'),
   JSON.stringify({ totalFiles: 215112, pathChars: 215112 * 125 }));
@@ -62,6 +63,7 @@ console.log('\n  [economia líquida]');
   /* repo pequeno: guards de VARREDURA desligados por design (blindRead segue
      ativo — ler 200 KB cego custa caro em qualquer repositório). */
   const SMALL = path.join(TMP, '..', path.basename(TMP) + '-small');
+  fs.mkdirSync(path.join(SMALL, '.git'), { recursive: true });
   fs.mkdirSync(path.join(SMALL, '.token-guard'), { recursive: true });
   fs.writeFileSync(path.join(SMALL, '.token-guard', 'repo-stats.json'),
     JSON.stringify({ totalFiles: 300, pathChars: 300 * 125 }));

@@ -8,6 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { decide } = require('../lib/decide.cjs');
 const RULES = require('../lib/rules.cjs');
+const { stateDir } = require('../lib/statedir.cjs');
 const { parseStream, writeFrame } = require('../lib/ipc-frame.cjs');
 const CFG = require('../lib/config.cjs');
 const CT = require('../lib/contract.cjs');
@@ -96,7 +97,7 @@ function ruleSetHash(root) {
   const stateFiles = new Set([
     path.join(root, CFG.CONFIG_NAME),
     path.join(root, '.token-guard', 'config.json'),
-    path.join(root, '.token-guard', 'repo-stats.json'),
+    path.join(stateDir(root), 'repo-stats.json'),
     ...CFG.configFilesInEffect(root),
   ]);
   for (const p of stateFiles) {
@@ -174,7 +175,7 @@ function dispatchPostprocess(params) {
     if (cfg.mode === 'off') return { ok: true, trimmed: null };
     const win = windowKey(sessionId, agentId);
     const note = (kind, rule, chars) => EV.recordSaving({ root, target, name, input, charsPerToken: cfg.charsPerToken }, kind, rule, chars);
-    let trimmed = postProcess({ name, input, result, root, cfg, target });
+    let trimmed = postProcess({ name, input, result, root, cfg, target, sessionId });
     if (trimmed) EV.recordTrim({ root, target, name, input, charsPerToken: cfg.charsPerToken }, trimmed);
     if (!trimmed && sessionId && isRead(name)) {
       try {

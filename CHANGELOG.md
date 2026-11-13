@@ -3,6 +3,16 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Corrigido
+- **O estado deixa de aparecer em pastas que não são o projeto.** O hook tomava a pasta atual de cada chamada
+  como raiz e criava `.token-guard` nela: pastas visitadas pelo agente (Área de Trabalho, Documentos, AppData,
+  `node_modules` de outro pacote) ganhavam a pasta e disparavam alerta de proteção do Windows. Agora a pasta de
+  estado só nasce no projeto onde a sessão começou (marcador `.git`, `package.json` e afins); a origem fica
+  fixada por sessão, então um `cd` não a muda. Sem projeto de origem, o estado vai para a pasta de dados do
+  usuário. O que o guard detecta dentro de um projeto não muda.
+
 ## [2.19.3] — 2026-11-11
 
 ### Alterado

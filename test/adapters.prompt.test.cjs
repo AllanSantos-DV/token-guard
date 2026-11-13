@@ -45,6 +45,7 @@ function run(payload, env) {
 }
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-prompt-'));
+fs.mkdirSync(path.join(TMP, '.git'));
 
 console.log('\n  [prompt-hook · user prompt submit]');
 

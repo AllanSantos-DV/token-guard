@@ -74,7 +74,9 @@ para quem já recebe as mesmas regras pelas instruções do próprio usuário. D
 
 ## Estado em disco (`.token-guard/`)
 
-Diretório criado na raiz do repositório; entra no `.gitignore` no alvo `repo`.
+Diretório criado na raiz do projeto onde a sessão nasceu; entra no `.gitignore` no alvo `repo`. O agente navegar
+depois para outra pasta não muda isso, e uma sessão aberta fora de projeto (Área de Trabalho, pasta do usuário,
+AppData) grava o mesmo conteúdo na pasta de dados do usuário, nunca na pasta visitada.
 
 | Arquivo | Quem escreve | Conteúdo |
 |---|---|---|

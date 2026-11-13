@@ -181,6 +181,7 @@ function runBatch(name, learnP, opts = {}, sessions = SESSIONS) {
 
 // Fixture mínimo (blindRead precisa de arquivo real)
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-savings-'));
+fs.mkdirSync(path.join(TMP, '.git'), { recursive: true });
 fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
 fs.writeFileSync(path.join(TMP, '.token-guard', 'repo-stats.json'),
   JSON.stringify({ totalFiles: REPO_FILES, pathChars: REPO_FILES * PATH_CHARS_PER_FILE }));
@@ -194,6 +195,7 @@ const profiles = Object.entries(LEARN_RATE)
 // Repo pequeno: guards de varredura desligados por design — deve dar zero ruído.
 const SMALL_FILES = 300;
 const SMALL = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-savings-small-'));
+fs.mkdirSync(path.join(SMALL, '.git'), { recursive: true });
 fs.mkdirSync(path.join(SMALL, '.token-guard'), { recursive: true });
 fs.writeFileSync(path.join(SMALL, '.token-guard', 'repo-stats.json'),
   JSON.stringify({ totalFiles: SMALL_FILES, pathChars: SMALL_FILES * PATH_CHARS_PER_FILE }));

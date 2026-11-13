@@ -28,6 +28,7 @@ function check(label, ok, detail) {
 }
 
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-epipe-'));
+fs.mkdirSync(path.join(TMP, '.git'));
 fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
 fs.writeFileSync(path.join(TMP, '.token-guard', 'repo-stats.json'),
   JSON.stringify({ totalFiles: 215112, pathChars: 215112 * 125 }));

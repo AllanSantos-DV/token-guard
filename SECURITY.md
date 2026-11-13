@@ -46,6 +46,13 @@ faz com a sua máquina e os seus dados:
 
 ## O que grava
 
+O estado de sessão (`<repo>/.token-guard/`, abaixo) só é criado dentro do projeto onde a sessão nasceu
+(pasta com `.git`, `package.json` ou outro marcador de projeto). Pastas por onde o agente navega depois,
+e sessões abertas fora de um projeto (Área de Trabalho, Documentos, AppData, pasta do usuário, raiz de
+disco), não ganham pasta nenhuma: o mesmo estado vai para a pasta de dados do usuário
+(`%LOCALAPPDATA%	oken-guardstate` no Windows, `~/Library/Application Support/token-guard/state` no
+macOS, `$XDG_STATE_HOME/token-guard/state` ou `~/.local/state/token-guard/state` no Linux).
+
 - `<repo>/.token-guard/repo-stats.json` — estatísticas agregadas do scan.
 - `<repo>/.token-guard/sessions/<id>.json` — seções de contrato já injetadas,
   com o id de sessão sanitizado (≤80 chars, sem separador de caminho). Poda após 7 dias.

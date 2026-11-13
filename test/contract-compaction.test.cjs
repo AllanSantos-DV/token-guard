@@ -27,6 +27,7 @@ function check(label, cond, detail) {
 
 const ADAPTERS = path.join(__dirname, '..', 'adapters');
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-compact-'));
+fs.mkdirSync(path.join(ROOT, '.git'));
 const ENV = { ...process.env, TOKEN_GUARD_UPDATE_CHECK: 'off' };
 
 function run(file, payload) {

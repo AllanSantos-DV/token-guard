@@ -25,6 +25,7 @@ const MCP = path.join(ROOT, 'adapters', 'mcp-server.cjs');
 
 /* Repositório sintético: grande o bastante para os guards não relaxarem. */
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-adapters-'));
+fs.mkdirSync(path.join(TMP, '.git'));
 const BIG = path.join(TMP, 'BigService.java');
 fs.writeFileSync(BIG, 'x'.repeat(120 * 1024), 'utf8');
 fs.mkdirSync(path.join(TMP, '.token-guard'), { recursive: true });
