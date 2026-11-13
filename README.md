@@ -394,7 +394,7 @@ por usuário, em named pipe/socket local, servindo o mesmo `decide()` já quente
 três hooks — sem ele, cada evento de ferramenta paga o cold start do Node inteiro. Ele
 não guarda estado de conversa: só um cache de veredito chaveado por raiz mais o hash das
 regras e de todas as configs em efeito, invalidado quando qualquer uma delas muda no
-disco. Nasce no logon (ou sob demanda, no primeiro hook), autoencerra após 10 min
+disco. Nasce no `SessionStart` (ou sob demanda, no primeiro hook; no logon só com `init --autostart`), autoencerra após 10 min
 ociosos (exceto com o hook http ligado), e se estiver inacessível o hook decide localmente — fail-open, como o resto.
 Endpoint, ACL e ciclo de vida: [SECURITY.md](SECURITY.md).
 

@@ -38,6 +38,8 @@ function check(label, ok, detail) {
   }
 }
 
+const SPY = { NODE_OPTIONS: `--require ${path.join(HERE, 'spy-system.cjs').replace(/\\/g, '/')}`, SPY_LOG: path.join(os.tmpdir(), `tg-spy-${process.pid}.log`) };
+
 function mkrepo(name) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `tg-inst-${name}-`));
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name, private: true }), 'utf8');
@@ -384,17 +386,16 @@ console.log('\n  [claude] autostart do daemon (F7)');
   // quando executado numa máquina Windows de verdade.
   const repo = mkrepo('daemon-win-dry');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-daemon-win-'));
-  const r = runInstall(['--target', 'claude', '--dry-run', repo],
+  const r = runInstall(['--target', 'claude', '--autostart', '--dry-run', repo],
     { HOME: home, USERPROFILE: home, TOKEN_GUARD_FORCE_PLATFORM: 'win32' });
   check('dry-run win32 sai 0', r.status === 0, r.stderr);
   check('dry-run win32 anuncia TOKEN_GUARD_SID (setx)',
     /\[dry-run\].*TOKEN_GUARD_SID=/.test(r.stdout), r.stdout);
   check('dry-run win32 anuncia a task ONLOGON',
     /\[dry-run\].*Task Scheduler "TokenGuardDaemon".*ONLOGON/.test(r.stdout), r.stdout);
-  check('dry-run win32 anuncia o watchdog a cada 5 min (A29)',
-    /\[dry-run\].*Task Scheduler "TokenGuardDaemonWatch".*5 min/.test(r.stdout), r.stdout);
+  check('dry-run win32 não anuncia vigia repetitivo', !/TokenGuardDaemonWatch/.test(r.stdout), r.stdout);
   check('tasks do daemon rodam ocultas (conhost --headless), sem piscar console',
-    (r.stdout.match(/conhost\.exe --headless/g) || []).length === 2, r.stdout);
+    (r.stdout.match(/conhost\.exe --headless/g) || []).length === 1, r.stdout);
   check('tasks nao gravam o caminho do node (apontam para o launcher)',
     !r.stdout.includes(process.execPath) && (r.stdout.match(/run-daemon\.cmd/g) || []).length >= 2, r.stdout);
   fs.rmSync(repo, { recursive: true, force: true });
@@ -476,9 +477,9 @@ console.log('\n  [codex] node em outro caminho');
   // falso, nunca toca ~/.config real.
   const repo = mkrepo('daemon-systemd');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-systemd-'));
-  const envForce = { HOME: home, USERPROFILE: home, TOKEN_GUARD_FORCE_PLATFORM: 'linux' };
+  const envForce = { HOME: home, USERPROFILE: home, TOKEN_GUARD_FORCE_PLATFORM: 'linux', ...SPY };
 
-  const first = runInstall(['--target', 'claude', repo], envForce);
+  const first = runInstall(['--target', 'claude', '--autostart', repo], envForce);
   check('primeira instalacao systemd sai 0', first.status === 0, first.stderr);
   const unitPath = path.join(home, '.config', 'systemd', 'user', 'token-guard-daemon.service');
   check('unit systemd criada', fs.existsSync(unitPath));
@@ -486,7 +487,7 @@ console.log('\n  [codex] node em outro caminho');
   check('unit systemd referencia node + daemon-server.cjs',
     unitContent.includes('daemon-server.cjs') && /ExecStart=/.test(unitContent), unitContent);
 
-  const second = runInstall(['--target', 'claude', repo], envForce);
+  const second = runInstall(['--target', 'claude', '--autostart', repo], envForce);
   check('segunda instalacao systemd e idempotente (conteudo identico, skip)',
     second.status === 0 && second.stdout.includes('ja registrado') &&
     fs.readFileSync(unitPath, 'utf8') === unitContent, second.stdout);
@@ -499,19 +500,18 @@ console.log('\n  [codex] node em outro caminho');
   // POSIX (launchd/macOS), mesmo seam de teste.
   const repo = mkrepo('daemon-launchd');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-launchd-'));
-  const envForce = { HOME: home, USERPROFILE: home, TOKEN_GUARD_FORCE_PLATFORM: 'darwin' };
+  const envForce = { HOME: home, USERPROFILE: home, TOKEN_GUARD_FORCE_PLATFORM: 'darwin', ...SPY };
 
-  const first = runInstall(['--target', 'claude', repo], envForce);
+  const first = runInstall(['--target', 'claude', '--autostart', repo], envForce);
   check('primeira instalacao launchd sai 0', first.status === 0, first.stderr);
   const plistPath = path.join(home, 'Library', 'LaunchAgents', 'com.token-guard.daemon.plist');
   check('plist launchd criado', fs.existsSync(plistPath));
   const plistContent = fs.existsSync(plistPath) ? fs.readFileSync(plistPath, 'utf8') : '';
   check('plist launchd referencia node + daemon-server.cjs',
     plistContent.includes('daemon-server.cjs') && plistContent.includes('RunAtLoad'), plistContent);
-  check('plist launchd religa o daemon que cair (StartInterval, A29)',
-    /StartInterval<\/key><integer>300</.test(plistContent), plistContent);
+  check('plist launchd não repete a partida por intervalo', !/StartInterval/.test(plistContent), plistContent);
 
-  const second = runInstall(['--target', 'claude', repo], envForce);
+  const second = runInstall(['--target', 'claude', '--autostart', repo], envForce);
   check('segunda instalacao launchd e idempotente (conteudo identico, skip)',
     second.status === 0 && second.stdout.includes('ja registrado') &&
     fs.readFileSync(plistPath, 'utf8') === plistContent, second.stdout);

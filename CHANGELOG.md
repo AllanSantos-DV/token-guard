@@ -12,6 +12,11 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   estado só nasce no projeto onde a sessão começou (marcador `.git`, `package.json` e afins); a origem fica
   fixada por sessão, então um `cd` não a muda. Sem projeto de origem, o estado vai para a pasta de dados do
   usuário. O que o guard detecta dentro de um projeto não muda.
+- **O instalador não cria mais tarefa agendada por conta própria.** O `init` registrava a tarefa `TokenGuardDaemonWatch`
+  (a cada 5 min, via `conhost --headless`) e a de logon; o Windows Defender classificou esse padrão como trojan
+  (`Trojan:Win32/Commando.C!ml`). O vigia foi removido, `StartInterval` do macOS também, e o autostart do daemon só
+  é registrado com `init --autostart`. O `init` sem a opção remove as tarefas que versões antigas deixaram. O daemon
+  sobe no `SessionStart` ou sob demanda; se cair no meio da sessão, o hook http libera a chamada até o próximo início.
 
 ## [2.19.3] — 2026-11-11
 

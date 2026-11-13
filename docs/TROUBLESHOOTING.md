@@ -89,9 +89,8 @@ O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem gu
 - Política que restringe `allowedHttpHookUrls`: a porta pode mudar; fixe-a com
   `TOKEN_GUARD_HTTP_PORT` e inclua `http://127.0.0.1:<porta>/*` (o instalador avisa),
   ou reinstale com `init --target claude --command-hooks`.
-- Daemon que cai **no meio** da sessão volta pelo vigia (só existe no alvo `claude`; cursor e repo sobem por demanda, no primeiro hook) em até ~5 min (tarefa
-  `TokenGuardDaemonWatch` no Windows, `StartInterval` no macOS, `Restart=on-failure` no
-  Linux); até lá o hook http falha aberto.
+- Daemon que cai **no meio** da sessão não tem vigia: o hook http falha aberto até o próximo `SessionStart`
+  (ou o clique no ícone da bandeja) subir o daemon de novo. Com `init --autostart`, o Linux religa por `Restart=on-failure`.
 - Para saber **por que** o daemon caiu, leia `~/.token-guard/daemon.log` (uma linha JSON por `start`/`exit`, com
   versão, código e motivo; `previous-unclean` marca um start do mesmo endpoint cujo antecessor morreu sem registrar
   saída, ex.: kill forçado; `http-on` traz a porta em que o hook http subiu, quantos hooks foram reapontados para ela ou o erro ao reapontar, e `http-off`, o motivo de não ter subido). Falha antes de escutar (porta ou
@@ -106,8 +105,7 @@ O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem gu
 - "bilhete inválido ou vencido": abra de novo pelo ícone ou por `token-guard setup`; cada bilhete serve uma vez.
 - Tela com "Sem conexão": o daemon reiniciou; feche a aba e abra de novo.
 - O ícone só existe no Windows e nasce com o daemon (também com `ui.tray` ligado e sem `TOKEN_GUARD_TRAY=off`). No Windows 11 ele costuma
-  ficar no menu de ícones ocultos (seta ao lado do relógio); arraste para a barra se quiser. Cinza = daemon fora do ar; ele volta sozinho
-  (vigia a cada ~5 min) ou clicando no ícone.
+  ficar no menu de ícones ocultos (seta ao lado do relógio); arraste para a barra se quiser. Cinza = daemon fora do ar; ele volta no próximo início de sessão ou clicando no ícone.
 - Escolheu "Desligado" para um IDE e ele continua barrando? Um `token-guard.config.json` do repositório pode estar mandando; `token-guard status` mostra a origem da config.
 - Variável de ambiente `TOKEN_GUARD=off` desliga tudo e a tela avisa; remova a variável para voltar a controlar por ela.
 

@@ -65,6 +65,8 @@ const DRY = argv.includes('--dry-run');
 const FORCE = argv.includes('--force');
 /** Claude Code: hooks de comando (um Node por chamada) em vez de http no daemon. */
 const COMMAND_HOOKS = argv.includes('--command-hooks');
+/** Autostart do daemon no logon (tarefa/unidade do sistema): só por pedido explícito do usuário. */
+const AUTOSTART = argv.includes('--autostart');
 
 function optValue(flag) {
   const i = argv.indexOf(flag);
@@ -409,9 +411,8 @@ function unregisterClaudeHttp(settings) {
 /* ------------------------------------------------------------------ */
 
 const DAEMON_TASK_NAME = 'TokenGuardDaemon';
-/** Religa o daemon que caiu no meio da sessão (hook http só recebe conexão recusada). */
-const DAEMON_WATCH_TASK_NAME = 'TokenGuardDaemonWatch';
-const WATCHDOG_MINUTES = 5;
+/** Tarefa de vigia que versões antigas registravam a cada 5 min; hoje só é removida. */
+const LEGACY_WATCH_TASK_NAME = 'TokenGuardDaemonWatch';
 const DAEMON_SERVICE_NAME = 'token-guard-daemon';
 
 /** Seam de teste: producao nunca seta esta var, so os testes de F7 pra
@@ -507,7 +508,6 @@ function installAutostartWindows(daemonScript) {
   if (DRY) {
     log('create', `[dry-run] TOKEN_GUARD_SID=${sid}  (setx, persistido no perfil do usuario)`);
     log('create', `[dry-run] Task Scheduler "${DAEMON_TASK_NAME}" -> ${tr}  (ONLOGON)`);
-    log('create', `[dry-run] Task Scheduler "${DAEMON_WATCH_TASK_NAME}" -> ${tr}  (a cada ${WATCHDOG_MINUTES} min)`);
     return;
   }
 
@@ -524,15 +524,15 @@ function installAutostartWindows(daemonScript) {
     taskOk
       ? `Task Scheduler "${DAEMON_TASK_NAME}"  (ONLOGON, ${tr})`
       : `Task Scheduler "${DAEMON_TASK_NAME}" nao pode ser registrada (schtasks falhou) — daemon so sobe sob demanda, no primeiro hook`);
+}
 
-  // Daemon vivo = singleton sai com 0 na hora; caído = sobe. Custo: um processo oculto a cada 5 min.
-  const watchExisted = taskExists(DAEMON_WATCH_TASK_NAME);
-  const watchOk = runQuiet('schtasks',
-    ['/create', '/tn', DAEMON_WATCH_TASK_NAME, '/tr', tr, '/sc', 'minute', '/mo', String(WATCHDOG_MINUTES), '/rl', 'limited', '/f']);
-  log(watchOk ? (watchExisted ? 'update' : 'create') : 'skip',
-    watchOk
-      ? `Task Scheduler "${DAEMON_WATCH_TASK_NAME}"  (a cada ${WATCHDOG_MINUTES} min, religa o daemon que cair)`
-      : `Task Scheduler "${DAEMON_WATCH_TASK_NAME}" nao pode ser registrada — daemon que cair no meio da sessao so volta no proximo SessionStart`);
+/** Remove as tarefas que instalações anteriores deixaram; nunca cria nada. */
+function removeLegacyWindowsTasks() {
+  for (const name of [LEGACY_WATCH_TASK_NAME, DAEMON_TASK_NAME]) {
+    if (!taskExists(name)) continue;
+    const ok = runQuiet('schtasks', ['/delete', '/tn', name, '/f']);
+    log(ok ? 'remove' : 'skip', `Task Scheduler "${name}"  (${ok ? 'removida: o token-guard não agenda tarefas sem --autostart' : 'não pôde ser removida'})`);
+  }
 }
 
 function installAutostartSystemd(daemonScript) {
@@ -586,7 +586,6 @@ function installAutostartLaunchd(daemonScript) {
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><false/>
-  <key>StartInterval</key><integer>300</integer>
 </dict>
 </plist>
 `;
@@ -618,6 +617,11 @@ function installDaemonAutostart(dir) {
   }
   const daemonScript = path.join(dir, 'adapters', 'daemon-server.cjs');
   const plat = targetPlatform();
+  if (!AUTOSTART) {
+    if (plat === 'win32' && !DRY) removeLegacyWindowsTasks();
+    skipped.push('autostart do daemon (use --autostart para registrar; o daemon sobe sob demanda no primeiro hook)');
+    return;
+  }
   if (plat === 'win32') installAutostartWindows(daemonScript);
   else if (plat === 'darwin') installAutostartLaunchd(daemonScript);
   else installAutostartSystemd(daemonScript);
@@ -837,8 +841,7 @@ function installClaude() {
   writeGlobalConfig(base, base);
   installDaemonAutostart(dir);
   notes.push('claude   · reinicie a sessao do Claude Code para carregar o hook.');
-  notes.push('claude   · daemon-unico: reinicie o Windows/logon (ou abra sessao nova) para o ' +
-    'TOKEN_GUARD_SID valer e o daemon ficar quente entre chamadas; ate la, o daemon que o init subiu atende e, se cair, sobe sob demanda, no primeiro hook.');
+  notes.push('claude   · o daemon sobe sob demanda no primeiro hook; nenhuma tarefa agendada é criada (--autostart registra a partida no logon).');
 }
 
 /* ------------------------------------------------------------------ */

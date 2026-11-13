@@ -196,6 +196,8 @@ function help() {
                           --dry-run     simula, não escreve nada
                           --force       sobrescreve config já existente
                           --command-hooks  Claude Code com hook de comando em vez de http
+                          --autostart      registra a partida do daemon no logon (por padrão
+                                           o token-guard não cria tarefa agendada nenhuma)
 
     audit [caminho]       Mede o custo de contexto do repositório.
                           --md          relatório em markdown

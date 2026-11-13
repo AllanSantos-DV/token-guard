@@ -80,7 +80,7 @@ já carregada:
   pid reusado depois de reboot não trava o daemon fora.
 - **Cache de veredito:** chaveado pela raiz mais o hash das regras e de todas as
   configs em efeito, e invalidado quando qualquer uma delas muda no disco.
-- **Ciclo de vida:** sobe no logon (autostart do alvo `claude`), no `SessionStart` do
+- **Ciclo de vida:** sobe no `SessionStart` do
   Claude Code ou sob demanda, no primeiro hook. Encerra após 10 min ocioso, exceto com
   o hook http ligado, em que ele é o único caminho. Um handshake de versão troca um
   daemon velho depois de um upgrade; o `init` (claude, cursor e repo) troca o daemon na hora, e um cliente

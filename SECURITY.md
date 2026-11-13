@@ -79,8 +79,8 @@ macOS, `$XDG_STATE_HOME/token-guard/state` ou `~/.local/state/token-guard/state`
   instalador e trava da última atualização automática.
 - Lock de singleton do daemon: `<socket>.lock` no POSIX,
   `%TEMP%/token-guard-locks/<pipe>.lock` no Windows — pid e versão de protocolo.
-- Autostart do daemon (só `--target claude`): tarefas agendadas `TokenGuardDaemon` (logon) e
-  `TokenGuardDaemonWatch` (vigia a cada 5 min) e a variável de usuário `TOKEN_GUARD_SID` no Windows; unit `token-guard-daemon.service`
+- Autostart do daemon: nunca é criado sozinho. Só `init --target claude --autostart` registra a tarefa
+  agendada `TokenGuardDaemon` (logon, sem repetição) e a variável de usuário `TOKEN_GUARD_SID` no Windows; unit `token-guard-daemon.service`
   (systemd --user) no Linux; `com.token-guard.daemon.plist` (LaunchAgents) no macOS.
 - Nos alvos de máquina: runtime e config sob o seu perfil (`~/.copilot`, `~/.claude`,
   `~/.codex` — `config.toml` e `hooks.json` recebem só a entrada do token-guard —,
