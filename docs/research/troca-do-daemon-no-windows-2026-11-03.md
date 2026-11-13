@@ -12,5 +12,10 @@ Incidente: após a 2.16.0 o daemon ficou ~7 min fora (arquivos trocados às 15:4
 Precedente: whatsapp-bridge `2026-10-25-daemon-derrubado-pelo-msi-do-node.md` (MSI do Node derruba o daemon
 via RestartManager/SIGHUP; só volta no relançamento manual).
 
+Correção (2026-11-13): o vigia `TokenGuardDaemonWatch` citado no incidente (tarefa a cada 5 min via
+`conhost --headless`) foi bloqueado pelo Windows Defender como `Trojan:Win32/Commando.C!ml` e foi removido.
+Nenhum instalador cria tarefa agendada por conta própria; o autostart só existe com `init --autostart`, sem
+repetição. A troca na hora (`swapDaemon`) e o relançamento no `SessionStart` substituem o vigia.
+
 Aplicação: `swapDaemon` no fim do init (shutdown → espera sair → kill só por pid provado → spawn → health com
 versão esperada e pid diferente) e `~/.token-guard/daemon.log`.
