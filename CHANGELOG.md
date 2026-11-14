@@ -5,6 +5,8 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.19.4] — 2026-11-13
+
 ### Corrigido
 - **O estado deixa de aparecer em pastas que não são o projeto.** O hook tomava a pasta atual de cada chamada
   como raiz e criava `.token-guard` nela: pastas visitadas pelo agente (Área de Trabalho, Documentos, AppData,
