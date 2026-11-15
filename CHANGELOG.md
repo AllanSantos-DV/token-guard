@@ -5,6 +5,19 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.19.5] — 2026-11-15
+
+### Corrigido
+- **A troca do daemon não fecha mais a porta dos hooks http.** O daemon em pé sobe o sucessor e lhe entrega o
+  socket de escuta do HTTP (os dois aceitam na mesma porta); só depois o antigo responde `Connection: close`, fecha
+  e sai. Em medição com sondagens a cada poucos milissegundos durante a troca, nenhuma falhou. Se o sucessor não
+  assume, o daemon atual segue servindo e registra `handover-failed` no `daemon.log`; sem a função no daemon antigo,
+  a troca usa o encerramento de sempre e o instalador diz o motivo. A passagem vale a partir desta versão.
+- **O daemon só sai por ociosidade quando não há sessão aberta.** Com sessão do Claude Code (registro em
+  `~/.claude/sessions`) ou do Codex (lock de thread, no Windows) viva, o autoencerramento se reagenda.
+- **Todo erro do hook http e a falha do cliente do daemon começam com `[hook-origin=token-guard]`**, para a falha
+  mostrada na sessão dizer de quem é.
+
 ## [2.19.4] — 2026-11-13
 
 ### Corrigido
