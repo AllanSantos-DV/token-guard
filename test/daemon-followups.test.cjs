@@ -17,6 +17,8 @@
 
 require('./bootstrap.cjs');
 
+const { freePort } = require('./ports.cjs');
+
 const crypto = require('crypto');
 const fs = require('fs');
 const net = require('net');
@@ -54,13 +56,6 @@ function killAll() {
   for (const pid of spawned) { try { process.kill(pid); } catch { /* já saiu */ } }
 }
 process.on('exit', killAll);
-
-function freePort() {
-  return new Promise((resolve) => {
-    const s = net.createServer();
-    s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
-  });
-}
 
 function startDaemon(script, env) {
   const child = spawn(process.execPath, [script || DAEMON], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ...env } });

@@ -26,6 +26,7 @@ const CFG = require('../lib/config.cjs');
 const CE = require('../lib/config-edit.cjs');
 const DC = require('../lib/daemon-client.cjs');
 const { BIG, TMP } = require('./fixtures/cases.cjs');
+const { freePort } = require('./ports.cjs');
 
 let pass = 0;
 let fail = 0;
@@ -35,7 +36,7 @@ function check(label, ok, detail) {
 }
 
 const token = `tok-${Math.random().toString(36).slice(2)}`;
-const port = 47000 + Math.floor(Math.random() * 2000);
+let port;
 
 function req(method, route, { headers = {}, body, host } = {}) {
   return new Promise((resolve) => {
@@ -99,6 +100,7 @@ const cookieOf = (res) => /tg_ui=[^;]+/.exec([].concat(res.headers['set-cookie']
 const csrfOf = (html) => /name="tg-csrf" content="([^"]+)"/.exec(html)?.[1];
 
 (async () => {
+  port = await freePort();
   const tokenFile = DH.httpTokenPath();
   fs.mkdirSync(path.dirname(tokenFile), { recursive: true });
   fs.writeFileSync(tokenFile, token);

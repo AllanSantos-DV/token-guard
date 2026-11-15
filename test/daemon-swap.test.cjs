@@ -16,6 +16,8 @@
 
 require('./bootstrap.cjs');
 
+const { freePort } = require('./ports.cjs');
+
 const fs = require('fs');
 const net = require('net');
 const os = require('os');
@@ -38,13 +40,6 @@ function check(label, cond, detail) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const alive = (pid) => DL.REAL_DEPS.isAlive(pid);
-
-function freePort() {
-  return new Promise((resolve) => {
-    const s = net.createServer();
-    s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
-  });
-}
 
 const spawned = new Set();
 function killAll() {

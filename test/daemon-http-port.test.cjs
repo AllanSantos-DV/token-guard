@@ -16,6 +16,8 @@
 
 require('./bootstrap.cjs');
 
+const { freePort } = require('./ports.cjs');
+
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
@@ -72,10 +74,6 @@ async function blockWhenFree(port) {
     await sleep(100);
   }
   throw new Error(`porta ${port} não ficou livre em 30 s: o daemon anterior não saiu`);
-}
-
-function freePort() {
-  return block(0).then((s) => { const p = s.address().port; return new Promise((r) => s.close(() => r(p))); });
 }
 
 const claudeDeny = { tool_name: 'Read', tool_input: { file_path: BIG }, cwd: TMP, session_id: 'port-t' };
