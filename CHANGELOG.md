@@ -5,6 +5,10 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado
+- **O `audit` sugere `noiseDirsExtra`.** Diretórios de topo pesados, com muitos arquivos e nenhum código-fonte, saem
+  listados com o trecho do config pronto, só como texto: o audit não altera nada.
+
 ## [2.19.5] — 2026-11-15
 
 ### Corrigido
