@@ -27,6 +27,16 @@ Ideias da lente irmã da 2.19.1 (L16 a L20), estacionadas:
 - L19: **Decidido (Jarvis, 10/11/2026):** não construir agora; ideia da lente irmã, sem mudança de uso; reavaliar se o dono pedir. `token-guard replay` sobre os transcripts do usuário; Mostra o que o guard teria barrado, por regra, e os candidatos a falso positivo. Recomendação: depois: estimativa heurística.
 - L20: **Decidido (Jarvis, 10/11/2026):** não construir agora; ideia da lente irmã, sem mudança de uso; reavaliar se o dono pedir. `audit` com a variação em relação à medição anterior; Mostra o crescimento do custo de varredura entre execuções. Recomendação: talvez: só ajuda monorrepos.
 
+Lente irmã da 2.19.5. L21 a L24 mudam como o usuário usa o produto e esperam a decisão do dono; L25 é técnico e não muda o uso:
+
+| # | Candidato | Ganho | Esforço | Reaproveita |
+|---|-----------|-------|---------|-------------|
+| L21 | Contrato automático no Codex, por hooks de comando `UserPromptSubmit` e `SessionStart` (hoje é manual); o hook novo precisa de aprovação no Codex | alto | médio | `adapters/prompt-hook.cjs`, `lib/contract.cjs`, `lib/ctxwatch.cjs`, `lib/claude-hooks.cjs`, `installCodex` |
+| L22 | Linha do preâmbulo MCP no `status`, lendo a última medição de `mcp-cost` (só lê o cache, nunca executa servidor; mostra a data) | alto | baixo | `lib/mcp-cost.cjs`, `mcp-cost.cjs`, `cli.cjs status`, `lib/statedir.cjs` |
+| L23 | `statusLine` do Claude Code com a janela de contexto e a economia; o instalador faz merge sem sobrescrever um `statusLine` existente e o `uninstall` o remove | alto em visibilidade | médio | `lib/events.cjs`, `lib/cost.cjs`, merge de settings do `install.cjs`, `lib/uninstall.cjs` |
+| L24 | Resumo da economia desde a última sessão, no `SessionStart`, só quando há o que mostrar | médio | baixo | `adapters/session-start.cjs`, `lib/events.cjs` (L11) |
+| L25 | Técnico: sugerir `noiseDirsExtra` a partir do `audit`, só como texto, sem aplicar | médio | baixo a médio | `lib/audit.cjs`, `lib/config.cjs` |
+
 Decidido pelo dono (2.19.0): poupança por repositório e `token-guard uninstall --dry-run` entram; zerar o contador de bloqueios e poupança (antigo B8) não entra, porque apagaria o histórico que a tela e o `status` mostram e o `trim` já limita o arquivo.
 
 Decidido (Jarvis, 2026-11-03): `contract.skip` (2.17.0) fica opt-in e não habilitado; o ganho de ~184 tokens por sessão não compensa mudar o que as regras do dono entregam. Nenhum item técnico aberto.
