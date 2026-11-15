@@ -538,7 +538,7 @@ function start(endpointOverride) {
   // Lock reclamado de um daemon anterior que morreu sem limpar: no POSIX o
   // arquivo de socket pode ter sobrevivido ao processo morto e bloquear o
   // listen() com EADDRINUSE mesmo sem ninguém escutando — remove antes.
-  if (lockResult.acquired && lockResult.reclaimedStale && process.platform !== 'win32') {
+  if (lockResult.acquired && lockResult.reclaimedStale && process.platform !== 'win32' && !successor) {
     try { fs.unlinkSync(endpoint); } catch { /* pode já não existir */ }
   }
 
@@ -725,7 +725,7 @@ function start(endpointOverride) {
   server.on('error', (err) => {
     releaseOrphanMutex();
     if (DL.isSingletonConflict(err)) {
-      if (process.platform === 'win32') {
+      if (process.platform === 'win32' || successor) {
         if (win32RetryCount < WIN32_MAX_RETRIES) {
           win32RetryCount++;
           win32RetryTimer = setTimeout(() => {
