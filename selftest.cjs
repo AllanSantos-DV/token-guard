@@ -10,6 +10,8 @@
  * se a decisão foi a esperada. Sem dependências, sem framework.
  */
 
+require('./test/bootstrap.cjs');
+
 const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
