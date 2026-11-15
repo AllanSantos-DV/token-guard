@@ -1243,7 +1243,8 @@ if (swap) {
     const r = swap.result;
     console.log(`    ok      respondendo na versão ${r.version}${r.pid ? ` (pid ${r.pid}${r.port ? `, porta ${r.port}` : ''})` : ''}; ` +
       `${r.oldPid ? `o antigo (pid ${r.oldPid}) saiu${r.killed ? ' por encerramento forçado' : ''}` : 'não havia daemon antigo'}; ` +
-      `fora do ar por ${r.gapMs} ms`);
+      (r.handover ? 'o HTTP passou ao novo sem queda na porta' : `fora do ar por ${r.gapMs} ms`) +
+      (r.handoverFallback ? ` (troca sem queda indisponível: ${r.handoverFallback})` : ''));
   } else {
     console.log(`    FALHOU  ${swap.error}`);
     console.error(`token-guard: DAEMON NAO SUBIU na versão instalada: ${swap.error}`);

@@ -107,6 +107,11 @@ async function outageDuring(work, port) {
   return { out, worst };
 }
 
+async function waitDead(pid, ms = 10000) {
+  for (let i = 0; i < ms / 100 && alive(pid); i++) await sleep(100);
+  return !alive(pid);
+}
+
 const logLines = () => {
   try { return fs.readFileSync(DL.lifecycleLogPath(), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; }
 };
@@ -124,7 +129,7 @@ const logLines = () => {
   const up = await waitHealth((h) => h.version === '0.0.1');
   check('antigo sobe e o health informa a versão dele', up && up.h.pid === oldPid, up);
 
-  const { out: swap, worst } = await outageDuring(() => DC.swapDaemon({ expectedVersion: VERSION }), port);
+  const { out: swap, worst } = await outageDuring(() => DC.swapDaemon({ expectedVersion: VERSION, handover: false }), port);
   check('swap devolve ok', swap.ok === true, swap);
   check('versão do health é a esperada', swap.version === VERSION, swap);
   check('o pid do novo é outro', swap.ok && swap.pid !== oldPid && swap.oldPid === oldPid && swap.oldVersion === '0.0.1', swap);
@@ -166,8 +171,8 @@ const logLines = () => {
   if (first.pid) spawned.add(first.pid);
 
   // 5 · versão igual (reinstalação): troca mesmo assim, pid novo
-  const same = await DC.swapDaemon({ expectedVersion: VERSION });
-  check('reinstalação da mesma versão troca o processo', same.ok && same.pid !== first.pid && !alive(first.pid), { same, first: first.pid });
+  const same = await DC.swapDaemon({ expectedVersion: VERSION, handover: false });
+  check('reinstalação da mesma versão troca o processo (encerramento)', same.ok && same.pid !== first.pid && !alive(first.pid), { same, first: first.pid });
   if (same.pid) spawned.add(same.pid);
 
   // 6 · seams: um "mundo" simulado com fases (antigo → saiu → novo); o killFn nunca é o real
@@ -257,7 +262,7 @@ const logLines = () => {
   const { out: i2, worst: worst2 } = await outageDuring(runInitAsync, ep1.port);
   check('init 2 (atualização por cima) sai 0 e troca o processo', i2.status === 0 && /o antigo \(pid \d+\) saiu/.test(i2.stdout), { status: i2.status, out: i2.stdout.slice(-500) });
   const h2 = await waitHealth((h) => h.version === VERSION && h1 && h.pid !== h1.h.pid);
-  check('depois do init 2 responde um pid novo, na versão instalada', !!h2 && !alive(h1.h.pid), h2);
+  check('depois do init 2 responde um pid novo, na versão instalada', !!h2 && await waitDead(h1.h.pid), h2);
   check('janela medida durante o init 2 em segundos', worst2 < 15000, worst2);
   console.log(`    (init 2: janela medida de fora ${worst2} ms)`);
   check('settings.json aponta para a porta onde o daemon novo respondeu', h2 && fs.readFileSync(DH.claudeSettingsPath(), 'utf8').includes(`127.0.0.1:${h2.ep.port}/`) && settingsAfter1.length > 0, h2 && h2.ep);

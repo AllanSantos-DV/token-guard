@@ -26,6 +26,7 @@ const CW = require('../lib/ctxwatch.cjs');
 const MAX_BODY_BYTES = 64 * 1024 * 1024; // PostToolUse traz o resultado inteiro
 const ROUTES = { '/token-guard/pre': 'pre', '/token-guard/post': 'post', '/token-guard/prompt': 'prompt' };
 const HEALTH = '/token-guard/health';
+const ORIGIN_TAG = '[hook-origin=token-guard]';
 
 /** Porta fixada por env: sem fallback — ocupada, o HTTP não sobe (e avisa alto). */
 function fixedPort() {
@@ -179,9 +180,9 @@ function answer(kind, payload, handle) {
  *        com a própria autenticação (bilhete+cookie; token do dono para o ícone).
  */
 function createHttpServer({ token, handle, onActivity, ui, version }) {
-  return http.createServer((req, res) => {
+  const server = http.createServer((req, res) => {
     const send = (status, body) => {
-      res.writeHead(status, { 'content-type': 'application/json' });
+      res.writeHead(status, { 'content-type': 'application/json', ...(server.draining ? { connection: 'close' } : {}) });
       res.end(body);
     };
     const route = String(req.url || '').split('?')[0];
@@ -195,8 +196,8 @@ function createHttpServer({ token, handle, onActivity, ui, version }) {
     }
     const kind = ROUTES[route];
     const health = req.method === 'GET' && route === HEALTH;
-    if (!health && (req.method !== 'POST' || !kind)) return send(404, '{"error":"rota desconhecida"}');
-    if (!sameToken(req.headers['x-token-guard'], token)) return send(401, '{"error":"token ausente ou invalido"}');
+    if (!health && (req.method !== 'POST' || !kind)) return send(404, JSON.stringify({ error: `${ORIGIN_TAG} rota desconhecida` }));
+    if (!sameToken(req.headers['x-token-guard'], token)) return send(401, JSON.stringify({ error: `${ORIGIN_TAG} token ausente ou invalido` }));
     // Prova de que quem responde na porta é ESTE daemon (com o token do dono), não um forasteiro.
     // A versão deixa quem trocou os arquivos provar que o processo que responde é o novo, não o antigo.
     if (health) return send(200, JSON.stringify({ ok: true, pid: process.pid, version: version || null }));
@@ -205,23 +206,24 @@ function createHttpServer({ token, handle, onActivity, ui, version }) {
     let size = 0;
     req.on('data', (c) => {
       size += c.length;
-      if (size > MAX_BODY_BYTES) { send(413, '{"error":"payload grande demais"}'); req.destroy(); return; }
+      if (size > MAX_BODY_BYTES) { send(413, JSON.stringify({ error: `${ORIGIN_TAG} payload grande demais` })); req.destroy(); return; }
       chunks.push(c);
     });
     req.on('end', () => {
       if (res.writableEnded) return;
       if (onActivity) onActivity();
       let payload;
-      try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return send(400, '{"error":"JSON invalido"}'); }
+      try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return send(400, JSON.stringify({ error: `${ORIGIN_TAG} JSON invalido` })); }
       try {
         send(200, JSON.stringify(answer(kind, payload, handle) || {}));
       } catch (err) {
         // Fail-loud: o Claude Code mostra o erro (não bloqueante) em vez de
         // seguir como se o guard tivesse aprovado em silêncio.
-        send(500, JSON.stringify({ error: `token-guard: ${err && err.message}` }));
+        send(500, JSON.stringify({ error: `${ORIGIN_TAG} token-guard: ${err && err.message}` }));
       }
     });
   });
+  return server;
 }
 
 /**

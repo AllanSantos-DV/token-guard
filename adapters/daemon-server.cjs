@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { spawn } = require('child_process');
 const { decide } = require('../lib/decide.cjs');
 const RULES = require('../lib/rules.cjs');
 const { stateDir } = require('../lib/statedir.cjs');
@@ -22,6 +23,7 @@ const TRAY = require('../lib/tray.cjs');
 const UI = require('./daemon-ui.cjs');
 const DL = require('../lib/daemon-lifecycle.cjs');
 const DH = require('./daemon-http.cjs');
+const SA = require('../lib/sessions-alive.cjs');
 
 const PROTOCOL_VERSION = 1;
 const PACKAGE_VERSION = (() => {
@@ -254,6 +256,12 @@ function routeMessage(msg, ctx) {
     return { id: msg.id, result: { ok: true } };
   }
 
+  if (method === 'handover') {
+    if (typeof ctx.handover !== 'function') return { id: msg.id, error: { code: -32001, message: 'troca sem queda indisponível neste daemon' } };
+    const r = ctx.handover(msg.params || {});
+    return r.ok ? { id: msg.id, result: r } : { id: msg.id, error: { code: -32002, message: r.error } };
+  }
+
   if (method === 'check') {
     const params = msg.params || {};
     const root = typeof params.root === 'string' && params.root ? params.root : process.cwd();
@@ -322,12 +330,16 @@ function scheduleIdleShutdown(server, lockFile, idleTimeoutMs, depsOverride) {
     setTimeoutFn: setTimeout,
     unlinkFn: (p) => { try { fs.unlinkSync(p); } catch { /* best-effort */ } },
     exitFn: (code) => process.exit(code),
+    liveSessionsFn: () => SA.liveSessions().total,
     ...depsOverride,
   };
   if (!(idleTimeoutMs > 0)) return null;
   const arm = (waitMs) => deps.setTimeoutFn(() => {
     const idleFor = deps.nowFn() - server.ctx.lastActivity;
     if (idleFor < idleTimeoutMs) { arm(idleTimeoutMs - idleFor); return; }
+    let live = 0;
+    try { live = deps.liveSessionsFn(); } catch { /* sem leitura das sessões: vale a ociosidade */ }
+    if (live > 0) { arm(idleTimeoutMs); return; }
     process.stderr.write(`token-guard daemon ocioso por ${idleTimeoutMs}ms — encerrando.\n`);
     DL.noteExitReason(`ocioso por ${idleTimeoutMs}ms`);
     deps.unlinkFn(lockFile);
@@ -444,9 +456,69 @@ function sweepStaleLocks(dir, ownLock) {
   }
 }
 
+const HANDOVER_STEP_TIMEOUT_MS = 15000;
+const HANDOVER_DRAIN_MS = 5000;
+const HANDOVER_GRACE_MS = 1000;
+
+/** `script` é o daemon-server.cjs de uma instalação do token-guard (o pipe é do usuário, mas não executa caminho qualquer). */
+function isDaemonScript(script) {
+  if (typeof script !== 'string' || path.basename(script) !== 'daemon-server.cjs') return false;
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(script), '..', 'package.json'), 'utf8'));
+    return typeof pkg.name === 'string' && /token-guard$/.test(pkg.name);
+  } catch { return false; }
+}
+
+/**
+ * Sobe o sucessor com um canal IPC e lhe entrega o socket de escuta do HTTP: os dois processos aceitam
+ * conexões na MESMA porta (o Windows não deixa dois binds), então nenhuma chamada de hook encontra a porta
+ * fechada. Resolve `{ok:true, pid, port}` quando o sucessor confirma que escuta, ou `{ok:false, error}`
+ * (o sucessor é encerrado e o daemon atual segue servindo).
+ */
+function launchSuccessor(script, endpoint, httpServer) {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(process.execPath, [script, endpoint], {
+        detached: true,
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+        windowsHide: true,
+        env: { ...process.env, TOKEN_GUARD_TAKEOVER_FROM: String(process.pid) },
+      });
+    } catch (err) { return resolve({ ok: false, error: `não consegui iniciar o sucessor: ${err.message}` }); }
+    let settled = false;
+    const finish = (out) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (!out.ok) { try { child.kill(); } catch { /* já saiu */ } }
+      resolve(out);
+    };
+    const timer = setTimeout(() => finish({ ok: false, error: `o sucessor não assumiu o HTTP em ${HANDOVER_STEP_TIMEOUT_MS} ms` }), HANDOVER_STEP_TIMEOUT_MS);
+    child.once('error', (err) => finish({ ok: false, error: `sucessor: ${err.message}` }));
+    child.once('exit', (code) => finish({ ok: false, error: `o sucessor saiu (código ${code}) antes de assumir o HTTP` }));
+    child.on('message', (m) => {
+      if (!m) return;
+      if (m.type === 'ready') {
+        child.send({ type: 'http-handle' }, httpServer, (err) => { if (err) finish({ ok: false, error: `não passei o socket ao sucessor: ${err.message}` }); });
+      } else if (m.type === 'http-listening') {
+        if (!m.port) return finish({ ok: false, error: 'o sucessor não abriu o HTTP (sem token no perfil)' });
+        child.removeAllListeners('exit');
+        try { child.disconnect(); } catch { /* canal já fechado */ }
+        child.unref();
+        finish({ ok: true, pid: child.pid, port: m.port });
+      }
+    });
+  });
+}
+
 function start(endpointOverride) {
   const endpoint = endpointOverride || defaultEndpoint();
   const lockFile = defaultLockPath(endpoint);
+  // Variável de ambiente só serve a este processo: não pode vazar para o que ele spawna (ícone, auto-update).
+  const takeoverFrom = Number(process.env.TOKEN_GUARD_TAKEOVER_FROM) || 0;
+  delete process.env.TOKEN_GUARD_TAKEOVER_FROM;
+  const successor = takeoverFrom > 0 && typeof process.send === 'function';
   DL.hookProcess();
 
   // F4 (D4/D5): antes de tentar o listen, decide via lock-record se já existe
@@ -478,6 +550,112 @@ function start(endpointOverride) {
     server.close(() => process.exit(0));
   };
 
+  let httpServer = null;
+  let httpStarted = false;
+
+  /**
+   * Com o token do usuário no perfil, serve também o hook http do Claude Code. `listen` recebe o servidor e
+   * resolve a porta (porta dinâmica, ou o socket herdado do daemon anterior). Resolve a porta, ou null se o
+   * HTTP não subiu (sem token ou sem porta), com o motivo no daemon.log.
+   */
+  const startHttp = (listen) => {
+    httpStarted = true;
+    const token = DH.readToken();
+    if (!token) return Promise.resolve(null);
+    EV.trim();
+    let httpPort = 0;
+    const ui = UI.create({
+      token, version: PACKAGE_VERSION, getPort: () => httpPort,
+      onSaved: (patch) => { if (patch && patch.ui && patch.ui.tray) TRAY.ensure(); },
+    });
+    httpServer = DH.createHttpServer({
+      token,
+      version: PACKAGE_VERSION,
+      handle: (msg) => handleMessage(msg, server.ctx),
+      onActivity: () => { server.ctx.lastActivity = Date.now(); },
+      ui,
+    });
+    server.once('close', () => { ui.close(); httpServer.close(); });
+    // Onde subiu vai para ~/.token-guard/daemon-http.json e para o settings.json do Claude Code:
+    // a URL nunca fica presa no endpoint de um daemon anterior.
+    return listen(httpServer).then((port) => {
+      httpPort = port;
+      process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${port}\n`);
+      // O daemon roda destacado e o stderr dele não é lido: o daemon.log é o único rastro de para onde os hooks foram.
+      const on = { port };
+      if (successor) on.handoverFrom = takeoverFrom;
+      try {
+        DH.writeJsonAtomic(DH.endpointPath(), { port, url: `http://127.0.0.1:${port}/token-guard`, pid: process.pid, version: PACKAGE_VERSION });
+      } catch (err) {
+        on.endpointError = err.message;
+        process.stderr.write(`token-guard daemon: não gravou ${DH.endpointPath()} (${err.message})\n`);
+      }
+      const sync = DH.syncClaudeSettings(port);
+      if (sync.ok) on.hooksRepointed = sync.changed;
+      else on.hooksError = sync.error;
+      DL.logLifecycle('http-on', on);
+      if (!sync.ok) process.stderr.write(`token-guard daemon: settings.json do Claude Code NÃO reapontado para a porta ${port}: ${sync.error}\n`);
+      else if (sync.changed) process.stderr.write(`token-guard daemon: ${sync.changed} hook(s) http do Claude Code reapontado(s) para a porta ${port}\n`);
+      // Ícone na bandeja: nasce com o daemon (uma instância por usuário; o próprio script se trava).
+      const tray = TRAY.ensure();
+      if (!tray.started && tray.reason) process.stderr.write(`token-guard daemon: ícone da bandeja não iniciado (${tray.reason})\n`);
+      return port;
+    }, (err) => {
+      // Fail-loud: sem HTTP, o hook do Claude Code cai em conexão recusada
+      // (fail-open). Registra o motivo para o SessionStart avisar o usuário.
+      const why = DH.fixedPort()
+        ? `porta fixa ${DH.fixedPort()} (TOKEN_GUARD_HTTP_PORT) ocupada ou recusada: ${err.code || err.message}`
+        : `nenhuma porta disponível: ${err.code || err.message}`;
+      process.stderr.write(`token-guard daemon: hook http DESLIGADO — ${why}\n`);
+      DL.logLifecycle('http-off', { reason: why });
+      try { DH.writeJsonAtomic(DH.endpointPath(), { ...(DH.readEndpoint() || {}), error: why, pid: process.pid, version: PACKAGE_VERSION }); } catch { /* o stderr acima já registrou */ }
+      return null;
+    });
+  };
+
+  // Sucessor: recebe o socket de escuta do HTTP do daemon anterior e começa a aceitar nele antes de ter o pipe.
+  if (successor) {
+    process.on('message', (msg, handle) => {
+      if (!msg || msg.type !== 'http-handle' || !handle || httpStarted) return;
+      startHttp((s) => new Promise((resolve, reject) => {
+        s.once('error', reject);
+        s.listen(handle, () => resolve(s.address().port));
+      })).then((port) => { try { process.send({ type: 'http-listening', port }); } catch { /* o daemon anterior saiu */ } });
+    });
+  }
+
+  // Daemon em pé: entrega o HTTP ao sucessor e só então solta o pipe e sai. Falhando, segue servindo.
+  let handingOver = false;
+  server.ctx.handover = (params) => {
+    const script = params && params.daemonServerPath;
+    if (handingOver) return { ok: false, error: 'já há uma troca em andamento' };
+    if (!httpServer || !httpServer.listening) return { ok: false, error: 'sem hook http no ar para passar ao sucessor' };
+    if (!isDaemonScript(script)) return { ok: false, error: `não é o daemon-server.cjs de uma instalação do token-guard: ${script}` };
+    handingOver = true;
+    launchSuccessor(script, endpoint, httpServer).then((r) => {
+      if (!r.ok) {
+        handingOver = false;
+        DL.logLifecycle('handover-failed', { error: r.error });
+        process.stderr.write(`token-guard daemon: troca sem queda falhou (${r.error}) — sigo servindo.\n`);
+        return;
+      }
+      DL.noteExitReason(`troca sem queda: o pid ${r.pid} assumiu o HTTP`);
+      try { fs.unlinkSync(lockFile); } catch { /* best-effort */ }
+      // Respostas com `Connection: close` fazem os clientes largarem as conexões persistentes por conta própria;
+      // só depois o antigo fecha o que sobrou, para o reset não pegar um pedido em voo.
+      httpServer.draining = true;
+      setTimeout(() => {
+        let open = 2;
+        const closed = () => { if (--open === 0) process.exit(0); };
+        httpServer.close(closed);
+        server.close(closed);
+        setInterval(() => { if (httpServer.closeIdleConnections) httpServer.closeIdleConnections(); }, 100).unref();
+      }, HANDOVER_GRACE_MS);
+      setTimeout(() => process.exit(0), HANDOVER_GRACE_MS + HANDOVER_DRAIN_MS);
+    });
+    return { ok: true, started: true };
+  };
+
   // Mutex de arquivo (create exclusivo `wx` — atômico no POSIX) pro trecho
   // crítico de reclaim de socket órfão abaixo. Sem isto, dois daemons
   // concorrentes reclamando o MESMO socket órfão simultaneamente podiam
@@ -500,64 +678,13 @@ function start(endpointOverride) {
       try { fs.chmodSync(endpoint, 0o700); } catch { /* best-effort */ }
     }
     process.stderr.write(`token-guard daemon pronto em ${endpoint} (${PACKAGE_VERSION})\n`);
-    DL.recordStart({ version: PACKAGE_VERSION, endpoint, idleMs: IDLE_TIMEOUT_MS });
+    DL.recordStart({ version: PACKAGE_VERSION, endpoint, idleMs: IDLE_TIMEOUT_MS }, undefined, takeoverFrom);
     // Escutando = somos o dono: o lock passa a apontar para nós (cobre o caso
     // em que acquireLock recusou por um pid reusado).
     DL.writeLockRecord(lockFile, { pid: process.pid, protocolVersion: PROTOCOL_VERSION, packageVersion: PACKAGE_VERSION });
     sweepStaleLocks(path.dirname(lockFile), lockFile);
-    // A16: com o token do usuário no perfil, serve também o hook http do
-    // Claude Code; a ociosidade nesse modo segue idleTimeoutFor.
-    const token = DH.readToken();
-    if (token) {
-      EV.trim();
-      let httpPort = 0;
-      const ui = UI.create({
-        token, version: PACKAGE_VERSION, getPort: () => httpPort,
-        onSaved: (patch) => { if (patch && patch.ui && patch.ui.tray) TRAY.ensure(); },
-      });
-      const httpServer = DH.createHttpServer({
-        token,
-        version: PACKAGE_VERSION,
-        handle: (msg) => handleMessage(msg, server.ctx),
-        onActivity: () => { server.ctx.lastActivity = Date.now(); },
-        ui,
-      });
-      // Porta dinâmica: preferida → última registrada → livre. Onde subiu vai
-      // para ~/.token-guard/daemon-http.json e para o settings.json do Claude
-      // Code — a URL nunca fica presa no endpoint de um daemon anterior.
-      DH.listenFirstFree(httpServer, DH.candidatePorts()).then((port) => {
-        httpPort = port;
-        process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${port}\n`);
-        // O daemon roda destacado e o stderr dele não é lido: o daemon.log é o único rastro de para onde os hooks foram.
-        const on = { port };
-        try {
-          DH.writeJsonAtomic(DH.endpointPath(), { port, url: `http://127.0.0.1:${port}/token-guard`, pid: process.pid, version: PACKAGE_VERSION });
-        } catch (err) {
-          on.endpointError = err.message;
-          process.stderr.write(`token-guard daemon: não gravou ${DH.endpointPath()} (${err.message})\n`);
-        }
-        const sync = DH.syncClaudeSettings(port);
-        if (sync.ok) on.hooksRepointed = sync.changed;
-        else on.hooksError = sync.error;
-        DL.logLifecycle('http-on', on);
-        if (!sync.ok) process.stderr.write(`token-guard daemon: settings.json do Claude Code NÃO reapontado para a porta ${port}: ${sync.error}\n`);
-        else if (sync.changed) process.stderr.write(`token-guard daemon: ${sync.changed} hook(s) http do Claude Code reapontado(s) para a porta ${port}\n`);
-        // Ícone na bandeja: nasce com o daemon (uma instância por usuário; o próprio script se trava).
-        const tray = TRAY.ensure();
-        if (!tray.started && tray.reason) process.stderr.write(`token-guard daemon: ícone da bandeja não iniciado (${tray.reason})\n`);
-      }, (err) => {
-        // Fail-loud: sem HTTP, o hook do Claude Code cai em conexão recusada
-        // (fail-open). Registra o motivo para o SessionStart avisar o usuário.
-        const why = DH.fixedPort()
-          ? `porta fixa ${DH.fixedPort()} (TOKEN_GUARD_HTTP_PORT) ocupada ou recusada: ${err.code || err.message}`
-          : `nenhuma porta disponível: ${err.code || err.message}`;
-        process.stderr.write(`token-guard daemon: hook http DESLIGADO — ${why}\n`);
-        DL.logLifecycle('http-off', { reason: why });
-        try { DH.writeJsonAtomic(DH.endpointPath(), { ...(DH.readEndpoint() || {}), error: why, pid: process.pid, version: PACKAGE_VERSION }); } catch { /* o stderr acima já registrou */ }
-      });
-      server.once('close', () => { ui.close(); httpServer.close(); });
-    }
-    scheduleIdleShutdown(server, lockFile, idleTimeoutFor(process.env.TOKEN_GUARD_DAEMON_IDLE_MS, Boolean(token)));
+    if (!httpStarted) startHttp((s) => DH.listenFirstFree(s, DH.candidatePorts()));
+    scheduleIdleShutdown(server, lockFile, idleTimeoutFor(process.env.TOKEN_GUARD_DAEMON_IDLE_MS, Boolean(DH.readToken())));
   };
   // Já retried o listen uma vez após remover um socket órfão? Cobre o caso em
   // que o lock-record está ausente/corrompido (então `acquireLock` não marcou
@@ -575,7 +702,8 @@ function start(endpointOverride) {
   // morto (achado do backlog A4). Retry com backoff curto (sem unlink, que
   // não se aplica) cobre essa janela.
   const WIN32_RETRY_DELAY_MS = 50;
-  const WIN32_MAX_RETRIES = 3;
+  // O sucessor espera o antigo soltar o pipe (ele só o solta depois de passar o HTTP): janela de segundos, não de milissegundos.
+  const WIN32_MAX_RETRIES = successor ? 200 : 3;
   let win32RetryCount = 0;
   // Guarda o timer pendente pra poder cancelar: sem isto, um `close()`
   // chamado durante a janela de retry (até 150ms) é desfeito silenciosamente
@@ -646,6 +774,7 @@ function start(endpointOverride) {
     process.exit(1);
   });
   server.listen(endpoint);
+  if (successor) process.send({ type: 'ready' });
   return server;
 }
 
