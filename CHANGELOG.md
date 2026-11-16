@@ -3,7 +3,7 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [2.19.6] — 2026-11-16
 
 ### Adicionado
 - **O `audit` sugere `noiseDirsExtra`.** Diretórios de topo pesados, com muitos arquivos e nenhum código-fonte, saem
