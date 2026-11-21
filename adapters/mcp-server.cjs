@@ -156,29 +156,22 @@ TOOLS.push({
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
 /* ------------------------------------------------------------------ */
-/* JSON-RPC 2.0 sobre stdio                                           */
+/* JSON-RPC 2.0: o mesmo despacho serve o stdio e a rota HTTP do daemon */
 /* ------------------------------------------------------------------ */
 
-function send(msg) {
-  process.stdout.write(JSON.stringify(msg) + '\n');
-}
+const ok = (id, result) => (id === undefined || id === null ? null : { jsonrpc: '2.0', id, result });
+const fail = (id, code, message) => (id === undefined || id === null ? null : { jsonrpc: '2.0', id, error: { code, message } });
 
-function reply(id, result) {
-  if (id === undefined || id === null) return; // notificação: não se responde
-  send({ jsonrpc: '2.0', id, result });
-}
-
-function replyError(id, code, message) {
-  if (id === undefined || id === null) return;
-  send({ jsonrpc: '2.0', id, error: { code, message } });
-}
-
+/**
+ * Despacha uma mensagem JSON-RPC.
+ * @returns {object|null} a resposta; null para notificação (não se responde).
+ */
 function handle(msg) {
   const { id, method, params } = msg;
 
   switch (method) {
     case 'initialize':
-      return reply(id, {
+      return ok(id, {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER,
@@ -186,29 +179,29 @@ function handle(msg) {
 
     case 'notifications/initialized':
     case 'initialized':
-      return; // notificação, sem resposta
+      return null;
 
     case 'ping':
-      return reply(id, {});
+      return ok(id, {});
 
     case 'tools/list':
-      return reply(id, {
+      return ok(id, {
         tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
       });
 
     case 'tools/call': {
       const tool = TOOL_BY_NAME.get(params?.name);
-      if (!tool) return replyError(id, -32602, `Ferramenta desconhecida: ${params?.name}`);
+      if (!tool) return fail(id, -32602, `Ferramenta desconhecida: ${params?.name}`);
       try {
         const out = tool.handler(params?.arguments || {});
         const result = { content: [{ type: 'text', text: String(out.text) }], isError: Boolean(out.isError) };
         if (out.structured !== undefined) result.structuredContent = out.structured;
-        return reply(id, result);
+        return ok(id, result);
       } catch (err) {
         // Fail-open também aqui: o erro vira conteúdo, não derruba a sessão. O hook mcp_tool não tem linha
         // de comando, então a origem vai no começo da saída de erro, onde a mensagem de falha a procura.
         const origin = tool.name === 'token_guard_hook' ? '[hook-origin=token-guard] ' : '';
-        return reply(id, {
+        return ok(id, {
           content: [{ type: 'text', text: `${origin}token-guard falhou: ${err && err.message ? err.message : err}` }],
           isError: true,
         });
@@ -216,17 +209,19 @@ function handle(msg) {
     }
 
     case 'resources/list':
-      return reply(id, { resources: [] });
+      return ok(id, { resources: [] });
 
     case 'prompts/list':
-      return reply(id, { prompts: [] });
+      return ok(id, { prompts: [] });
 
     default:
-      return replyError(id, -32601, `Método não suportado: ${method}`);
+      return fail(id, -32601, `Método não suportado: ${method}`);
   }
 }
 
+/** Transporte stdio: uma mensagem JSON por linha. */
 function start() {
+  const send = (msg) => process.stdout.write(JSON.stringify(msg) + '\n');
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
   rl.on('line', (line) => {
     const raw = line.trim();
@@ -238,9 +233,11 @@ function start() {
       return; // lixo na linha: ignora em silêncio, não derruba o servidor
     }
     try {
-      handle(msg);
+      const out = handle(msg);
+      if (out) send(out);
     } catch {
-      replyError(msg?.id, -32603, 'Erro interno do token-guard');
+      const out = fail(msg?.id, -32603, 'Erro interno do token-guard');
+      if (out) send(out);
     }
   });
   rl.on('close', () => process.exit(0));
@@ -248,4 +245,4 @@ function start() {
 
 if (require.main === module) start();
 
-module.exports = { TOOLS, handle, start, PROTOCOL_VERSION };
+module.exports = { TOOLS, handle, fail, start, PROTOCOL_VERSION };

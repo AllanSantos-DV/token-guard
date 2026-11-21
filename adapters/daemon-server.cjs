@@ -593,6 +593,9 @@ function start(endpointOverride) {
       const sync = DH.syncClaudeSettings(port);
       if (sync.ok) on.hooksRepointed = sync.changed;
       else on.hooksError = sync.error;
+      const codexSync = DH.syncCodexConfig(port);
+      if (codexSync.ok) on.codexRepointed = codexSync.changed;
+      else on.codexError = codexSync.error;
       DL.logLifecycle('http-on', on);
       if (!sync.ok) process.stderr.write(`token-guard daemon: settings.json do Claude Code NÃO reapontado para a porta ${port}: ${sync.error}\n`);
       else if (sync.changed) process.stderr.write(`token-guard daemon: ${sync.changed} hook(s) http do Claude Code reapontado(s) para a porta ${port}\n`);

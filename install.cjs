@@ -891,41 +891,16 @@ function upsertTomlTable(file, table, bodyLines, base, label) {
   log(prev ? 'merge' : 'create', label);
 }
 
-/**
- * Comando do node para configs de terceiros que spawnam sem shell (Codex):
- * "node" puro, resolvido pelo PATH de quem spawna na hora do uso. So se o node
- * nao esta no PATH daqui cai num local conhecido; nunca grava process.execPath.
- * Reinstalar repara entrada que ficou com caminho obsoleto.
- */
-function nodeForConfig() {
-  const win = process.platform === 'win32';
-  const exe = win ? 'node.exe' : 'node';
-  const onPath = (process.env.PATH || process.env.Path || '').split(path.delimiter)
-    .some((d) => d && fs.existsSync(path.join(d.replace(/^"|"$/g, ''), exe)));
-  if (onPath) return 'node';
-  const e = process.env;
-  const known = win
-    ? [e.LOCALAPPDATA && path.join(e.LOCALAPPDATA, 'Programs', 'nodejs', exe),
-       e.NVM_SYMLINK && path.join(e.NVM_SYMLINK, exe),
-       e.VOLTA_HOME && path.join(e.VOLTA_HOME, 'bin', exe),
-       e.ProgramFiles && path.join(e.ProgramFiles, 'nodejs', exe),
-       e['ProgramFiles(x86)'] && path.join(e['ProgramFiles(x86)'], 'nodejs', exe)].filter(Boolean)
-    : ['/opt/homebrew/bin/node', '/usr/local/bin/node', '/usr/bin/node', path.join(HOME, '.volta', 'bin', 'node')];
-  return known.find((p) => fs.existsSync(p)) || 'node';
-}
-
 function installCodex() {
   const base = process.env.CODEX_HOME || path.join(HOME, '.codex');
   const dir = path.join(base, 'token-guard');
   installRuntime(dir, { base });
 
-  // O servidor MCP sobe uma vez por sessão do Codex e fica de pé: é ele que
-  // o hook chama — sem processo por chamada. Strings TOML básicas (JSON
-  // escapa igual) com barras normais.
-  const fwd = (p) => p.replace(/\\/g, '/');
+  // O hook mcp_tool chama o servidor MCP que o daemon já serve por http: nenhum processo por conversa.
+  // A porta vem do daemon, que reescreve a url se subir em outra. Strings TOML básicas (JSON escapa igual).
   upsertTomlTable(path.join(base, 'config.toml'), 'mcp_servers.token-guard', [
-    `command = ${JSON.stringify(fwd(nodeForConfig()))}`,
-    `args = [${JSON.stringify(fwd(path.join(dir, 'adapters', 'mcp-server.cjs')))}]`,
+    `url = ${JSON.stringify(DH.mcpUrl(DH.httpPort()))}`,
+    `http_headers = { "X-Token-Guard" = ${JSON.stringify(ensureHttpToken())} }`,
   ], base, 'config.toml  ([mcp_servers.token-guard])');
 
   const hooksPath = path.join(base, 'hooks.json');

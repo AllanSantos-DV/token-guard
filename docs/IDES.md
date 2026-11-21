@@ -98,8 +98,9 @@ token-guard ou instale com `--command-hooks`.
 
 O Codex não tem hook http, mas tem `type: "mcp_tool"`: o hook chama uma ferramenta
 num servidor MCP **já conectado** à sessão e lê a resposta no contrato do hook de
-comando. O `init --target codex` registra o servidor MCP do token-guard em
-`~/.codex/config.toml` e o hook `PreToolUse` (matcher `Bash`) em `~/.codex/hooks.json`,
+comando. O `init --target codex` registra em `~/.codex/config.toml` o servidor MCP que o
+próprio daemon serve por http (`url`, com o token do dono em `http_headers`: nenhum processo
+por conversa) e o hook `PreToolUse` (matcher `Bash`) em `~/.codex/hooks.json`,
 chamando `token_guard_hook` — a mesma `decide()` de todos os alvos.
 
 - **Hook novo do Codex fica desativado até ser aprovado** em `/hooks` (revisão de

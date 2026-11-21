@@ -291,8 +291,10 @@ console.log('\n  [codex] ponte mcp_tool -> servidor MCP do token-guard');
     ['ui/setup.html', 'tray.ps1', 'run-daemon.cmd'].every((f) => fs.existsSync(path.join(codexHome, 'token-guard', 'adapters', f))));
   const cfg = fs.readFileSync(cfgPath, 'utf8');
   check('config.toml: o que já existia fica intacto (byte a byte, CRLF incluso)', cfg.startsWith(cfgBefore), JSON.stringify(cfg.slice(0, 160)));
-  check('config.toml: tabela [mcp_servers.token-guard] apontando para o servidor MCP instalado',
-    /\[mcp_servers\.token-guard\]\r\ncommand = ".+"\r\nargs = \[".+mcp-server\.cjs"\]/.test(cfg) && cfg.includes(server.replace(/\\/g, '/')), cfg);
+  const tokenOnDisk = fs.readFileSync(path.join(home, '.token-guard', 'daemon-http.token'), 'utf8').trim();
+  check('config.toml: [mcp_servers.token-guard] por url do daemon, com o token do dono e sem command',
+    cfg.includes(`[mcp_servers.token-guard]\r\nurl = "http://127.0.0.1:0/token-guard/mcp"\r\nhttp_headers = { "X-Token-Guard" = "${tokenOnDisk}" }`) &&
+    !/command\s*=/.test(cfg.slice(cfg.indexOf('[mcp_servers.token-guard]'))), cfg);
   const hk = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
   const pre = hk.hooks.PreToolUse;
   check('hooks.json: hook do Codex existente continua na posição 0 (aprovação por índice preservada)',
@@ -435,36 +437,19 @@ if (process.platform === 'win32') {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
 
-console.log('\n  [codex] node em outro caminho');
+console.log('\n  [codex] entrada stdio antiga migra para a url do daemon');
 {
-  const repo = mkrepo('codex-nodepath');
+  const repo = mkrepo('codex-stdio-migration');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-codexnode-'));
   const codexHome = path.join(home, '.codex');
   fs.mkdirSync(codexHome, { recursive: true });
   const cfgPath = path.join(codexHome, 'config.toml');
   const ENV = { HOME: home, USERPROFILE: home, CODEX_HOME: codexHome };
-  // entrada antiga com o caminho de um node que sumiu
   fs.writeFileSync(cfgPath, '[mcp_servers.token-guard]\ncommand = "C:/node-velho/node.exe"\nargs = ["C:/x/mcp-server.cjs"]\n', 'utf8');
   const r = runInstall(['--target', 'codex', repo], ENV);
   const cfg = fs.readFileSync(cfgPath, 'utf8');
-  check('node no PATH: config grava "node" puro e repara o caminho obsoleto',
-    r.status === 0 && /command = "node"/.test(cfg) && !cfg.includes('node-velho'), cfg);
-  check('config nao grava process.execPath', !cfg.includes(process.execPath.replace(/\\/g, '/')), cfg);
-
-  // node fora do PATH, so num local conhecido: usa o local (fail-soft com caminho que existe)
-  const pf = path.join(home, 'pf');
-  fs.mkdirSync(path.join(pf, 'Programs', 'nodejs'), { recursive: true });
-  const exe = process.platform === 'win32' ? 'node.exe' : 'node';
-  fs.writeFileSync(path.join(pf, 'Programs', 'nodejs', exe), '');
-  const sys32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
-  const known = process.platform === 'win32' ? { LOCALAPPDATA: pf, PATH: sys32 } : null;
-  if (known) {
-    // PATH sem node: o proprio processo precisa do execPath absoluto para subir
-    const r2 = runInstall(['--target', 'codex', repo], { ...ENV, ...known });
-    const cfg2 = fs.readFileSync(cfgPath, 'utf8');
-    check('node fora do PATH: usa o local conhecido que existe',
-      r2.status === 0 && cfg2.includes(path.join(pf, 'Programs', 'nodejs', exe).replace(/\\/g, '/')), cfg2);
-  }
+  check('entrada stdio antiga vira url: sem command, sem args, sem caminho de node',
+    r.status === 0 && /url = "http:\/\/127\.0\.0\.1:\d+\/token-guard\/mcp"/.test(cfg) && !/command|args|node-velho|mcp-server/.test(cfg), cfg);
   fs.rmSync(repo, { recursive: true, force: true });
   fs.rmSync(home, { recursive: true, force: true });
 }

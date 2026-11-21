@@ -25,6 +25,7 @@ const CW = require('../lib/ctxwatch.cjs');
 
 const MAX_BODY_BYTES = 64 * 1024 * 1024; // PostToolUse traz o resultado inteiro
 const ROUTES = { '/token-guard/pre': 'pre', '/token-guard/post': 'post', '/token-guard/prompt': 'prompt' };
+const MCP_ROUTE = '/token-guard/mcp';
 const HEALTH = '/token-guard/health';
 const ORIGIN_TAG = '[hook-origin=token-guard]';
 
@@ -157,6 +158,37 @@ function syncClaudeSettings(port, file = claudeSettingsPath()) {
   return { ok: true, changed };
 }
 
+const TG_MCP_URL_RE = /(url\s*=\s*")http:\/\/127\.0\.0\.1:\d+(\/token-guard\/mcp")/g;
+
+function codexConfigPath() {
+  return path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'config.toml');
+}
+
+/** URL do servidor MCP do Codex: o daemon atende o hook mcp_tool na mesma porta do hook http. */
+function mcpUrl(port) {
+  return `http://127.0.0.1:${port || 0}${MCP_ROUTE}`;
+}
+
+/**
+ * Reaponta a entrada `url` do token-guard no config.toml do Codex para `port`. Só essa URL,
+ * só se difere, gravação atômica. O Codex relê o arquivo ao abrir cada conversa.
+ * @returns {{ok:true, changed:number} | {ok:false, error:string}}
+ */
+function syncCodexConfig(port, file = codexConfigPath()) {
+  let raw;
+  try { raw = fs.readFileSync(file, 'utf8'); } catch (err) {
+    return err.code === 'ENOENT' ? { ok: true, changed: 0 } : { ok: false, error: `${file}: ${err.message}` };
+  }
+  const next = raw.replace(TG_MCP_URL_RE, `$1http://127.0.0.1:${port}$2`);
+  if (next === raw) return { ok: true, changed: 0 };
+  try {
+    const tmp = `${file}.tg-tmp-${process.pid}`;
+    fs.writeFileSync(tmp, next, 'utf8');
+    renameOverReaders(tmp, file);
+  } catch (err) { return { ok: false, error: `${file}: ${err.message}` }; }
+  return { ok: true, changed: 1 };
+}
+
 function httpTokenPath() {
   return path.join(os.homedir(), '.token-guard', 'daemon-http.token');
 }
@@ -172,6 +204,18 @@ function sameToken(a, b) {
   const x = Buffer.from(String(a || ''));
   const y = Buffer.from(String(b || ''));
   return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+/**
+ * Atende uma mensagem JSON-RPC do MCP (Streamable HTTP, sem sessão): o mesmo despacho do stdio.
+ * @returns {object|object[]|null} resposta; null quando só havia notificações.
+ */
+function answerMcp(payload) {
+  const MCP = require('./mcp-server.cjs');
+  const one = (m) => (m && typeof m === 'object' ? MCP.handle(m) : MCP.fail(1, -32600, 'Requisição inválida'));
+  if (!Array.isArray(payload)) return one(payload);
+  const outs = payload.map(one).filter(Boolean);
+  return outs.length ? outs : null;
 }
 
 /** Decide um evento com o mesmo roteamento do RPC (cache de veredito incluso). */
@@ -215,13 +259,17 @@ function createHttpServer({ token, handle, onActivity, ui, version }) {
       res.end();
       return;
     }
-    const kind = ROUTES[route];
+    const kind = route === MCP_ROUTE ? 'mcp' : ROUTES[route];
     const health = req.method === 'GET' && route === HEALTH;
-    if (!health && (req.method !== 'POST' || !kind)) return send(404, JSON.stringify({ error: `${ORIGIN_TAG} rota desconhecida` }));
+    if (!health && (!kind || (kind !== 'mcp' && req.method !== 'POST'))) return send(404, JSON.stringify({ error: `${ORIGIN_TAG} rota desconhecida` }));
     if (!sameToken(req.headers['x-token-guard'], token)) return send(401, JSON.stringify({ error: `${ORIGIN_TAG} token ausente ou invalido` }));
     // Prova de que quem responde na porta é ESTE daemon (com o token do dono), não um forasteiro.
     // A versão deixa quem trocou os arquivos provar que o processo que responde é o novo, não o antigo.
     if (health) return send(200, JSON.stringify({ ok: true, pid: process.pid, version: version || null }));
+    if (kind === 'mcp' && req.method !== 'POST') {
+      res.writeHead(405, { allow: 'POST', 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ error: `${ORIGIN_TAG} só POST` }));
+    }
 
     const chunks = [];
     let size = 0;
@@ -235,6 +283,15 @@ function createHttpServer({ token, handle, onActivity, ui, version }) {
       if (onActivity) onActivity();
       let payload;
       try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return send(400, JSON.stringify({ error: `${ORIGIN_TAG} JSON invalido` })); }
+      if (kind === 'mcp') {
+        try {
+          const out = answerMcp(payload);
+          if (out === null) { res.writeHead(202); return res.end(); }
+          return send(200, JSON.stringify(out));
+        } catch (err) {
+          return send(500, JSON.stringify({ error: `${ORIGIN_TAG} token-guard: ${err && err.message}` }));
+        }
+      }
       try {
         send(200, JSON.stringify(answer(kind, payload, handle) || {}));
       } catch (err) {
@@ -277,5 +334,5 @@ function probeHealth(port, token, timeoutMs = 500) {
 module.exports = {
   probeHealth, createHttpServer, httpPort, httpTokenPath, readToken, sameToken,
   fixedPort, candidatePorts, hookUrl, listenFirstFree,
-  answer, endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
+  answer, answerMcp, mcpUrl, codexConfigPath, syncCodexConfig, endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
 };

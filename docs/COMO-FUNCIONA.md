@@ -59,7 +59,7 @@ agente planeja  Grep "**/*"  ──►  harness dispara o evento pré-execução
 |---|---|---|---|
 | Copilot CLI / App | `onPreToolUse` da extensão | in-process (`adapters/copilot-cli.mjs`) | não |
 | Claude Code | `PreToolUse` `type: "http"` | POST para o daemon em `127.0.0.1` (`adapters/daemon-http.cjs`) | não |
-| Codex CLI | `PreToolUse` `type: "mcp_tool"` | ferramenta `token_guard_hook` do servidor MCP da sessão (`adapters/mcp-server.cjs`) | não |
+| Codex CLI | `PreToolUse` `type: "mcp_tool"` | ferramenta `token_guard_hook` do servidor MCP que o daemon serve por http (`POST /token-guard/mcp`) | não |
 | Cursor | `preToolUse` + eventos nomeados | comando (`adapters/cursor-hook.cjs`) | sim |
 | Copilot CLI (alvo `repo`) e Claude Code `--command-hooks` | `PreToolUse` de comando | `adapters/hook-cmd.cjs` → daemon por IPC, ou local | sim |
 | VS Code, Windsurf, Zed, JetBrains | — (MCP não intercepta) | o agente consulta `token_guard_check` | — (só orienta) |

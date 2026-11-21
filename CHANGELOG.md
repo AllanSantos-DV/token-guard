@@ -3,6 +3,23 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Alterado
+- **O Codex fala com o daemon por url, sem um processo `node` por conversa.** O daemon passa a servir MCP por
+  HTTP (`POST /token-guard/mcp`, mesmo token `X-Token-Guard` do hook http) com as ferramentas do servidor stdio,
+  inclusive `token_guard_hook`. O `init --target codex` grava `[mcp_servers.token-guard]` com `url` e
+  `http_headers` em vez de `command`/`args` e migra a entrada antiga; o daemon reaponta a `url` do
+  `config.toml` se subir em outra porta, como já faz com o `settings.json` do Claude Code. O servidor stdio
+  segue para os demais IDEs. As ferramentas `token_audit`, `token_guard_status` e `token_guard_check` no Codex
+  passam a assumir a pasta do daemon quando `path` não é dado: passe `path`.
+
+### Corrigido
+- **A poda de estado roda no máximo uma vez por hora por pasta**, em vez de varrer a pasta de sessões a cada
+  gravação (o hook passava de 200 ms em parte das chamadas).
+- **O registro da porta do daemon repete o rename quando o Windows o recusa** (EPERM/EBUSY/EACCES com leitor
+  no destino), em vez de perder o endpoint em silêncio.
+
 ## [2.19.6] — 2026-11-16
 
 ### Adicionado
