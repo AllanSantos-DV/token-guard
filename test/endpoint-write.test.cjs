@@ -45,5 +45,32 @@ check('nenhuma escrita se perdeu por EPERM/EBUSY', Object.keys(errors).length ==
 check('o arquivo termina com JSON válido', Number.isInteger(JSON.parse(fs.readFileSync(file, 'utf8')).port));
 check('não sobra temporário', fs.readdirSync(dir).every((n) => !n.includes('.tg-tmp-')), fs.readdirSync(dir));
 
-console.log(`\n  endpoint-write: ${pass} passaram · ${fail} falharam`);
-process.exit(fail ? 1 : 0);
+(async () => {
+  const reader2 = spawn(process.execPath, ['-e', `
+    const fs = require('fs');
+    const end = Date.now() + 4000;
+    while (Date.now() < end) { try { fs.readFileSync(${JSON.stringify(file)}, 'utf8'); } catch { /* escrita em curso */ } }
+  `], { stdio: 'ignore', windowsHide: true });
+  await new Promise((r) => setTimeout(r, 200));
+
+  let worstGap = 0;
+  let last = Date.now();
+  const beat = setInterval(() => { const now = Date.now(); worstGap = Math.max(worstGap, now - last); last = now; }, 5);
+  let asyncWrites = 0;
+  const asyncErrors = {};
+  const until = Date.now() + 1500;
+  while (Date.now() < until) {
+    try { await DH.writeJsonAtomicAsync(file, { port: 2000 + (asyncWrites % 1000), pid: process.pid }); asyncWrites++; } catch (err) { asyncErrors[err.code || err.message] = (asyncErrors[err.code || err.message] || 0) + 1; }
+  }
+  clearInterval(beat);
+  reader2.kill();
+
+  check('a gravação assíncrona escreveu várias vezes com um leitor ativo', asyncWrites >= 3, asyncWrites);
+  check('nenhuma gravação assíncrona se perdeu', Object.keys(asyncErrors).length === 0, asyncErrors);
+  check('o loop de eventos não ficou parado durante a gravação (pior intervalo < 400 ms)', worstGap < 400, worstGap);
+  check('o arquivo termina com JSON válido após a gravação assíncrona', Number.isInteger(JSON.parse(fs.readFileSync(file, 'utf8')).port));
+  check('não sobra temporário da gravação assíncrona', fs.readdirSync(dir).every((n) => !n.includes('.tg-tmp-')), fs.readdirSync(dir));
+
+  console.log(`\n  endpoint-write: ${pass} passaram · ${fail} falharam`);
+  process.exit(fail ? 1 : 0);
+})();

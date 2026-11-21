@@ -578,14 +578,14 @@ function start(endpointOverride) {
     server.once('close', () => { ui.close(); httpServer.close(); });
     // Onde subiu vai para ~/.token-guard/daemon-http.json e para o settings.json do Claude Code:
     // a URL nunca fica presa no endpoint de um daemon anterior.
-    return listen(httpServer).then((port) => {
+    return listen(httpServer).then(async (port) => {
       httpPort = port;
       process.stderr.write(`token-guard daemon: hook http em 127.0.0.1:${port}\n`);
       // O daemon roda destacado e o stderr dele não é lido: o daemon.log é o único rastro de para onde os hooks foram.
       const on = { port };
       if (successor) on.handoverFrom = takeoverFrom;
       try {
-        DH.writeJsonAtomic(DH.endpointPath(), { port, url: `http://127.0.0.1:${port}/token-guard`, pid: process.pid, version: PACKAGE_VERSION });
+        await DH.writeJsonAtomicAsync(DH.endpointPath(), { port, url: `http://127.0.0.1:${port}/token-guard`, pid: process.pid, version: PACKAGE_VERSION });
       } catch (err) {
         on.endpointError = err.message;
         process.stderr.write(`token-guard daemon: não gravou ${DH.endpointPath()} (${err.message})\n`);

@@ -58,6 +58,26 @@ const RENAME_RETRYABLE = new Set(['EPERM', 'EBUSY', 'EACCES']);
 const RENAME_TRIES = 200;
 
 /**
+ * Igual a `writeJsonAtomic`, mas as repetições do rename esperam com timer: o daemon que já serve
+ * HTTP não fica com o loop de eventos parado enquanto um leitor segura o arquivo.
+ */
+async function writeJsonAtomicAsync(file, obj) {
+  const fsp = fs.promises;
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tg-tmp-${process.pid}`;
+  await fsp.writeFile(tmp, JSON.stringify(obj, null, 2) + '\n', 'utf8');
+  for (let i = 1; ; i++) {
+    try { await fsp.rename(tmp, file); return; } catch (err) {
+      if (!RENAME_RETRYABLE.has(err.code) || i >= RENAME_TRIES) {
+        await fsp.unlink(tmp).catch(() => {});
+        throw err;
+      }
+      await new Promise((r) => setTimeout(r, 5));
+    }
+  }
+}
+
+/**
  * Renomeia por cima de `file`. No Windows a troca falha com EPERM enquanto outro processo está
  * lendo o destino, e o daemon e os clientes leem o endpoint a cada 100 ms: sem repetir, o registro
  * da porta (ou do motivo de o HTTP não ter subido) se perde. Esgotadas as tentativas, lança.
@@ -334,5 +354,5 @@ function probeHealth(port, token, timeoutMs = 500) {
 module.exports = {
   probeHealth, createHttpServer, httpPort, httpTokenPath, readToken, sameToken,
   fixedPort, candidatePorts, hookUrl, listenFirstFree,
-  answer, answerMcp, mcpUrl, codexConfigPath, syncCodexConfig, endpointPath, readEndpoint, writeJsonAtomic, claudeSettingsPath, syncClaudeSettings, HEALTH,
+  answer, answerMcp, mcpUrl, codexConfigPath, syncCodexConfig, endpointPath, readEndpoint, writeJsonAtomic, writeJsonAtomicAsync, claudeSettingsPath, syncClaudeSettings, HEALTH,
 };
