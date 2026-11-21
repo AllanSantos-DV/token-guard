@@ -1,0 +1,90 @@
+{
+  "engine": "vxk",
+  "mode": "board",
+  "title": "token-guard e o transcript da sessão: pode danificar?",
+  "slug": "token-guard-transcript-sessao",
+  "badge": "VXK · board · token-guard · transcript da sessão · 19/11/2026",
+  "accent": "#4be3b5",
+  "language": "pt-BR",
+  "narrate": true,
+  "voice": "pt-BR-Chirp3-HD-Iapetus",
+  "voiceStrict": true,
+  "audioFormat": "mp3",
+  "labels": {
+    "explain": "▶ Apresentar",
+    "pause": "⏸ Pausar",
+    "resume": "▶ Continuar",
+    "prev": "◀ Anterior",
+    "next": "Próximo ▶",
+    "index": "☰ Índice",
+    "indexTitle": "Tópicos",
+    "indexClose": "Fechar"
+  },
+  "blocks": [
+    {
+      "type": "hero",
+      "kicker": "token-guard · análise somente leitura · 19/11/2026",
+      "title": "O token-guard pode danificar o transcript da sessão? Não.",
+      "subtitle": "Todo caminho do produto que toca o arquivo foi listado com arquivo e linha. Só dois abrem o transcript, os dois só para leitura, e uma medição numa cópia isolada não achou nenhum efeito.",
+      "say": "A pergunta era se o token-guard pode danificar o arquivo de transcript da sessão do Claude Code, aquele que gera o aviso de arquivo ausente ou danificado. A resposta é não. Eu listei todos os caminhos do produto que tocam esse arquivo. Só dois o abrem, e os dois abrem só para leitura. Uma medição numa cópia isolada confirmou que a leitura não muda nada."
+    },
+    {
+      "type": "html",
+      "html": "<style>\n.tg{--ink:#eef2fb;--mut:#a9b4cc;--ln:#2b3553;--card:#121b33;--ok:#4be3b5;--c:#7aa7ff;color:var(--ink)}\n.tg-s{border:1px solid var(--ln);border-top:6px solid var(--c);border-radius:16px;padding:22px 26px;background:#0c1222;margin:6px 0}\n.tg-h h3{margin:0 0 6px;font-size:24px}.tg-h p{margin:0 0 10px;color:var(--mut);font-size:16px}\n.tg-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}\n.tg-c{background:var(--card);border:1px solid var(--ln);border-left:6px solid var(--k,var(--c));border-radius:12px;padding:12px 16px;font-size:16px;line-height:1.5}\n.tg-c b.t{display:block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px}\n.tg-rec{margin-top:12px;border-radius:12px;padding:12px 16px;background:#13261f;border:1px solid #2f6b55;font-size:17px}\n@media (max-width:760px){.tg-g{grid-template-columns:1fr}}\n</style><div class=\"tg\"><section class=\"tg-s\" style=\"--c:#4be3b5\"><header class=\"tg-h\"><h3>Os caminhos que tocam o transcript</h3><p>Nenhum escreve, anexa, trunca, move, renomeia, apaga, trava ou restaura o arquivo.</p></header><div class=\"tg-g\">\n<div class=\"tg-c\" style=\"--k:var(--ok)\"><b class=\"t\">lib/ctxwatch.cjs:30-34</b>Lê até 512 KiB do fim, abertura somente leitura, fecha no finally. Roda a cada prompt, com o Claude vivo.</div>\n<div class=\"tg-c\" style=\"--k:var(--ok)\"><b class=\"t\">lib/cost.cjs:126</b>Lê o arquivo em blocos, somente leitura, fecha no finally. Roda só sob demanda: comando cost ou tela do daemon.</div>\n<div class=\"tg-c\" style=\"--k:var(--ok)\"><b class=\"t\">lib/cost.cjs:210-237 e adapters/daemon-ui.cjs:136</b>Só lista a pasta e olha data e tamanho; a tela do daemon chama o mesmo leitor em outro processo.</div>\n<div class=\"tg-c\" style=\"--k:var(--ok)\"><b class=\"t\">bench/replay-transcripts.cjs:81</b>Leitura inteira, manual, só quando o mantenedor roda o replay.</div>\n<div class=\"tg-c\" style=\"--k:var(--ok)\"><b class=\"t\">lib/claude-hooks.cjs:71 e lib/sessions-alive.cjs:22-28</b>Repassa o caminho sem abrir; lista a pasta de sessões e testa se o processo existe (sinal zero).</div>\n<div class=\"tg-c\" style=\"--k:var(--ok)\"><b class=\"t\">Encerramento de processo</b>Só o próprio daemon: lib/daemon-client.cjs:344 e adapters/daemon-server.cjs:494. Nunca o claude, nunca por nome.</div>\n</div></section></div>",
+      "say": "Os caminhos. O aviso de peso de contexto lê o final do arquivo, em modo somente leitura, a cada prompt. O comando de custo lê o arquivo inteiro, também só leitura, e só roda quando alguém pede. O resto só lista pastas ou repassa o caminho sem abrir. Os únicos encerramentos de processo são do próprio daemon do token-guard, nunca do Claude. As escritas em pasta do Claude são só o arquivo de configuração de hooks e o agente scout, nunca um transcript."
+    },
+    {
+      "type": "html",
+      "html": "<style>\n.tg{--ink:#eef2fb;--mut:#a9b4cc;--ln:#2b3553;--card:#121b33;--ok:#4be3b5;--c:#7aa7ff;color:var(--ink)}\n.tg-s{border:1px solid var(--ln);border-top:6px solid var(--c);border-radius:16px;padding:22px 26px;background:#0c1222;margin:6px 0}\n.tg-h h3{margin:0 0 6px;font-size:24px}.tg-h p{margin:0 0 10px;color:var(--mut);font-size:16px}\n.tg-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}\n.tg-c{background:var(--card);border:1px solid var(--ln);border-left:6px solid var(--k,var(--c));border-radius:12px;padding:12px 16px;font-size:16px;line-height:1.5}\n.tg-c b.t{display:block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px}\n.tg-rec{margin-top:12px;border-radius:12px;padding:12px 16px;background:#13261f;border:1px solid #2f6b55;font-size:17px}\n@media (max-width:760px){.tg-g{grid-template-columns:1fr}}\n</style><div class=\"tg\"><section class=\"tg-s\" style=\"--c:#7aa7ff\"><header class=\"tg-h\"><h3>Medição numa cópia isolada</h3><p>Transcript real de 384.828 bytes copiado para pasta temporária; código real do produto.</p></header><div class=\"tg-g\">\n<div class=\"tg-c\" style=\"--k:var(--c)\"><b class=\"t\">Leitura isolada</b>Hash SHA-256 e data de modificação idênticos antes e depois.</div>\n<div class=\"tg-c\" style=\"--k:var(--c)\"><b class=\"t\">Leitura contra escrita</b>1.205 leituras em 3 s enquanto outro processo anexava 161.580 linhas: 0 erros, cauda byte a byte igual, prefixo com o mesmo hash.</div>\n<div class=\"tg-c\" style=\"--k:var(--c)\"><b class=\"t\">Sem trava</b>Com um leitor aberto, renomear o arquivo e voltar funcionou: o produto não prende o arquivo.</div>\n<div class=\"tg-c\" style=\"--k:var(--c)\"><b class=\"t\">Causa mais provável</b>Bytes nulos de gravação interrompida por desligamento inesperado do Windows e cadeia quebrada, ambos gerados pelo próprio Claude Code. Verificado só nesta máquina.</div>\n</div></section></div>",
+      "say": "A medição. Copiei um transcript real para uma pasta temporária e usei o código real do produto. A leitura isolada não mudou o hash nem a data do arquivo. Com um processo lendo em laço e outro anexando mais de cento e sessenta mil linhas, não houve erro e a cauda ficou idêntica. Um leitor aberto não impediu renomear o arquivo, então não há trava. O dano que a pesquisa do Agent Launcher encontrou tem outra assinatura, de gravação interrompida pelo desligamento do Windows, e vem do próprio Claude Code. Isso só foi verificado nesta máquina."
+    },
+    {
+      "type": "html",
+      "html": "<style>\n.tg{--ink:#eef2fb;--mut:#a9b4cc;--ln:#2b3553;--card:#121b33;--ok:#4be3b5;--c:#7aa7ff;color:var(--ink)}\n.tg-s{border:1px solid var(--ln);border-top:6px solid var(--c);border-radius:16px;padding:22px 26px;background:#0c1222;margin:6px 0}\n.tg-h h3{margin:0 0 6px;font-size:24px}.tg-h p{margin:0 0 10px;color:var(--mut);font-size:16px}\n.tg-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}\n.tg-c{background:var(--card);border:1px solid var(--ln);border-left:6px solid var(--k,var(--c));border-radius:12px;padding:12px 16px;font-size:16px;line-height:1.5}\n.tg-c b.t{display:block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px}\n.tg-rec{margin-top:12px;border-radius:12px;padding:12px 16px;background:#13261f;border:1px solid #2f6b55;font-size:17px}\n@media (max-width:760px){.tg-g{grid-template-columns:1fr}}\n</style><div class=\"tg\"><section class=\"tg-s\" style=\"--c:#ffc15e\"><header class=\"tg-h\"><h3>Recomendação</h3><p>Duas opções; a primeira é a recomendada.</p></header><div class=\"tg-g\">\n<div class=\"tg-c\" style=\"--k:var(--ok)\"><b class=\"t\">Opção 1 · recomendada</b><b>Nenhuma mudança no token-guard; seguir a investigação no Claude Code</b><br>O token-guard só lê o transcript, provado no código e medido numa cópia. Nenhum código nem versão muda; a investigação segue no Claude Code (fechamento e desligamento do Windows) e nos outros produtos da lista.</div>\n<div class=\"tg-c\" style=\"--k:var(--c)\"><b class=\"t\">Opção 2</b><b>Adicionar uma trava defensiva de leitura</b><br>Acrescentar ao token-guard uma checagem que pula o transcript quando o arquivo está sendo gravado. Não resolve nada medido, porque a leitura já não bloqueia nem altera o arquivo; só acrescenta código e risco.</div>\n</div>\n<div class=\"tg-rec\"><b>Recomendação:</b> Nenhuma mudança no token-guard; seguir a investigação no Claude Code.</div>\n<script type=\"application/json\" id=\"orq-opcoes\">[{\"rotulo\":\"Nenhuma mudança no token-guard; seguir a investigação no Claude Code (recomendado)\",\"descricao\":\"Recomendado. O token-guard só lê o transcript, provado no código e medido numa cópia. Nenhum código nem versão muda; a investigação segue no Claude Code (fechamento e desligamento do Windows) e nos outros produtos da lista.\"},{\"rotulo\":\"Adicionar uma trava defensiva de leitura\",\"descricao\":\"Acrescentar ao token-guard uma checagem que pula o transcript quando o arquivo está sendo gravado. Não resolve nada medido, porque a leitura já não bloqueia nem altera o arquivo; só acrescenta código e risco.\"}]</script></section></div>",
+      "say": "A decisão. Recomendo a primeira opção: nenhuma mudança no token-guard e seguir a investigação no Claude Code, no fechamento da sessão e no desligamento do Windows. A segunda opção seria acrescentar uma trava defensiva de leitura, mas a leitura já não bloqueia nem altera o arquivo, então só acrescentaria código e risco. A escolha é sua."
+    },
+    {
+      "type": "table",
+      "title": "De onde vem cada afirmação",
+      "head": [
+        "Afirmação",
+        "Fonte",
+        "Endereço",
+        "Acessado em"
+      ],
+      "rows": [
+        [
+          "Caminhos que abrem o transcript e modo de abertura",
+          "Código do token-guard na branch develop",
+          "file:token-guard/lib/ctxwatch.cjs; file:token-guard/lib/cost.cjs",
+          "2026-11-19"
+        ],
+        [
+          "Kill só do daemon próprio, com pid provado",
+          "Código do token-guard",
+          "file:token-guard/lib/daemon-client.cjs; file:token-guard/adapters/daemon-server.cjs",
+          "2026-11-19"
+        ],
+        [
+          "Medição na cópia isolada",
+          "Script rodado nesta máquina",
+          "file:token-guard/docs/research/token-guard-e-o-transcript-da-sessao.md",
+          "2026-11-19"
+        ],
+        [
+          "Assinatura do dano (bytes nulos, parentUuid órfão) e desligamento de 13/11",
+          "Pesquisa do Agent Launcher",
+          "file:agent-launcher/docs/research/2026-11-18-aviso-de-sessao-danificada.md",
+          "2026-11-19"
+        ],
+        [
+          "Issues do Claude Code sobre o mesmo dano",
+          "GitHub anthropics/claude-code (lidas pela pesquisa do launcher em 18/11/2026)",
+          "https://github.com/anthropics/claude-code/issues/49876; https://github.com/anthropics/claude-code/issues/21617",
+          "2026-11-18"
+        ]
+      ],
+      "say": "Por fim, as fontes: o código do token-guard na branch develop, a medição registrada na pasta de pesquisa do projeto, e a pesquisa do Agent Launcher com as issues do Claude Code sobre o mesmo dano."
+    }
+  ]
+}

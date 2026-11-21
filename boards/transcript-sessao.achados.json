@@ -1,0 +1,4 @@
+[
+  { "titulo": "Token Guard escreve ou trava o transcript da sessão", "tipo": "descartado", "projeto": "token-guard", "motivo": "Provado somente leitura no código (ctxwatch.cjs:30, cost.cjs:126) e medido numa cópia isolada: hash e data intactos, 161.580 anexos concorrentes sem erro, sem trava." },
+  { "titulo": "Aviso de sessão danificada vem do Claude Code (bytes nulos de gravação interrompida, parentUuid órfão)", "tipo": "descartado", "projeto": "token-guard", "motivo": "Causa fora do Token Guard; a pesquisa do Agent Launcher já a atribui ao Claude Code e a desligamento inesperado do Windows. Nada a corrigir neste produto." }
+]

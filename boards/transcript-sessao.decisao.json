@@ -1,0 +1,37 @@
+{
+  "titulo": "Token Guard não danifica o transcript: fechar sem mudança?",
+  "pergunta": "O Token Guard só lê o transcript da sessão. Quer manter como está e seguir a investigação no Claude Code?",
+  "resumo": "Todo caminho que toca o transcript foi listado; só dois abrem o arquivo, ambos somente leitura, e a medição numa cópia não achou efeito.",
+  "recomendacao": "Recomendação: Opção 1 · recomendada (nenhuma mudança no token-guard; seguir a investigação no Claude Code). Opção 2 (trava defensiva) não: a leitura já não altera nem trava o arquivo, e só acrescentaria código e risco.",
+  "opcoes": [
+    {
+      "rotulo": "Nenhuma mudança no token-guard; seguir a investigação no Claude Code (recomendado)",
+      "descricao": "Nenhum código nem versão muda; a investigação segue no Claude Code (fechamento e desligamento do Windows) e nos outros produtos."
+    },
+    {
+      "rotulo": "Adicionar uma trava defensiva de leitura",
+      "descricao": "Pular o transcript quando estiver sendo gravado. Não resolve nada medido e acrescenta código e risco."
+    }
+  ],
+  "analise": {
+    "fontes": [
+      {
+        "fonte": "lib/ctxwatch.cjs:30-34 e lib/cost.cjs:126",
+        "verificado": "abertura somente leitura (openSync r, fs.promises.open r), fecha em finally; lido no código em 19/11/2026"
+      },
+      {
+        "fonte": "lib/daemon-client.cjs:344 e adapters/daemon-server.cjs:494",
+        "verificado": "os únicos kill são do próprio daemon, com pid provado; lido no código"
+      },
+      {
+        "fonte": "medição em cópia isolada de transcript real (384.828 bytes)",
+        "verificado": "hash e mtime iguais; 1.205 leituras contra 161.580 anexos sem erro; rename com leitor aberto ok"
+      },
+      {
+        "fonte": "agent-launcher/docs/research/2026-11-18-aviso-de-sessao-danificada.md",
+        "verificado": "assinatura do dano (bytes nulos, parentUuid órfão) atribuída ao Claude Code; lida em 19/11/2026"
+      }
+    ],
+    "conclusao": "O token-guard só lê o transcript e a leitura não altera nem trava o arquivo; nenhuma mudança é necessária no produto."
+  }
+}
