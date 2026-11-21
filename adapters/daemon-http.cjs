@@ -50,7 +50,28 @@ function writeJsonAtomic(file, obj) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.tg-tmp-${process.pid}`;
   fs.writeFileSync(tmp, JSON.stringify(obj, null, 2) + '\n', 'utf8');
-  fs.renameSync(tmp, file);
+  renameOverReaders(tmp, file);
+}
+
+const RENAME_RETRYABLE = new Set(['EPERM', 'EBUSY', 'EACCES']);
+const RENAME_TRIES = 200;
+
+/**
+ * Renomeia por cima de `file`. No Windows a troca falha com EPERM enquanto outro processo está
+ * lendo o destino, e o daemon e os clientes leem o endpoint a cada 100 ms: sem repetir, o registro
+ * da porta (ou do motivo de o HTTP não ter subido) se perde. Esgotadas as tentativas, lança.
+ */
+function renameOverReaders(from, to) {
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (let i = 1; ; i++) {
+    try { fs.renameSync(from, to); return; } catch (err) {
+      if (!RENAME_RETRYABLE.has(err.code) || i >= RENAME_TRIES) {
+        try { fs.unlinkSync(from); } catch { /* temporário já sumiu */ }
+        throw err;
+      }
+      Atomics.wait(pause, 0, 0, 5);
+    }
+  }
 }
 
 /** Porta que os clientes devem usar: a fixada, senão a registrada pelo daemon; null = nenhum daemon subiu o http ainda. */

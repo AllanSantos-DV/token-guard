@@ -35,7 +35,7 @@ let fail = 0;
 function check(label, cond, detail) {
   if (cond) { pass++; return; }
   fail++;
-  console.error(`  ✗ ${label}${detail !== undefined ? ' — ' + JSON.stringify(detail).slice(0, 400) : ''}`);
+  console.error(`  ✗ ${label}${detail !== undefined ? ' — ' + JSON.stringify(detail).slice(0, 1500) : ''}`);
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -265,12 +265,17 @@ const logLines = () => {
 
   // 9 · init com o daemon novo sem HTTP (porta fixa ocupada por outro): sai 1 e diz o motivo
   await DC.shutdownDaemon();
-  for (let i = 0; i < 50 && h2 && alive(h2.h.pid); i++) await sleep(100);
+  check('o daemon do init 2 saiu antes de ocupar a porta', !h2 || await waitDead(h2.h.pid, 20000));
   const busy = net.createServer();
-  await new Promise((r) => busy.listen(port, '127.0.0.1', r));
+  let held = false;
+  for (let i = 0; i < 200 && !held; i++) {
+    held = await new Promise((r) => { busy.once('error', () => r(false)); busy.listen(port, '127.0.0.1', () => r(true)); });
+    if (!held) await sleep(100);
+  }
+  check('o teste ocupou a porta fixa', held);
   const i3 = runInit();
   check('porta ocupada: init sai 1', i3.status === 1, { status: i3.status, out: i3.stdout.slice(-300) });
-  check('porta ocupada: o erro nomeia o motivo', /DAEMON NAO SUBIU/.test(i3.stderr) && /sem HTTP/.test(i3.stderr) && /ocupada/.test(i3.stderr), i3.stderr.slice(-400));
+  check('porta ocupada: o erro nomeia o motivo', /DAEMON NAO SUBIU/.test(i3.stderr) && /sem HTTP/.test(i3.stderr) && /ocupada/.test(i3.stderr), { stderr: i3.stderr.slice(-200), log: logLines().slice(-6), endpoint: DH.readEndpoint() });
   await new Promise((r) => busy.close(r));
   await DC.shutdownDaemon();
   await sleep(300);
