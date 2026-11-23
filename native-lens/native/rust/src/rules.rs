@@ -62,6 +62,7 @@ pub struct Rx {
     fam_read: Re,
     fam_grep: Re,
     fam_glob: Re,
+    fam_tree: Re,
     fam_shell: Re,
     raster: Re,
     rendered: Re,
@@ -119,10 +120,11 @@ impl Rx {
             (i(&format!(r"{cmd_pos}(?:fd|fdfind)\b(?![^|;&]*(?:-e\s|--extension|-t\s|--type|-g\s|--glob))")), "fd"),
         ];
         Rx {
-            watched: i(r"(view|read|grep|glob|search|list_dir|list_files|list_director|bash|shell|powershell|pwsh|terminal|run_command|execute_command|find_files|cat_file|open_file|ripgrep)"),
+            watched: i(r"(view|read|grep|glob|search|list_dir|list_files|list_director|bash|shell|powershell|pwsh|terminal|run_command|execute_command|find_files|directory_tree|cat_file|open_file|ripgrep)"),
             fam_read: n(r"^(view|read|read_file|readfile|cat_file|open_file|get_file_contents|str_replace_editor)$|(^|_)(read_file|read_media_file|read_text_file|read_multiple_files)$"),
             fam_grep: n(r"(^|_)(grep|ripgrep|search_text|text_search|grep_search|search_in_files)($|_)"),
-            fam_glob: n(r"(^|_)(glob|file_search|find_files|list_dir|list_files|list_directory|listdirectory)($|_)"),
+            fam_glob: n(r"(^|_)(glob|file_search|find_files|list_dir|list_files|list_directory|listdirectory|search_files)($|_)"),
+            fam_tree: n(r"(^|_)directory_tree$"),
             fam_shell: n(r"(^|_)(bash|sh|shell|zsh|powershell|pwsh|run_in_terminal|run_command|execute_command|terminal|run_shell)($|_)"),
             raster: i(r"\.(png|jpe?g|gif|webp)$"),
             rendered: i(r"\.(png|jpe?g|gif|webp|pdf)$"),
@@ -168,7 +170,7 @@ impl Rx {
     #[cfg(test)]
     pub fn named(&self) -> Vec<(&'static str, &Re)> {
         let mut v: Vec<(&'static str, &Re)> = vec![
-            ("watched", &self.watched), ("fam_read", &self.fam_read), ("fam_grep", &self.fam_grep), ("fam_glob", &self.fam_glob),
+            ("watched", &self.watched), ("fam_read", &self.fam_read), ("fam_grep", &self.fam_grep), ("fam_glob", &self.fam_glob), ("fam_tree", &self.fam_tree),
             ("fam_shell", &self.fam_shell), ("raster", &self.raster), ("rendered", &self.rendered), ("binary", &self.binary),
             ("results_dir", &self.results_dir), ("ext_tail", &self.ext_tail), ("ext_group", &self.ext_group),
             ("ext_alt", &self.ext_alt), ("drive_only", &self.drive_only), ("abs_start", &self.abs_start), ("grepish", &self.grepish),
@@ -217,6 +219,7 @@ enum Fam {
     Read,
     Grep,
     Glob,
+    Tree,
     Shell,
 }
 
@@ -241,6 +244,8 @@ fn family(name: &str) -> Option<Fam> {
         Some(Fam::Grep)
     } else if r.fam_glob.test(&k) {
         Some(Fam::Glob)
+    } else if r.fam_tree.test(&k) {
+        Some(Fam::Tree)
     } else if r.fam_shell.test(&k) {
         Some(Fam::Shell)
     } else {
@@ -519,12 +524,34 @@ s\u{f3} a faixa relevante. Se precisa varrer tudo, delegue a um sub-agente e tra
 
 fn rule_broad_scan(ctx: &Ctx) -> Option<Hit> {
     let fam = family(ctx.name)?;
-    if fam != Fam::Glob && fam != Fam::Grep {
+    if fam != Fam::Glob && fam != Fam::Grep && fam != Fam::Tree {
         return None;
     }
     let files = repo_files(ctx.stats);
     if files.is_some_and(|n| n < MIN_REPO_FILES_FOR_SCAN_GUARD) {
         return None;
+    }
+    if fam == Fam::Tree {
+        if has_real_path_scope(&p::input_paths(ctx.input), ctx.root) {
+            return None;
+        }
+        let scale = match files {
+            Some(n) if n != 0.0 => format!("about {} files", fmt_pt_br(n)),
+            _ => "every file in the repository".to_string(),
+        };
+        let scale_pt = match files {
+            Some(n) if n != 0.0 => format!("{} arquivos", fmt_pt_br(n)),
+            _ => "todo o reposit\u{f3}rio".to_string(),
+        };
+        return Some(Hit {
+            id: "broadScan",
+            reason: format!(
+                "token-guard/broadScan: a recursive tree of the repository root returns the path of {scale}, with no cap.\n\
+DO THIS INSTEAD: list one directory with `list_directory` on `src`, or run `directory_tree` on the subdirectory you need (`src/...`).\n\
+(PT-BR) A \u{e1}rvore recursiva da raiz devolve o caminho de {scale_pt}, sem teto. \
+Liste um diret\u{f3}rio com `list_directory` em `src` ou use `directory_tree` num subdiret\u{f3}rio (`src/...`)."
+            ),
+        });
     }
     let pattern = p::input_pattern(ctx.input);
     let paths = p::input_paths(ctx.input);

@@ -10,7 +10,7 @@ static class Decide
         "\n[dica: rode `npx @allansantos-dev/token-guard audit` uma vez — com as estatísticas em cache " +
         "o guard calibra os limites ao tamanho real deste repositório.]";
 
-    static readonly Rx Watched = new("(view|read|grep|glob|search|list_dir|list_files|list_director|bash|shell|powershell|pwsh|terminal|run_command|execute_command|find_files|cat_file|open_file|ripgrep)", true);
+    static readonly Rx Watched = new("(view|read|grep|glob|search|list_dir|list_files|list_director|bash|shell|powershell|pwsh|terminal|run_command|execute_command|find_files|directory_tree|cat_file|open_file|ripgrep)", true);
 
     /// <summary>Null releases the call. Any internal error releases it too: a hostile payload never blocks.</summary>
     public static Verdict? Run(object? payload)

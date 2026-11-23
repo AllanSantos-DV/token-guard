@@ -44,6 +44,8 @@ Port, from the real files, character for character where a regular expression or
   `toolArgs`, `name/input` all appear in the cases.
 - `decide.cjs`: the `WATCHED` triage, then config, then `RULES.evaluate`, fail-open on any internal error (an exception in the
   port must turn into `{}`, never a 500).
+- `decide.cjs` WATCHED also names `directory_tree` (family `tree`: `broadScan` denies it at the root or with no real path) and
+  `search_files` (family `glob`, same treatment as `Glob`).
 - `rules.cjs`: the four rules `noisePath`, `blindRead`, `broadScan`, `shellDump`, in the REGISTRY order, first hit wins,
   with the same `reason` strings (they are compared; see section 6). All the helper functions they use come with them.
 - The `reason` of a deny is `hit.reason` plus, when repo stats are NOT found, the "dica" suffix of `decide.cjs`.
@@ -79,13 +81,13 @@ they cost in the Node daemon (the baseline) so the reader can see what a native 
 
 ## 6. Equivalence
 
-`equivalence/gen-cases.cjs` writes `cases.jsonl` (1016 cases at the baseline commit `02d9294`: the 142 real `test/fixtures/cases.cjs` cases, 757 mutations of
+`equivalence/gen-cases.cjs` writes `cases.jsonl` (1022 cases at `c05e1cf`: the 148 real `test/fixtures/cases.cjs` cases, 757 mutations of
 their shell commands, 12 hostile-payload cases, 105 project-layout cases that exercise the stats branches). Each line is
 `{id, group, label, payload, expect:{body, rule, decision}}` with the expectation produced by RUNNING the real `decide`.
 `equivalence/run.mjs` sends each payload and requires: HTTP 200, `permissionDecision` equal, `x-tg-rule` equal. A body whose
 `reason` text differs is counted separately (`reason_text_differs`) and is expected to be 0: the reasons are part of the contract
 (they carry the cheap rewrite the agent follows). 12 protocol checks follow. `equivalence/negative-control.cjs` (always `{}`)
-must fail with exit code 1.
+must fail with exit code 1. The exit code of `run.mjs` is 1 on any mismatch, any `reason_text_differs` or any protocol failure.
 
 Run one listener with `bash native-lens/equivalence/prove.sh <name> <command...>` (needs `NL_WORK`, the folder with
 `cases.jsonl` and its `fixtures/`, and an `NL_PORT`). The script gives the listener an empty `HOME`, `TEMP` equal to the fixture
@@ -97,4 +99,4 @@ either), write the matching by hand and say so in the source header. Each such p
 
 ## 7. Baseline
 
-The three ports were proven against the reference at `02d9294` (1016 cases, 0 mismatches, 0 reason-text differences, 0 protocol failures; each with a mutation that makes the proof fail). Later reference commits that add cases or change a reason (the MCP `search_files` and `directory_tree` coverage, `cfde1c2` and `c05e1cf`) are not ported: regenerating `cases.jsonl` from a newer reference needs the ports re-synced first. `prove.sh` kills the listener by its MSYS PID; a slow first start of a fresh `.exe` can leave an orphan on the port, so check the port before a re-run.
+The three ports were proven against the reference at `c05e1cf` (1022 cases, 0 mismatches, 0 reason-text differences, 0 protocol failures; each with a mutation that makes the proof fail). The slice is target-less on purpose: the Codex/Cursor shell-read refusal of a large file (a `target` branch of `blindRead`) is not in the ports. A later reference commit that adds cases or changes a reason needs the ports re-synced before `cases.jsonl` is regenerated. The measured comparison is in `docs/research/lente-nativa-medicao-2026-11-23.md`. `prove.sh` kills the listener by its MSYS PID; a slow first start of a fresh `.exe` can leave an orphan on the port, so check the port before a re-run.

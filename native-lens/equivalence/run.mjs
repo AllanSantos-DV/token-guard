@@ -94,4 +94,4 @@ else {
   for (const f of failures.slice(0, 15)) console.log('  ✗', JSON.stringify(f));
   for (const p of protoFail) console.log('  ✗ protocolo:', p.name, JSON.stringify(p.detail).slice(0, 200));
 }
-process.exit(mismatches || protoFail.length ? 1 : 0);
+process.exit(mismatches || reasonOnly || protoFail.length ? 1 : 0);

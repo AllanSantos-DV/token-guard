@@ -45,11 +45,12 @@ var (
 var (
 	famRead  = regexp.MustCompile(`^(view|read|read_file|readfile|cat_file|open_file|get_file_contents|str_replace_editor)$|(^|_)(read_file|read_media_file|read_text_file|read_multiple_files)$`)
 	famGrep  = regexp.MustCompile(`(^|_)(grep|ripgrep|search_text|text_search|grep_search|search_in_files)($|_)`)
-	famGlob  = regexp.MustCompile(`(^|_)(glob|file_search|find_files|list_dir|list_files|list_directory|listdirectory)($|_)`)
+	famGlob  = regexp.MustCompile(`(^|_)(glob|file_search|find_files|list_dir|list_files|list_directory|listdirectory|search_files)($|_)`)
+	famTree  = regexp.MustCompile(`(^|_)directory_tree$`)
 	famShell = regexp.MustCompile(`(^|_)(bash|sh|shell|zsh|powershell|pwsh|run_in_terminal|run_command|execute_command|terminal|run_shell)($|_)`)
 )
 
-var watched = []string{"view", "read", "grep", "glob", "search", "list_dir", "list_files", "list_director", "bash", "shell", "powershell", "pwsh", "terminal", "run_command", "execute_command", "find_files", "cat_file", "open_file", "ripgrep"}
+var watched = []string{"view", "read", "grep", "glob", "search", "list_dir", "list_files", "list_director", "bash", "shell", "powershell", "pwsh", "terminal", "run_command", "execute_command", "find_files", "directory_tree", "cat_file", "open_file", "ripgrep"}
 
 func isWatched(name string) bool {
 	for _, w := range watched {
@@ -84,6 +85,8 @@ func family(name string) string {
 		return "grep"
 	case famGlob.MatchString(n):
 		return "glob"
+	case famTree.MatchString(n):
+		return "tree"
 	case famShell.MatchString(n):
 		return "shell"
 	}
@@ -423,12 +426,28 @@ func repoFileCount(stats any) (float64, bool) {
 
 func ruleBroadScan(c *ctx) *hit {
 	fam := family(c.name)
-	if fam != "glob" && fam != "grep" {
+	if fam != "glob" && fam != "grep" && fam != "tree" {
 		return nil
 	}
 	repoFiles, haveStats := repoFileCount(c.stats)
 	if haveStats && repoFiles < minRepoFilesForScan {
 		return nil
+	}
+
+	if fam == "tree" {
+		if hasRealPathScope(inputPaths(c.input), c.root) {
+			return nil
+		}
+		scale, scalePT := "every file in the repository", "todo o repositório"
+		if haveStats && repoFiles != 0 {
+			scale = "about " + fmtPT(repoFiles) + " files"
+			scalePT = fmtPT(repoFiles) + " arquivos"
+		}
+		return &hit{"broadScan",
+			"token-guard/broadScan: a recursive tree of the repository root returns the path of " + scale + ", with no cap.\n" +
+				"DO THIS INSTEAD: list one directory with `list_directory` on `src`, or run `directory_tree` on the subdirectory you need (`src/...`).\n" +
+				"(PT-BR) A árvore recursiva da raiz devolve o caminho de " + scalePT + ", sem teto. " +
+				"Liste um diretório com `list_directory` em `src` ou use `directory_tree` num subdiretório (`src/...`)."}
 	}
 
 	pattern := inputPattern(c.input)

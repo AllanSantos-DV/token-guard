@@ -43,7 +43,8 @@ static class Rules
     [
         ("read", new Rx(@"^(view|read|read_file|readfile|cat_file|open_file|get_file_contents|str_replace_editor)$|(^|_)(read_file|read_media_file|read_text_file|read_multiple_files)$")),
         ("grep", new Rx(@"(^|_)(grep|ripgrep|search_text|text_search|grep_search|search_in_files)($|_)")),
-        ("glob", new Rx(@"(^|_)(glob|file_search|find_files|list_dir|list_files|list_directory|listdirectory)($|_)")),
+        ("glob", new Rx(@"(^|_)(glob|file_search|find_files|list_dir|list_files|list_directory|listdirectory|search_files)($|_)")),
+        ("tree", new Rx(@"(^|_)directory_tree$")),
         ("shell", new Rx(@"(^|_)(bash|sh|shell|zsh|powershell|pwsh|run_in_terminal|run_command|execute_command|terminal|run_shell)($|_)")),
     ];
 
@@ -518,7 +519,7 @@ static class Rules
     static Hit? BroadScan(string name, JObj input, string root, object? stats)
     {
         var fam = Family(name);
-        if (fam is not ("glob" or "grep"))
+        if (fam is not ("glob" or "grep" or "tree"))
         {
             return null;
         }
@@ -526,6 +527,19 @@ static class Rules
         if (repoFiles is double rf && rf < MinRepoFilesForScanGuard)
         {
             return null;
+        }
+        if (fam == "tree")
+        {
+            if (HasRealPathScope(Payload.InputPaths(input), root))
+            {
+                return null;
+            }
+            var treeScale = repoFiles is > 0 or < 0 ? "about " + JsValue.Fmt(repoFiles.Value) + " files" : "every file in the repository";
+            return new Hit("broadScan",
+                "token-guard/broadScan: a recursive tree of the repository root returns the path of " + treeScale + ", with no cap.\n" +
+                "DO THIS INSTEAD: list one directory with `list_directory` on `src`, or run `directory_tree` on the subdirectory you need (`src/...`).\n" +
+                "(PT-BR) A árvore recursiva da raiz devolve o caminho de " + (repoFiles is > 0 or < 0 ? JsValue.Fmt(repoFiles.Value) + " arquivos" : "todo o repositório") + ", sem teto. " +
+                "Liste um diretório com `list_directory` em `src` ou use `directory_tree` num subdiretório (`src/...`).");
         }
         var pattern = Payload.InputPattern(input);
         var paths = Payload.InputPaths(input);
