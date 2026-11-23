@@ -3,7 +3,7 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [2.20.0] — 2026-11-23
 
 ### Alterado
 - **O Codex fala com o daemon por url, sem um processo `node` por conversa.** O daemon passa a servir MCP por
@@ -15,6 +15,11 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
   passam a assumir a pasta do daemon quando `path` não é dado: passe `path`.
 
 ### Corrigido
+- **A autoria voltou ao `LICENSE`, ao `package.json` e ao `plugin.json`**, com um teste que falha se um manifesto
+  perder o autor.
+- **O daemon grava o endpoint sem parar o loop de eventos.** Na troca sem queda, o rename com repetição do registro
+  da porta travava o daemon novo por centenas de milissegundos e derrubava uma sondagem; a gravação agora espera
+  com timer.
 - **A poda de estado roda no máximo uma vez por hora por pasta**, em vez de varrer a pasta de sessões a cada
   gravação (o hook passava de 200 ms em parte das chamadas).
 - **O registro da porta do daemon repete o rename quando o Windows o recusa** (EPERM/EBUSY/EACCES com leitor
