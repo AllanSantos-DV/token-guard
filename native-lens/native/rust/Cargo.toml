@@ -1,0 +1,18 @@
+[package]
+name = "slice"
+version = "0.1.0"
+edition = "2021"
+description = "token-guard PreToolUse slice: the guard behind an HTTP/1.1 hook listener, std only"
+
+[[bin]]
+name = "slice"
+path = "src/main.rs"
+
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
