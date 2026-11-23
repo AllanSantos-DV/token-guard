@@ -5,6 +5,10 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [2.20.0] — 2026-11-23
 
+### Adicionado
+- **`broadScan` cobre o servidor MCP de filesystem.** `search_files` com padrão amplo na raiz e `directory_tree` na raiz
+  (ou sem caminho) passam a ser barrados com a alternativa barata; com subdiretório ou fragmento de nome seguem livres.
+
 ### Alterado
 - **O Codex fala com o daemon por url, sem um processo `node` por conversa.** O daemon passa a servir MCP por
   HTTP (`POST /token-guard/mcp`, mesmo token `X-Token-Guard` do hook http) com as ferramentas do servidor stdio,
