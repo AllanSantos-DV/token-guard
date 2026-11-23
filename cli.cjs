@@ -90,6 +90,16 @@ function usdLine(u) {
   return `  em US$ (aprox.): hoje ≈ US$ ${twoDecimals(u.today)} · total ≈ US$ ${twoDecimals(u.total)} — estimativa: tokens × US$ ${String(u.inPerMtok).replace('.', ',')}/Mtok (entrada de ${u.model}, ${u.source})`;
 }
 
+/** Alvos de máquina com hook gravado pelo `init`, na ordem do install-state.json; null se ausente ou ilegível. */
+function installedTargets() {
+  try {
+    const state = require('./lib/auto-update.cjs').readInstallState();
+    return state ? state.targets : null;
+  } catch {
+    return null;
+  }
+}
+
 async function status(args) {
   const root = path.resolve(args.find((a) => !a.startsWith('--')) || process.cwd());
   const CFG = require('./lib/config.cjs');
@@ -112,6 +122,7 @@ async function status(args) {
       }),
       daemon: await attempt(() => require('./lib/daemon-status.cjs').inspect()),
       scout: await attempt(() => require('./lib/daemon-status.cjs').inspectScout()),
+      installedTargets: installedTargets(),
     };
     console.log(JSON.stringify(out, null, 2));
     return;
@@ -154,6 +165,8 @@ async function status(args) {
   } catch (e) {
     console.log(`  scout:           não foi possível inspecionar (${e.message})`);
   }
+  const installed = installedTargets();
+  if (installed) console.log(`  alvos instalados: ${installed.join(', ')}`);
   await printUpdateNotice('  atualização:     ');
   console.log('');
 }

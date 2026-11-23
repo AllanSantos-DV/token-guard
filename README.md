@@ -80,7 +80,7 @@ e é exatamente ela que este kit governa.
 | Peça | O que faz |
 |---|---|
 | `token-audit.cjs` | Mede o custo de contexto de qualquer repositório e grava o cache que calibra os guards. |
-| `cost.cjs` | Custo por sessão e por modelo a partir dos transcripts do Claude Code (`token-guard cost`). |
+| `cost.cjs` | Custo por sessão e por modelo a partir dos transcripts do Claude Code (`token-guard cost`), com o contexto devolvido ao modelo por família de ferramenta. |
 | `mcp-cost.cjs` | Mede o custo fixo de preâmbulo dos servidores MCP declarados, por handshake real. |
 | `agents/scout.agent.md` | Sub-agente de investigação com contexto descartável. No alvo `claude` o instalador o grava em `~/.claude/agents/`: somente leitura (`disallowedTools`), até 30 turnos e `effort: medium`. O alvo `repo` o grava em `.github/agents/` sem esses campos, que só o Claude Code entende. Um scout seu, de outro conteúdo, é preservado; um scout nosso editado é substituído a cada instalação (edite uma cópia com outro nome). |
 | `skills/token-economy/SKILL.md` | O procedimento, em divulgação progressiva. |
@@ -120,7 +120,7 @@ Depois:
 ```bash
 npx @allansantos-dev/token-guard audit     # veja o tamanho do problema neste repo
 npx @allansantos-dev/token-guard test      # o núcleo, contra o hook real
-npx @allansantos-dev/token-guard status    # configuração ativa, bloqueios e tokens poupados, também neste repositório (--json para script)
+npx @allansantos-dev/token-guard status    # configuração ativa, bloqueios e tokens poupados, também neste repositório, e os alvos instalados (--json para script)
 npx @allansantos-dev/token-guard uninstall --dry-run   # lista o que o init gravou e seria removido; sem --dry-run remove
 ```
 

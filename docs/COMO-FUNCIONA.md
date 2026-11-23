@@ -128,6 +128,12 @@ de classificar a frase do usuário. Detalhes em [CONTRACT.md](CONTRACT.md).
 - `token-guard mcp-cost` mede o preâmbulo dos servidores MCP declarados por handshake
   real (`initialize` → `tools/list`). Ele **executa** os servidores; `--list` só
   inventaria.
+- `token-guard cost` lê os transcripts do Claude Code: custo por sessão, modelo e repositório e, em
+  "contexto por família", quantos caracteres de resultado de ferramenta (leitura, busca, listagem,
+  shell, MCP) voltaram ao modelo. No `--json` é a chave `contextByFamily`; servidor MCP de
+  filesystem entra na família da operação (`read_text_file` conta como leitura), os demais em `mcp`.
+- `token-guard status` lista em "alvos instalados" os IDEs com hook gravado pelo `init`
+  (`installedTargets` no `--json`; a linha some quando o `install-state.json` não existe).
 - `npm run replay` roda a `decide()` atual sobre as chamadas reais dos transcripts do
   Claude Code e mostra o que seria barrado hoje.
 

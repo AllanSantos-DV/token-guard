@@ -285,6 +285,99 @@ console.log('  [descoberta]');
   check('aceita a chave "servers" além de "mcpServers"', found.length === 1 && found[0].name === 'alt');
 }
 
+{
+  // Zed: settings.json é JSONC (comentários e vírgula final) e declara em `context_servers`.
+  const zedHome = (rel, text) => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-home-zed-'));
+    TG_HOMES.push(home);
+    if (text !== undefined) {
+      fs.mkdirSync(path.join(home, ...rel.slice(0, -1)), { recursive: true });
+      fs.writeFileSync(path.join(home, ...rel), text, 'utf8');
+    }
+    return home;
+  };
+  const LINUX = ['.config', 'zed', 'settings.json'];
+  const WIN = ['AppData', 'Roaming', 'Zed', 'settings.json'];
+
+  const jsonc = [
+    '// ajustes do editor',
+    '{',
+    '  "theme": "One Dark", /* bloco */',
+    '  "context_servers": {',
+    '    "flat": { "command": "node", "args": ["a.js", "//nao-e-comentario"], "env": { "K": "v" }, },',
+    '    "velho": { "source": "custom", "command": { "path": "node", "args": ["b.js"], "env": { "Z": "1" } } },',
+    '    "remoto": { "url": "https://exemplo/mcp", "headers": { "Authorization": "x" } },',
+    '    "desligado": { "enabled": false, "command": "node", "args": ["off.js"] },',
+    '    "ext": { "settings": { "token": "t" } },',
+    '  },',
+    '}',
+  ].join('\n');
+
+  for (const [label, rel] of [['Linux/macOS', LINUX], ['Windows', WIN]]) {
+    const home = zedHome(rel, jsonc);
+    const found = MC.discover({ home, cwd: home });
+    const by = (n) => found.find((f) => f.name === n);
+    check(`Zed (${label}): lê context_servers de um JSONC com comentários e vírgula final`,
+      found.length === 4 && found.every((f) => f.ide === 'Zed'), JSON.stringify(found.map((f) => [f.name, f.ide])));
+    check(`Zed (${label}): forma plana mantém command, args (com // dentro da string) e env`,
+      by('flat').transport === 'stdio' && by('flat').spec.command === 'node' &&
+      by('flat').spec.args.join() === 'a.js,//nao-e-comentario' && by('flat').spec.env.K === 'v',
+      JSON.stringify(by('flat')));
+    check(`Zed (${label}): forma antiga command {path,args,env} vira a forma plana`,
+      by('velho').transport === 'stdio' && by('velho').spec.command === 'node' &&
+      by('velho').spec.args.join() === 'b.js' && by('velho').spec.env.Z === '1', JSON.stringify(by('velho')));
+    check(`Zed (${label}): servidor remoto por url é http, extensão sem comando é desconhecida`,
+      by('remoto').transport === 'http' && by('ext').transport === 'desconhecido',
+      JSON.stringify(found.map((f) => [f.name, f.transport])));
+    check(`Zed (${label}): servidor com enabled:false não é listado (não sobe no Zed, não seria sondado)`,
+      !by('desligado'));
+  }
+
+  {
+    const home = zedHome(LINUX, '{ "context_servers": { "x": { "command": "node", ');
+    let found;
+    let threw = null;
+    try { found = MC.discover({ home, cwd: home }); } catch (e) { threw = e; }
+    check('Zed: settings.json malformado vira aviso visível e não lança',
+      !threw && found.length === 1 && found[0].ide === 'Zed' && found[0].transport === 'erro' && !!found[0].error,
+      threw ? String(threw) : JSON.stringify(found));
+  }
+
+  {
+    const home = zedHome(LINUX, '{ "theme": "One Dark", "buffer_font_size": 14, }');
+    const found = MC.discover({ home, cwd: home });
+    check('Zed: settings.json sem context_servers não lista nada', found.length === 0, JSON.stringify(found));
+  }
+
+  {
+    const home = zedHome(LINUX);
+    const found = MC.discover({ home, cwd: home });
+    check('Zed: sem settings.json não lista nada', found.length === 0, JSON.stringify(found));
+  }
+
+  {
+    const parse = (s) => JSON.parse(MC.stripJsonc(s));
+    const tricky = '\uFEFF{ "a": "x // y /* z */ \\" , ]", /* c1 */ "b": [1, 2, /* c2 */ ], // fim\n "c": { "d": 1, }, }';
+    const v = parse(tricky);
+    check('stripJsonc: preserva // e /* */ dentro de string (inclusive com aspas escapadas) e remove BOM',
+      v.a === 'x // y /* z */ " , ]', JSON.stringify(v));
+    check('stripJsonc: tira vírgula final de array e objeto, mesmo com comentário entre a vírgula e o fecho',
+      v.b.join() === '1,2' && v.c.d === 1, JSON.stringify(v));
+    check('stripJsonc: JSON estrito passa intacto',
+      JSON.stringify(parse('{"k":[1,{"z":"a,b"}],"n":null}')) === '{"k":[1,{"z":"a,b"}],"n":null}');
+    let threw = false;
+    try { parse('{ "a": 1 /* sem fim'); } catch { threw = true; }
+    check('stripJsonc: comentário de bloco sem fim deixa o JSON inválido (não é aceito em silêncio)', threw);
+  }
+
+  {
+    const home = zedHome(LINUX, '{ "context_servers": { "smart-tool": { "command": "node" } } }');
+    const found = MC.discover({ home, cwd: home, detection: true });
+    check('Zed: a detecção (sem executar) também enxerga o servidor', found.length === 1 && found[0].name === 'smart-tool',
+      JSON.stringify(found));
+  }
+}
+
 /* ================================================================== */
 /* Diagnóstico de falha — o motivo tem que ser útil, não o rodapé      */
 /* ================================================================== */

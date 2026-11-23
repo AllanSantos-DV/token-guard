@@ -103,6 +103,27 @@ console.log('\n  [a correção sugerida passa pelo próprio guard]');
   }
 }
 
+console.log('\n  [leitura inteira pelo shell (codex e cursor): a correção passa pelo próprio guard]');
+{
+  const readCases = [`cat "${BIG}"`, `Get-Content "${BIG}"`, `type "${BIG}"`, `sed -n p "${BIG}"`];
+  const quoted = /`([^`]+)`/g;
+  for (const target of ['codex', 'cursor']) {
+    for (const command of readCases) {
+      const v = decide(claude('Bash', { command }), { target });
+      check(`${target}: "${command.slice(0, 24)}" é recusado`, v && v.decision === 'deny' && v.rule === 'blindRead', v);
+      if (!v) continue;
+      const advice = english(v.reason).split('DO THIS INSTEAD')[1] || '';
+      check(`${target}: "${command.slice(0, 24)}" a correção é executável`, EXECUTABLE.test(advice), advice.slice(0, 300));
+      const suggested = [...advice.matchAll(quoted)].map((m) => m[1]);
+      check(`${target}: "${command.slice(0, 24)}" a recusa sugere comandos`, suggested.length > 0, advice.slice(0, 300));
+      for (const s of suggested) {
+        const again = decide(claude('Bash', { command: s }), { target });
+        check(`${target}: "${command.slice(0, 24)}" → \`${s}\` não é recusado de novo`, again === null, again && again.reason.slice(0, 120));
+      }
+    }
+  }
+}
+
 console.log('\n  [nenhum caminho pergunta ao usuário]');
 {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-refuse-warn-'));

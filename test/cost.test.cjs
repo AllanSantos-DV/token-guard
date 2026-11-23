@@ -179,6 +179,60 @@ async function main() {
     COST.inputUsdText(1e6, COST.DEFAULT_PRICES) === '≈ US$ 4,00 de entrada (opus-5-5, US$ 4/Mtok, tabela padrão; aproximado)', COST.inputUsdText(1e6, COST.DEFAULT_PRICES));
   check('inputUsdText: primeiro modelo sem preço de entrada devolve vazio, nunca um valor inventado', COST.inputUsdText(1e6, { sonnet: { out: 10 } }) === '');
 
+  console.log('\n  [contexto por família: tamanho dos resultados de ferramenta]');
+  const ctxRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-ctx-'));
+  fs.mkdirSync(path.join(ctxRoot, 'proj-ctx'));
+  const USAGE = { input_tokens: 10, output_tokens: 1 };
+  const ctxTs = (ts) => ({ type: 'user', sessionId: 'ctx1', cwd: '/p/proj', timestamp: ts });
+  const toolUse = (id, name, ts = '2026-10-10T12:00:00.000Z') => JSON.stringify({ type: 'assistant', sessionId: 'ctx1', cwd: '/p/proj', timestamp: ts,
+    message: { id: `m-${id}`, model: 'claude-opus-5', usage: USAGE, content: [{ type: 'tool_use', id, name, input: {} }] } });
+  const toolResult = (id, content, ts = '2026-10-10T12:00:01.000Z', extra = {}) => JSON.stringify({ ...ctxTs(ts), ...extra,
+    message: { role: 'user', content: [{ tool_use_id: id, type: 'tool_result', content }] } });
+  const ctxFile = path.join(ctxRoot, 'proj-ctx', 'ctx1.jsonl');
+  fs.writeFileSync(ctxFile, [
+    toolUse('t-bash', 'Bash'),
+    toolResult('t-bash', 'x'.repeat(40000)),
+    // streaming repete o tool_use e o resultado volta como cópia do api-request-blob: uma chamada só
+    toolUse('t-bash', 'Bash'),
+    JSON.stringify({ type: 'api-request-blob', sessionId: 'ctx1', message: { content: [{ type: 'tool_result', tool_use_id: 't-bash', content: 'x'.repeat(40000) }] } }),
+    toolUse('t-read', 'Read'),
+    toolResult('t-read', [{ type: 'text', text: 'a'.repeat(1500) }, { type: 'text', text: 'b'.repeat(500) }, { type: 'image', source: { type: 'base64', data: 'Z'.repeat(9000) } }]),
+    toolUse('t-grep', 'Grep'),
+    toolResult('t-grep', 'g'.repeat(300)),
+    toolUse('t-glob', 'Glob'),
+    toolResult('t-glob', 'l'.repeat(200)),
+    toolUse('t-mcp', 'mcp__whatsapp-bridge__get_recent_messages'),
+    toolResult('t-mcp', 'm'.repeat(22000)),
+    toolUse('t-fsmcp', 'mcp__fs__read_text_file'),
+    toolResult('t-fsmcp', 'f'.repeat(100)),
+    toolUse('t-edit', 'Edit'),
+    toolResult('t-edit', 'ok', undefined, { toolUseResult: 'y'.repeat(5000) }),
+    toolUse('t-ref', 'ToolSearch'),
+    toolResult('t-ref', [{ type: 'tool_reference', tool_name: 'x' }]),
+    toolResult('t-orfao', 'o'.repeat(70)),
+    toolUse('t-old', 'Bash', '2026-09-01T12:00:00.000Z'),
+    toolResult('t-old', 'z'.repeat(1000), '2026-09-01T12:00:01.000Z'),
+  ].join('\n'), 'utf8');
+  const cx = await COST.analyze({ dir: ctxRoot, prices: PRICES });
+  const fam = cx.contextByFamily || {};
+  check('shell: 1 chamada Bash com resultado de 40000 caracteres (a cópia do api-request-blob e o streaming não duplicam), mais a de setembro',
+    fam.shell && fam.shell.calls === 2 && fam.shell.chars === 41000, JSON.stringify(fam));
+  check('read: resultado em array de blocos de texto soma só o texto (imagem fora) e o Read do MCP de filesystem cai em read',
+    fam.read && fam.read.calls === 2 && fam.read.chars === 2100, JSON.stringify(fam.read));
+  check('search (Grep) e list (Glob) separados', fam.search && fam.search.chars === 300 && fam.list && fam.list.chars === 200, JSON.stringify([fam.search, fam.list]));
+  check('mcp: ferramenta de servidor MCP fora das famílias de leitura/busca', fam.mcp && fam.mcp.calls === 1 && fam.mcp.chars === 22000, JSON.stringify(fam.mcp));
+  check('outras: Edit, ToolSearch (só tool_reference, 0 caracteres) e resultado sem tool_use conhecido; o toolUseResult duplicado não conta',
+    fam.other && fam.other.calls === 3 && fam.other.chars === 72, JSON.stringify(fam.other));
+  const cxSince = await COST.analyze({ dir: ctxRoot, prices: PRICES, since: Date.parse('2026-10-01T00:00:00Z') });
+  check('--since também corta os resultados antigos', ((cxSince.contextByFamily || {}).shell || {}).calls === 1 && cxSince.contextByFamily.shell.chars === 40000, JSON.stringify(cxSince.contextByFamily));
+  const cxText = COST.renderText(cx, { prices: PRICES });
+  check('o texto traz a seção "contexto por família" com chamadas e caracteres, a maior primeiro',
+    /contexto por família/.test(cxText) && /shell\s+2 chamadas\s+41k caracteres/.test(cxText) && cxText.indexOf('shell ') < cxText.indexOf('mcp '), cxText);
+  const cxCli = require('child_process').spawnSync(process.execPath, [path.join(__dirname, '..', 'cost.cjs'), '--json', '--dir', ctxRoot], { encoding: 'utf8', windowsHide: true });
+  const cxJson = cxCli.status === 0 ? JSON.parse(cxCli.stdout) : null;
+  check('cost --json traz contextByFamily e mantém as chaves de antes', cxJson && cxJson.contextByFamily.shell.chars === 41000 && 'total' in cxJson && 'models' in cxJson && 'sessions' in cxJson && 'saved' in cxJson, cxCli.stderr);
+  check('sem transcripts de ferramenta a seção some do texto', !/contexto por família/.test(COST.renderText(here, { prices: PRICES })));
+
   const AUDIT = require('../lib/audit.cjs');
   const CFGL = require('../lib/config.cjs');
   const auditDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-audit-'));

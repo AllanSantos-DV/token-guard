@@ -6,6 +6,15 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ## [2.20.0] — 2026-11-23
 
 ### Adicionado
+- **Codex e Cursor recusam `cat`, `type`, `Get-Content` e `sed -n p` de arquivo grande sem faixa.** Mesmo critério de tamanho da
+  regra `blindRead` da leitura, com a reescrita barata na recusa (`grep -n`, `sed -n '1,40p'`, `head -n 80`). Vale só nesses dois
+  alvos, onde nada corta a saída depois; o Claude e as chamadas sem alvo seguem como antes. Desliga como o resto:
+  `rules.blindRead: false` ou `targets.<ide>: "off"`.
+- **`status` mostra `alvos instalados`** (e `installedTargets` no `--json`), lidos do estado da instalação.
+- **`cost` ganha "contexto por família"** (leitura, busca, listagem, shell, MCP), com chamadas e tamanho dos resultados
+  (`contextByFamily` no `--json`).
+- **`mcp-cost` inventaria os `context_servers` do Zed** (`settings.json` do usuário, JSONC; servidor com `enabled:false` não é
+  executado).
 - **`broadScan` cobre o servidor MCP de filesystem.** `search_files` com padrão amplo na raiz e `directory_tree` na raiz
   (ou sem caminho) passam a ser barrados com a alternativa barata; com subdiretório ou fragmento de nome seguem livres.
 

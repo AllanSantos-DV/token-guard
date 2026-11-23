@@ -81,6 +81,33 @@ try { costJson = JSON.parse(js.cost.stdout); } catch { /* o check abaixo acusa *
 check('cost --since 1d --json traz só o que o guard poupou nessa janela (o evento de 2 dias atrás fica fora)',
   costJson && costJson.saved.blocks === 1 && costJson.saved.tokensSaved === 5000 && costJson.saved.dups === 0, JSON.stringify(costJson && costJson.saved) + js.cost.stderr);
 
+console.log('\n  [alvos instalados, lidos de install-state.json]');
+const stateJson = JSON.stringify({ targets: ['codex', 'cursor'], commandHooks: false, version: '2.20.0' });
+const withState = statusWith(null, { '.token-guard/install-state.json': stateJson });
+check('texto: lista os alvos com hook gravado, na ordem do install-state', /alvos instalados:\s+codex, cursor/.test(withState.stdout), withState.stdout);
+check('texto: as linhas existentes seguem (hook http e scout)', /hook http:/.test(withState.stdout) && /scout:/.test(withState.stdout), withState.stdout);
+const withStateJson = (() => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-status-targets-'));
+  fs.mkdirSync(path.join(home, '.token-guard'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.token-guard', 'install-state.json'), stateJson);
+  const run = spawnSync(process.execPath, [CLI, 'status', home, '--json'], { cwd: home, encoding: 'utf8',
+    env: { ...process.env, HOME: home, USERPROFILE: home, TOKEN_GUARD_UPDATE_CHECK: 'off' } });
+  try { return JSON.parse(run.stdout); } catch { return null; }
+})();
+check('--json: installedTargets traz a lista', withStateJson && JSON.stringify(withStateJson.installedTargets) === '["codex","cursor"]', JSON.stringify(withStateJson && withStateJson.installedTargets));
+check('--json: as chaves existentes seguem (targets, daemon, scout)', withStateJson && 'targets' in withStateJson && 'daemon' in withStateJson && 'scout' in withStateJson);
+const noState = statusWith(null);
+check('sem install-state.json: a linha some, sem erro', noState.status === 0 && !/alvos instalados/.test(noState.stdout), noState.stdout);
+const brokenState = statusWith(null, { '.token-guard/install-state.json': '{ não é json' });
+check('install-state.json ilegível: a linha some, sem erro', brokenState.status === 0 && !/alvos instalados/.test(brokenState.stdout), brokenState.stdout + brokenState.stderr);
+const noStateJson = (() => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-status-notargets-'));
+  const run = spawnSync(process.execPath, [CLI, 'status', home, '--json'], { cwd: home, encoding: 'utf8',
+    env: { ...process.env, HOME: home, USERPROFILE: home, TOKEN_GUARD_UPDATE_CHECK: 'off' } });
+  try { return JSON.parse(run.stdout); } catch { return null; }
+})();
+check('--json sem install-state.json: installedTargets é null', noStateJson && noStateJson.installedTargets === null, JSON.stringify(noStateJson && noStateJson.installedTargets));
+
 console.log('\n  [sem eventos]');
 const empty = statusWith(null);
 check('sem events.jsonl: diz que nada foi registrado ainda', /barrados:\s+nenhum registrado ainda/.test(empty.stdout) && !/tokens poupados:/.test(empty.stdout), empty.stdout);

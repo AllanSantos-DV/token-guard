@@ -56,7 +56,7 @@ A força varia por harness:
 |---|---|---|
 | Copilot CLI/App (plugin) | ✅ substitui de verdade | `onPostToolUse` › `modifiedResult` — o corpo inteiro nunca entra na janela |
 | Claude Code | ✅ substitui (v2.1.121+) | `PostToolUse` › `updatedToolOutput`, no hook http e no de comando; versões antigas ignoram o campo e sobra a orientação. O integral fica em `.token-guard/results/` |
-| Codex CLI | ❌ | o hook é só `PreToolUse` |
+| Codex CLI | ❌ | o hook é só `PreToolUse`; `cat`/`Get-Content` de arquivo grande sem faixa é barrado antes de rodar (`blindRead`) |
 
 O dedupe de leitura (`dupRead`, `lib/dupread.cjs`) troca a releitura idêntica
 (≥ 2000 caracteres) na mesma janela por um ponteiro para a leitura anterior; no
@@ -75,6 +75,9 @@ Shell, Read, Write, Grep, Task, MCP:…). O adapter traduz o evento e o instalad
 o registra junto dos três nomeados — **todas as 4 regras disparam** nas versões
 recentes do IDE. Versões antigas sem `preToolUse` continuam cobertas pelos
 eventos nomeados (blindRead, noisePath, shellDump).
+
+O evento de shell do Cursor não tem corte pós-execução; por isso `blindRead` também recusa
+`cat`, `type`, `Get-Content` ou `sed -n p` de arquivo grande sem faixa nem teto, como no Codex.
 
 No `cursor-agent` (CLI), a entrega continua reduzida (só shell) — limitação do
 harness, não deste adapter.
@@ -105,8 +108,12 @@ chamando `token_guard_hook` — a mesma `decide()` de todos os alvos.
 
 - **Hook novo do Codex fica desativado até ser aprovado** em `/hooks` (revisão de
   segurança do próprio Codex). O instalador não aprova por você.
-- O agente do Codex lê arquivos pelo shell (`cat`, `rg`, `sed`), então a regra que
-  atua é `shellDump`; `blindRead` não enxerga um `cat` de arquivo grande.
+- O agente do Codex lê arquivos pelo shell (`cat`, `rg`, `sed`). Como o hook é só
+  `PreToolUse` e nada corta a saída depois, `shellDump` cuida das varreduras e `blindRead`
+  também julga o shell: `cat`, `type`, `Get-Content` ou `sed -n p` de um arquivo grande, sem faixa
+  nem teto, é recusado com a reescrita (`grep -n`, `sed -n 'A,Bp'`, `head -n`, `-TotalCount`).
+  Formas já limitadas (`| head`, `head -n`, `sed -n '1,40p'`, `-TotalCount`, `-Tail`) passam.
+  Vale o mesmo `rules.blindRead` e o modo por alvo (`targets.codex`) da configuração.
 
 ### Por que o MCP não bloqueia
 
@@ -182,9 +189,13 @@ npx @allansantos-dev/token-guard mcp-cost          # medição real, por handsha
 
 Os arquivos varridos pelo medidor são os declarados em: `~/.claude.json`,
 `~/.claude/settings.json`, `~/.cursor/mcp.json`, `~/.codeium/windsurf/mcp_config.json`,
-`claude_desktop_config.json` (Windows e macOS), `~/.token-guard/mcp.json`, mais
-`.vscode/mcp.json` e `.cursor/mcp.json` do projeto atual. Zed (`context_servers`) e
-JetBrains **não** são varridos — declare-os via `extraFiles` se usar a API. Um servidor
+`claude_desktop_config.json` (Windows e macOS), `~/.token-guard/mcp.json`, o `settings.json`
+do Zed (`context_servers`; `~/.config/zed/` no macOS e Linux, `%APPDATA%\Zed\` no Windows),
+mais `.vscode/mcp.json` e `.cursor/mcp.json` do projeto atual. O settings do Zed é JSONC
+(comentários e vírgula final valem); um servidor com `enabled: false` não é listado, e um
+arquivo ilegível aparece como aviso em vez de derrubar o inventário. O `.zed/settings.json`
+do projeto e uma pasta de configuração redefinida por `XDG_CONFIG_HOME` ou `%APPDATA%` ficam
+de fora. JetBrains **não** é varrido — declare-o via `extraFiles` se usar a API. Um servidor
 declarado em duas IDEs conta uma vez.
 
 ## Adicionando um IDE novo
