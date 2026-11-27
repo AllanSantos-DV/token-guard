@@ -35,6 +35,12 @@ Lente irmã da 2.19.5. L21 a L24 são itens de negócio (mudam como o usuário u
 - L24: **Decidido (Jarvis, 15/11/2026):** não construído agora; muda como o usuário usa o produto, então aguarda o dono. **Item de negócio, nada técnico aberto.** Resumo da economia local desde a última sessão, no `SessionStart`, calculado de arquivos que já estão na máquina e só quando há o que mostrar. Ganho médio; esforço baixo; reaproveita `adapters/session-start.cjs`, `lib/events.cjs` (L11).
 - L25: sugerir `noiseDirsExtra` a partir do `audit`, só como texto impresso, sem mudar o comportamento. Ganho médio; esforço baixo a médio; reaproveita `lib/audit.cjs`, `lib/config.cjs`. Fechado em develop (test/audit-noise-suggest.test.cjs); nenhum item técnico aberto.
 
+Lente irmã da 2.20.1. Os quatro candidatos aditivos foram construídos (poupança por repositório e `--sessao`/`--ultima` no `cost`; últimos bloqueios e contrato visível no `status`). Os três substitutivos não foram construídos:
+
+- L30: **Decidido (Jarvis, 27/11/2026):** não construir. Estimativa de tokens evitados nos bloqueios mudaria o número "tokens poupados" que o usuário vê e contradiz a regra de `lib/events.cjs` de que nada ali inventa economia.
+- L31: **Decidido (Jarvis, 27/11/2026):** não construir. Bloquear a releitura antes da execução com `checkRepeat` rende pouco sobre o stub atual e exige cuidado com contexto compactado.
+- L32: **Decidido (Jarvis, 27/11/2026):** não construir. `cost` filtrar por repositório por padrão mudaria a saída que scripts leem; o `--here` já dá o ganho.
+
 Decidido pelo dono (2.19.0): poupança por repositório e `token-guard uninstall --dry-run` entram; zerar o contador de bloqueios e poupança (antigo B8) não entra, porque apagaria o histórico que a tela e o `status` mostram e o `trim` já limita o arquivo.
 
 Decidido (Jarvis, 2026-11-03): `contract.skip` (2.17.0) fica opt-in e não habilitado; o ganho de ~184 tokens por sessão não compensa mudar o que as regras do dono entregam. Nenhum item técnico aberto.

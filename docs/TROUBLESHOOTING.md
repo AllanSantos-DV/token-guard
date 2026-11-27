@@ -112,6 +112,11 @@ O hook http falha **aberto**: com o daemon fora do ar, a ferramenta passa sem gu
 ## Codex: o hook não dispara
 
 - Hook novo do Codex fica desativado até ser aprovado em `/hooks`.
+- O Codex guarda a aprovação por **posição** no `hooks.json` (`hooks.state` no `config.toml`, chave
+  `<hooks.json>:pre_tool_use:<i>:<j>`). Um programa que insere o próprio hook **antes** dos existentes empurra o
+  do token-guard para outra posição, e a aprovação fica na posição antiga: o hook volta a ficar desativado. Quem
+  acrescenta hooks no Codex deve anexá-los ao **fim** do array `PreToolUse`, como o token-guard faz. O
+  `token-guard status` acusa o caso e diz a posição que precisa de aprovação.
 - O servidor MCP `token-guard` precisa estar conectado à sessão (`[mcp_servers.token-guard]`
   em `~/.codex/config.toml`).
 - Só `shellDump` atua: o agente do Codex lê arquivos pelo shell, e o hook é só `Bash`.
