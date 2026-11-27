@@ -88,6 +88,28 @@ async function ensureDaemon(seams) {
 }
 
 /**
+ * O daemon estava fora do ar ao abrir a sessão? Conexão recusada é imediata; só o daemon lento (varredura de
+ * antivírus, disco ocupado) estoura a primeira espera, por isso uma segunda, maior, antes de declará-lo fora do ar.
+ * @param {Function} [connect] só para teste
+ */
+async function daemonWasDown(connect = connectOnce) {
+  if ((await connect('hello', {}, { timeoutMs: 500 })).ok) return false;
+  return !(await connect('hello', {}, { timeoutMs: 2500 })).ok;
+}
+
+/**
+ * Porta do hook http, só se o daemon a atende de fato. `ensureDaemon` não sobe nada com TOKEN_GUARD=off nem sem token,
+ * e o arquivo de porta de uma execução anterior continua no disco: sem a sonda, o aviso diria "religado" sem religar.
+ * @returns {Promise<number|null>}
+ */
+async function revivedHttp() {
+  if (/^(off|0|false)$/i.test(process.env.TOKEN_GUARD || '')) return null;
+  const token = DH.readToken();
+  const port = DH.httpPort();
+  return token && port && (await httpListening(port, token)) ? port : null;
+}
+
+/**
  * Aviso ao usuário quando o Codex, instalado, ficou sem o servidor MCP do token-guard: o hook dele aponta para o vazio e
  * a chamada passa sem guard. Null quando está em ordem ou o Codex não é alvo.
  * @param {{codexHome?: string, installed: boolean}} opts
@@ -102,7 +124,7 @@ function codexNotice(opts) {
 function installedCodex() {
   try {
     const state = AU.readInstallState();
-    return { installed: Boolean(state && state.targets.includes('codex')), ...(state && state.codexHome ? { codexHome: state.codexHome } : {}) };
+    return { installed: Boolean(state && state.targets.includes('codex')), ...(state && typeof state.codexHome === 'string' && state.codexHome ? { codexHome: state.codexHome } : {}) };
   } catch { return { installed: false }; }
 }
 
@@ -128,12 +150,13 @@ async function main() {
   if (prompt) CT.resetInjected(prompt.root, prompt.sessionId, payload.source);
 
   const messages = [];
-  const wasDown = !(await connectOnce('hello', {}, { timeoutMs: 500 })).ok;
+  const wasDown = await daemonWasDown();
   const problem = await ensureDaemon();
   if (problem) {
     messages.push(`token-guard: ${problem} — os hooks http vão falhar aberto (ferramentas sem guard) até o daemon subir.`);
-  } else if (wasDown && DH.httpPort()) {
-    messages.push(`token-guard: o daemon estava fora do ar e foi religado (porta ${DH.httpPort()}); o guard voltou a valer.`);
+  } else if (wasDown) {
+    const port = await revivedHttp();
+    if (port) messages.push(`token-guard: o daemon estava fora do ar e foi religado (porta ${port}); o guard voltou a valer.`);
   }
   const codex = codexNotice(installedCodex());
   if (codex) messages.push(codex);
@@ -147,4 +170,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(() => { /* nunca bloqueia o início da sessão */ });
-module.exports = { ensureDaemon, codexNotice };
+module.exports = { ensureDaemon, codexNotice, daemonWasDown };

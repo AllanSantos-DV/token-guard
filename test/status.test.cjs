@@ -108,6 +108,57 @@ const noStateJson = (() => {
 })();
 check('--json sem install-state.json: installedTargets é null', noStateJson && noStateJson.installedTargets === null, JSON.stringify(noStateJson && noStateJson.installedTargets));
 
+console.log('\n  [últimos bloqueios]');
+const mkDeny = (i, extra = {}) => ({ t: now - (20 - i) * 1000, kind: 'deny', rule: `regra${i}`, target: 'claude', tool: `Ferramenta${i}`, detail: `detalhe ${i}`, tokens: null, ...extra });
+const BLOCKS = [1, 2, 3, 4, 5, 6, 7].map((i) => mkDeny(i));
+const withTrim = [...BLOCKS, { t: now, kind: 'trim', rule: 'bigResult', target: 'claude', tool: 'Bash', detail: 'não é bloqueio', tokens: 5000 }];
+const blocksJson = (events) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-status-blocks-'));
+  fs.mkdirSync(path.join(home, '.token-guard'), { recursive: true });
+  if (events) fs.writeFileSync(path.join(home, '.token-guard', 'events.jsonl'), events.map((e) => JSON.stringify(e)).join('\n') + '\n');
+  const run = spawnSync(process.execPath, [CLI, 'status', home, '--json'], { cwd: home, encoding: 'utf8',
+    env: { ...process.env, HOME: home, USERPROFILE: home, TOKEN_GUARD_UPDATE_CHECK: 'off' } });
+  try { return JSON.parse(run.stdout); } catch { return null; }
+};
+const blocksTxt = statusWith(withTrim);
+check('texto: seção "últimos bloqueios" com regra, ferramenta e detalhe do mais novo', /últimos bloqueios/.test(blocksTxt.stdout)
+  && /regra7\b.*Ferramenta7.*detalhe 7/.test(blocksTxt.stdout), blocksTxt.stdout);
+check('texto: só os 5 últimos bloqueios, do mais novo ao mais antigo; o mais velho fica de fora', /regra3\b/.test(blocksTxt.stdout) && !/regra2\b/.test(blocksTxt.stdout)
+  && blocksTxt.stdout.indexOf('regra7') < blocksTxt.stdout.indexOf('regra3'), blocksTxt.stdout);
+check('texto: evento que não é deny não entra na lista', !/não é bloqueio/.test(blocksTxt.stdout), blocksTxt.stdout);
+check('texto: sem nenhum bloqueio, a seção é omitida', !/últimos bloqueios/.test(statusWith([{ t: now, kind: 'trim', rule: 'bigResult', target: 'claude', tokens: 5000 }]).stdout)
+  && !/últimos bloqueios/.test(statusWith(null).stdout));
+const bj = blocksJson(withTrim);
+check('--json: recentBlocks traz os 5 últimos deny com rule, tool e detail, do mais novo ao mais antigo',
+  bj && Array.isArray(bj.recentBlocks) && bj.recentBlocks.length === 5 && bj.recentBlocks.every((b) => b.kind === 'deny')
+  && bj.recentBlocks[0].rule === 'regra7' && bj.recentBlocks[0].tool === 'Ferramenta7' && bj.recentBlocks[0].detail === 'detalhe 7' && bj.recentBlocks[4].rule === 'regra3',
+  JSON.stringify(bj && bj.recentBlocks));
+check('--json: sem eventos, recentBlocks é lista vazia', (() => { const j = blocksJson(null); return j && Array.isArray(j.recentBlocks) && j.recentBlocks.length === 0; })());
+
+console.log('\n  [contrato de saída]');
+const contractMd = '## sempre\n- regra a\n- regra b\n\n## quando: docs\n- regra c\n';
+const contractTxt = statusWith(null, { 'contract.md': contractMd });
+check('texto: linha "contrato" diz que está carregado e quantas regras há por gatilho', /contrato:\s+carregado.*sempre 2.*docs 1/.test(contractTxt.stdout), contractTxt.stdout);
+const contractJson = (() => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-status-contract-'));
+  fs.writeFileSync(path.join(home, 'contract.md'), contractMd);
+  const run = (extraEnv) => spawnSync(process.execPath, [CLI, 'status', home, '--json'], { cwd: home, encoding: 'utf8',
+    env: { ...process.env, HOME: home, USERPROFILE: home, TOKEN_GUARD_UPDATE_CHECK: 'off', ...extraEnv } });
+  const preload = path.join(home, 'preload.cjs');
+  fs.writeFileSync(preload, `require(${JSON.stringify(path.join(__dirname, '..', 'lib', 'contract.cjs'))}).load = () => { throw new Error('contrato quebrado'); };\n`);
+  return { ok: run({}), broken: run({ NODE_OPTIONS: `--require ${preload}` }) };
+})();
+const cj = (() => { try { return JSON.parse(contractJson.ok.stdout); } catch { return null; } })();
+check('--json: contract {loaded, rules por gatilho}', cj && cj.contract && cj.contract.loaded === true && cj.contract.rules.sempre === 2 && cj.contract.rules.docs === 1, JSON.stringify(cj && cj.contract));
+const brokenTxt = (() => { const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-status-contract-bad-'));
+  const preload = path.join(home, 'preload.cjs');
+  fs.writeFileSync(preload, `require(${JSON.stringify(path.join(__dirname, '..', 'lib', 'contract.cjs'))}).load = () => { throw new Error('contrato quebrado'); };\n`);
+  return spawnSync(process.execPath, [CLI, 'status', home], { cwd: home, encoding: 'utf8',
+    env: { ...process.env, HOME: home, USERPROFILE: home, TOKEN_GUARD_UPDATE_CHECK: 'off', NODE_OPTIONS: `--require ${preload}` } }); })();
+check('texto: falha ao ler o contrato não derruba o status e a linha diz que não pôde ler', brokenTxt.status === 0 && /contrato:\s+não foi possível ler.*contrato quebrado/.test(brokenTxt.stdout) && /ativo:/.test(brokenTxt.stdout), brokenTxt.stdout + brokenTxt.stderr);
+const bjson = (() => { try { return JSON.parse(contractJson.broken.stdout); } catch { return null; } })();
+check('--json: falha ao ler o contrato vira contract {loaded:false, error} e o resto segue', bjson && bjson.contract && bjson.contract.loaded === false && /contrato quebrado/.test(bjson.contract.error) && 'daemon' in bjson, contractJson.broken.stdout.slice(0, 300) + contractJson.broken.stderr);
+
 console.log('\n  [sem eventos]');
 const empty = statusWith(null);
 check('sem events.jsonl: diz que nada foi registrado ainda', /barrados:\s+nenhum registrado ainda/.test(empty.stdout) && !/tokens poupados:/.test(empty.stdout), empty.stdout);

@@ -5,13 +5,22 @@ Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [2.20.1] - 2026-11-27
+
 ### Adicionado
-- **`status` diz se o token-guard está valendo.** Linha `ativo: sim` ou `ativo: não — <motivo>` (daemon fora do ar, hook http apontando para outra porta, Codex sem guard) e, no `--json`, `active`, `inactiveReason` e o bloco `codex`. Outros programas (a faixa do Boss, por exemplo) leem isso em vez de mostrar "0 tokens" sem explicar.
+- **`status` diz se o token-guard está valendo.** Linha `ativo: sim`, `ativo: não — <motivo>` (daemon fora do ar, hook http apontando para outra porta, Codex sem guard) ou `ativo: não sei — <motivo>` (daemon de pé, mas sem registro dos alvos instalados). No `--json`: `active` (`true`, `false` ou `null`), `inactiveReason` e o bloco `codex`. Quem lê o `status` deixa de mostrar "0 tokens" sem explicar.
 - **O Codex sem o servidor MCP do token-guard é acusado.** O hook `mcp_tool` do Codex chama o servidor `token-guard` do `config.toml`; se outro programa reescreve o arquivo e tira a tabela, a chamada passava sem guard e sem aviso. `status` mostra a linha `codex (mcp)` e o início de sessão avisa, com a correção (`init --target codex`).
-- **O início de sessão avisa quando religou o daemon** (`o daemon estava fora do ar e foi religado (porta N)`), além de avisar quando não conseguiu.
+- **O Codex sem aprovação do hook é acusado, com a posição.** O Codex aprova hooks por posição no `hooks.json` (`trusted_hash` em `hooks.state`); quando outro programa insere hooks antes do nosso, a aprovação fica na posição antiga e o hook é ignorado. `status` e o início de sessão dizem a posição e mandam aprovar em `/hooks`.
+- **O início de sessão avisa quando religou o daemon** (`o daemon estava fora do ar e foi religado (porta N)`), só depois de confirmar que o hook http responde; com `TOKEN_GUARD=off` ou sem token, nada de aviso. Um daemon apenas lento não é dado como fora do ar.
+- **`status` mostra os últimos bloqueios** (regra, ferramenta e detalhe) e **o contrato de saída em vigor** (carregado ou não, regras por gatilho); `--json` ganha `recentBlocks` e `contract`.
+- **`cost` mostra custo e poupança lado a lado por repositório** (campo `saved` em cada repositório) e aceita `--sessao <id>` e `--ultima` para o relatório de uma sessão só.
 
 ### Corrigido
-- Nenhuma porta fixa em hook: teste novo varre o que vai no pacote atrás de porta de loopback literal e de `PORT || número`, e prova que um perfil limpo instala hooks na porta 0 com `hook-origin` e `port-file`, até o daemon subir e reapontar.
+- O teste de cada suíte ganha um SID único (o PID sozinho pode se repetir no Windows e dois daemons ociosos de suítes diferentes se confundiam).
+- `status` e o início de sessão deixam de falhar quando o estado de instalação traz um `codexHome` que não é texto.
+
+### Testes
+- Nova suíte `degradacao-suave`: prova que nenhum arquivo do pacote (`lib`, `adapters`, `bench`, entradas e manifestos) grava porta de loopback literal nem `PORT || número`, e que um perfil limpo instala os hooks na porta 0 com `hook-origin` e `port-file` até o daemon subir e reapontar.
 
 ## [2.20.0] — 2026-11-23
 

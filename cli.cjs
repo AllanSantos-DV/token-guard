@@ -90,7 +90,30 @@ function usdLine(u) {
   return `  em US$ (aprox.): hoje ≈ US$ ${twoDecimals(u.today)} · total ≈ US$ ${twoDecimals(u.total)} — estimativa: tokens × US$ ${String(u.inPerMtok).replace('.', ',')}/Mtok (entrada de ${u.model}, ${u.source})`;
 }
 
-/** Alvos de máquina com hook gravado pelo `init`, na ordem do install-state.json; null se ausente ou ilegível. */
+/** Os últimos `limit` bloqueios (deny) de `events.summary().recent`, do mais novo ao mais antigo. */
+function recentBlocks(s, limit = 5) {
+  return (s.recent || []).filter((e) => e.kind === 'deny').slice(0, limit);
+}
+
+/** Linhas da seção "últimos bloqueios"; vazia quando não há nenhum. */
+function recentBlockLines(blocks) {
+  if (!blocks.length) return [];
+  const hour = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return ['  últimos bloqueios:', ...blocks.map((b) => `    ${hour(b.t)} ${[b.rule, b.tool, b.detail].filter(Boolean).join(' · ')}`)];
+}
+
+/** Contrato de saída em vigor em `root`: se há seções e quantas regras cada gatilho tem. */
+function contractSummary(root) {
+  const c = require('./lib/contract.cjs').load(root);
+  return { loaded: c.order.length > 0, rules: Object.fromEntries(c.order.map((t) => [t, c.rules[t].length])) };
+}
+
+/** Linha do contrato de saída para o `status`. */
+function contractLine(c) {
+  if (!c.loaded) return '  contrato:        não carregado (nenhum contrato em vigor: TOKEN_GUARD=off ou contract.default.md ausente)';
+  return `  contrato:        carregado — regras por gatilho: ${Object.entries(c.rules).map(([t, n]) => `${t} ${n}`).join(', ')}`;
+}
+
 /** O que o Codex precisa para passar pelo guard: hook no hooks.json e servidor MCP no config.toml. */
 function codexStatus() {
   const state = require('./lib/auto-update.cjs').readInstallState();
@@ -123,6 +146,8 @@ async function status(args) {
       repoStats: stats ? { totalFiles: stats.totalFiles } : null,
       saved: s.error ? s : { since: s.since, today: s.today, total: s.total,
         usd: require('./lib/cost.cjs').savingsUsd({ today: s.today.tokensSaved, total: s.total.tokensSaved }, require('./lib/cost.cjs').pricesFrom(cfg)) },
+      recentBlocks: s.error ? [] : recentBlocks(s),
+      contract: await attempt(() => contractSummary(root)).then((c) => (c.error ? { loaded: false, error: c.error } : c)),
       savedHere: await attempt(() => {
         const r = require('./lib/events.cjs').forRepo(root);
         return { ...r, usd: require('./lib/cost.cjs').savingsUsd({ today: r.today.tokensSaved, total: r.total.tokensSaved }, require('./lib/cost.cjs').pricesFrom(cfg)) };
@@ -160,8 +185,14 @@ async function status(args) {
     const prices = require('./lib/cost.cjs').pricesFrom(cfg);
     for (const line of savingsLines(require('./lib/events.cjs').summary(), prices)) console.log(line);
     for (const line of repoLines(require('./lib/events.cjs').forRepo(root), prices)) console.log(line);
+    for (const line of recentBlockLines(recentBlocks(require('./lib/events.cjs').summary()))) console.log(line);
   } catch (e) {
     console.log(`  economia:        não foi possível ler os eventos (${e.message})`);
+  }
+  try {
+    console.log(contractLine(contractSummary(root)));
+  } catch (e) {
+    console.log(`  contrato:        não foi possível ler (${e.message})`);
   }
   try {
     const d = await require('./lib/daemon-status.cjs').inspect();
@@ -183,7 +214,7 @@ async function status(args) {
     const codex = codexStatus();
     if (codex.installed || codex.hook) console.log(`  codex (mcp):     ${codex.verdict}`);
     const a = DS.activity({ daemon: await DS.inspect(), codex, targets: installed });
-    console.log(`  ativo:           ${a.active ? 'sim' : `não — ${a.reason}`}`);
+    console.log(`  ativo:           ${a.active === null ? `não sei — ${a.reason}` : a.active ? 'sim' : `não — ${a.reason}`}`);
   } catch (e) {
     console.log(`  ativo:           não foi possível resumir (${e.message})`);
   }
@@ -270,6 +301,8 @@ function help() {
                           Claude Code (~/.claude/projects): chamadas, tokens, cache,
                           contexto máximo, US$ estimado e fração acima de 200k.
                           --here        só as sessões do repositório atual
+                          --sessao ID   relatório de uma sessão só (id ou prefixo único)
+                          --ultima      relatório da sessão mais recente
                           --top N       sessões mais caras (padrão 10)
                           --dir PASTA   outra pasta de transcripts
                           --json        dados crus

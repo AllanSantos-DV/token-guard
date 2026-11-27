@@ -132,8 +132,13 @@ de classificar a frase do usuário. Detalhes em [CONTRACT.md](CONTRACT.md).
   "contexto por família", quantos caracteres de resultado de ferramenta (leitura, busca, listagem,
   shell, MCP) voltaram ao modelo. No `--json` é a chave `contextByFamily`; servidor MCP de
   filesystem entra na família da operação (`read_text_file` conta como leitura), os demais em `mcp`.
+  Cada repositório mostra também quanto o guard poupou (`saved`; eventos antigos, sem `root`, contam
+  zero), e `--sessao <id>` ou `--ultima` dão o relatório de uma sessão só.
 - `token-guard status` lista em "alvos instalados" os IDEs com hook gravado pelo `init`
-  (`installedTargets` no `--json`; a linha some quando o `install-state.json` não existe).
+  (`installedTargets` no `--json`; a linha some quando o `install-state.json` não existe). Também diz
+  se o guard está valendo (`ativo: sim`, `não — <motivo>` ou `não sei`; `active` e `inactiveReason` no
+  `--json`), acusa o Codex sem servidor MCP ou com o hook sem aprovação, e mostra os últimos bloqueios
+  (`recentBlocks`) e o contrato de saída em vigor (`contract`).
 - `npm run replay` roda a `decide()` atual sobre as chamadas reais dos transcripts do
   Claude Code e mostra o que seria barrado hoje.
 

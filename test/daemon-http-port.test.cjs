@@ -267,6 +267,20 @@ async function stop(child) {
     check('o daemon religado registra a porta e o settings.json a segue', ep2 && ep2.port && (await waitPorts(ep2.port)).every((p) => p === ep2.port), ep2);
   }
 
+  // 7 · guard desligado de propósito com o arquivo de porta de uma execução anterior no disco: nada de "religado"
+  {
+    const stale = DH.readEndpoint();
+    try { process.kill(stale.pid); } catch { /* já saiu */ }
+    await new Promise((res) => setTimeout(res, 800));
+    fs.writeFileSync(DH.endpointPath(), JSON.stringify(stale));
+    check('pré-condição: o arquivo de porta velho está no disco e o daemon não atende', DH.httpPort() === stale.port && !(await DH.probeHealth(stale.port, DH.readToken())), DH.readEndpoint());
+    const off =spawnSync(process.execPath, [SESSION], {
+      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: TMP }),
+      env: { ...process.env, TOKEN_GUARD_SID: sid, TOKEN_GUARD: 'off' }, encoding: 'utf8', timeout: 30000,
+    });
+    check('TOKEN_GUARD=off com porta velha no disco: o início de sessão não diz que religou o daemon', off.status === 0 && !/religado|voltou a valer/.test(off.stdout), { out: off.stdout, err: off.stderr });
+  }
+
   recordedBlocker && recordedBlocker.close();
   if (savedFixed !== undefined) process.env.TOKEN_GUARD_HTTP_PORT = savedFixed;
 

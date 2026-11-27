@@ -25,6 +25,7 @@ function check(label, ok, detail) {
   else { fail += 1; console.log(`  FALHA ${label}${detail !== undefined ? `\n        ${JSON.stringify(detail).slice(0, 300)}` : ''}`); }
 }
 
+const pending = [];
 const ROOT = path.join(__dirname, '..');
 const DS = require('../lib/daemon-status.cjs');
 const CLI = path.join(ROOT, 'cli.cjs');
@@ -72,6 +73,11 @@ console.log('\n  [inspectCodex]');
 
   const broken = DS.inspectCodex({ codexHome: codexHome({ 'hooks.json': '{ quebrado', 'config.toml': TOML_WITH_TG }), installed: true });
   check('hooks.json ilegível: não lança e não está ok', broken.ok === false && /hooks\.json/.test(broken.verdict), broken);
+
+  let weird = null;
+  let threw = null;
+  try { weird = DS.inspectCodex({ codexHome: 42, installed: true }); } catch (e) { threw = e.message; }
+  check('codexHome que não é texto (estado de instalação adulterado): não lança', threw === null && weird && weird.ok === false, { threw, weird });
 }
 
 console.log('\n  [activity]');
@@ -94,6 +100,8 @@ console.log('\n  [activity]');
   check('Codex fora dos alvos instalados: o problema dele não derruba o resumo', a4.active === true, a4);
   const a5 = DS.activity({ daemon: { ...up, verdict: 'settings aponta para 2 mas o daemon usa 1: reabra a sessão ou rode init' }, codex: codexOk, targets: ['claude'] });
   check('settings apontando para outra porta: inativo com o veredito do hook http', a5.active === false && /settings aponta/.test(a5.reason), a5);
+  const a6 = DS.activity({ daemon: up, codex: codexOk, targets: null });
+  check('alvos desconhecidos (sem install-state): não afirma que está ativo, diz que não sabe', a6.active === null && /alvos/.test(a6.reason), a6);
 }
 
 console.log('\n  [status com o daemon fora do ar]');
@@ -161,10 +169,24 @@ console.log('\n  [perfil limpo: o instalador não grava porta de daemon que não
   check('perfil limpo: o Codex tem hook e servidor, e a aprovação do dono é a única coisa que falta', o && o.codex && o.codex.hook === true && o.codex.server === true && o.codex.trusted === false && o.codex.ok === false, o && o.codex);
 }
 
+console.log('\n  [o aviso de religamento só sai com o daemon realmente de pé]');
+{
+  const SS = require('../adapters/session-start.cjs');
+  const seq = (...rs) => { const calls = []; return { calls, connect: async (...a) => { calls.push(a); return rs[Math.min(calls.length - 1, rs.length - 1)]; } }; };
+  pending.push((async () => {
+    const slow = seq({ ok: false }, { ok: true });
+    check('daemon lento (estoura a 1ª espera, responde na 2ª): não é dado como fora do ar', (await SS.daemonWasDown(slow.connect)) === false && slow.calls.length === 2, slow.calls.length);
+    const dead = seq({ ok: false });
+    check('daemon que não responde em nenhuma das duas esperas: fora do ar', (await SS.daemonWasDown(dead.connect)) === true, dead.calls.length);
+    const alive = seq({ ok: true });
+    check('daemon que responde de primeira: uma só chamada', (await SS.daemonWasDown(alive.connect)) === false && alive.calls.length === 1, alive.calls.length);
+  })());
+}
+
 console.log('\n  [nenhuma porta fixa no que vai no pacote]');
 {
   const shipped = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).files
-    .filter((f) => !f.startsWith('!') && !/^(test|docs|bench)\/?$/.test(f) && !/\.md$/.test(f));
+    .filter((f) => !f.startsWith('!') && !/^(test|docs)\/?$/.test(f) && !/\.md$/.test(f));
   const hits = [];
   const scan = (file) => {
     const text = fs.readFileSync(file, 'utf8');
@@ -184,6 +206,8 @@ console.log('\n  [nenhuma porta fixa no que vai no pacote]');
   check('lib, adapters, entradas e manifestos: nenhuma porta literal de loopback nem PORT || número', hits.length === 0, hits.slice(0, 5));
 }
 
-console.log('');
-console.log(`  degradacao-suave: ${pass} passaram · ${fail} falharam`);
-process.exit(fail ? 1 : 0);
+Promise.all(pending).then(() => {
+  console.log('');
+  console.log(`  degradacao-suave: ${pass} passaram · ${fail} falharam`);
+  process.exit(fail ? 1 : 0);
+});

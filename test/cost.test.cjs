@@ -233,6 +233,94 @@ async function main() {
   check('cost --json traz contextByFamily e mantém as chaves de antes', cxJson && cxJson.contextByFamily.shell.chars === 41000 && 'total' in cxJson && 'models' in cxJson && 'sessions' in cxJson && 'saved' in cxJson, cxCli.stderr);
   check('sem transcripts de ferramenta a seção some do texto', !/contexto por família/.test(COST.renderText(here, { prices: PRICES })));
 
+  console.log('\n  [custo e poupança lado a lado por repositório]');
+  const EV = require('../lib/events.cjs');
+  const evs = [
+    { t: 1, kind: 'trim', rule: 'bigResult', tokens: 3000, root: repo },
+    { t: 2, kind: 'dup', rule: 'dupRead', tokens: 500, root: repo },
+    { t: 3, kind: 'deny', rule: 'broadScan', tokens: null, root: repo },
+    { t: 4, kind: 'trim', rule: 'bigResult', tokens: 9000 },
+  ];
+  const savedRepos = EV.byRepo(evs).repos;
+  const rows = COST.byRepo(here.sessions, savedRepos);
+  check('byRepo: `saved` soma os tokens poupados dos eventos com root; o evento sem root não entra em repositório nenhum',
+    rows.length === 1 && rows[0].saved === 3500, JSON.stringify(rows));
+  check('byRepo sem eventos: `saved` é 0 em toda entrada e o resto da entrada não muda',
+    COST.byRepo(here.sessions).every((g) => g.saved === 0) && COST.byRepo(here.sessions)[0].calls === 2);
+  const allRows = COST.byRepo((await COST.analyze({ dir: path.join(hereRoot, 'transcripts'), prices: PRICES })).sessions, savedRepos);
+  check('byRepo: repositório de sessão sem evento fica com saved 0 (aparece como zero, nunca inventado)',
+    allRows.length === 3 && allRows.filter((g) => g.saved === 0).length === 2 && allRows.find((g) => g.root === repo).saved === 3500, JSON.stringify(allRows));
+  if (process.platform === 'win32') {
+    check('Windows: a chave de raiz casa nos dois lados mesmo com maiúsculas diferentes',
+      COST.byRepo(here.sessions, [{ root: repo.toUpperCase(), tokensSaved: 70 }])[0].saved === 70);
+  }
+  const rowsText = COST.renderText(here, { prices: PRICES, savedRepos });
+  check('o texto da linha do repositório traz a poupança do guard e avisa que histórico sem root aparece como zero',
+    /repo\s+2 sessões\s+2 ch\s+US\$ 4\.00\s+>200k: 100%\s+poupou ~4k tokens/.test(rowsText) && /histórico antigo.*zero/.test(rowsText), rowsText);
+  check('sem `savedRepos` a linha do repositório fica como antes (sem coluna nem aviso)',
+    !/poupou/.test(COST.renderText(here, { prices: PRICES })) && !/histórico antigo/.test(COST.renderText(here, { prices: PRICES })));
+  const evDir = path.join(os.homedir(), '.token-guard');
+  fs.mkdirSync(evDir, { recursive: true });
+  fs.writeFileSync(path.join(evDir, 'events.jsonl'), evs.map((e) => JSON.stringify({ ...e, t: Date.now() + e.t })).join('\n') + '\n', 'utf8');
+  const repoCli = require('child_process').spawnSync(process.execPath, [path.join(__dirname, '..', 'cost.cjs'), '--repos', '--dir', path.join(hereRoot, 'transcripts')], { encoding: 'utf8', windowsHide: true });
+  const repoJson = repoCli.status === 0 ? JSON.parse(repoCli.stdout) : null;
+  const repoRow = repoJson && repoJson.repos.find((g) => g.root === repo);
+  check('cost --repos traz `saved` por repositório (3500 no repo; 0 nos demais) e mantém `total`',
+    repoRow && repoRow.saved === 3500 && repoJson.repos.every((g) => 'saved' in g) && 'total' in repoJson, repoCli.stderr || repoCli.stdout.slice(0, 300));
+  const repoTxt = require('child_process').spawnSync(process.execPath, [path.join(__dirname, '..', 'cost.cjs'), '--dir', path.join(hereRoot, 'transcripts')], { encoding: 'utf8', windowsHide: true });
+  check('cost em texto mostra a poupança na linha do repositório', repoTxt.status === 0 && /repo\s+2 sessões.*poupou ~4k tokens/.test(repoTxt.stdout), repoTxt.stderr || repoTxt.stdout);
+  fs.rmSync(path.join(evDir, 'events.jsonl'), { force: true });
+
+  console.log('\n  [cost --sessao <id> e --ultima: relatório de uma sessão]');
+  const one = await COST.analyze({ dir: ctxRoot, prices: PRICES, session: 'ctx1' });
+  check('analyze com `session` devolve só essa sessão, com as famílias de contexto dela',
+    one.sessions.length === 1 && one.sessions[0].sessionId === 'ctx1' && one.contextByFamily.shell.chars === 41000 && one.session === 'ctx1', JSON.stringify(one.sessions.map((x) => x.sessionId)));
+  const two = await COST.analyze({ dir: root, prices: PRICES, session: 's2' });
+  check('só a sessão pedida entra no total (s2 tem 1 chamada; s1, 3)', two.sessions.length === 1 && two.total.calls === 1, JSON.stringify(two.total));
+  const byPrefix = await COST.analyze({ dir: path.join(hereRoot, 'transcripts'), prices: PRICES, session: 'in-r' });
+  check('prefixo único do id (como o texto lista, 8 caracteres) acha a sessão', byPrefix.sessions.length === 1 && byPrefix.sessions[0].sessionId === 'in-root');
+  const failMsg = async (opts, dir = root) => { try { await COST.analyze({ dir, prices: PRICES, ...opts }); return null; } catch (e) { return e.message; } };
+  const missing = await failMsg({ session: 'nao-existe' });
+  check('id inexistente: erro claro com o id pedido (fail loud)', /sessão "nao-existe" não encontrada/.test(missing || ''), String(missing));
+  const ambiguous = await failMsg({ session: 'in-' }, path.join(hereRoot, 'transcripts'));
+  check('prefixo ambíguo: erro lista os ids que casam, não escolhe um', /ambíguo/.test(ambiguous || '') && /in-root/.test(ambiguous) && /in-sub/.test(ambiguous), String(ambiguous));
+  const emptyMsg = await failMsg({ last: true }, fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-vazio-')));
+  check('--ultima sem nenhuma sessão: erro claro', /nenhuma sessão/.test(emptyMsg || ''), String(emptyMsg));
+
+  const lastRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-last-'));
+  fs.mkdirSync(path.join(lastRoot, 'p'));
+  const lastLine = (sid, ts) => rec(`m-${sid}-${ts}`, `r-${sid}-${ts}`, 'claude-sonnet-5', { input_tokens: 10, output_tokens: 0 }, ts, { sessionId: sid });
+  fs.writeFileSync(path.join(lastRoot, 'p', 'velha.jsonl'), [
+    lastLine('velha', '2026-10-10T12:00:00.000Z'),
+    JSON.stringify({ type: 'user', sessionId: 'velha', timestamp: '2026-10-13T08:00:00.000Z', message: { content: [{ type: 'tool_result', tool_use_id: 'x', content: 'ok' }] } }),
+  ].join('\n'), 'utf8');
+  fs.writeFileSync(path.join(lastRoot, 'p', 'nova.jsonl'), lastLine('nova', '2026-10-12T12:00:00.000Z'), 'utf8');
+  const lastOne = await COST.analyze({ dir: lastRoot, prices: PRICES, last: true });
+  check('--ultima escolhe a sessão com a mensagem mais recente, mesmo que seja um resultado de ferramenta (não só a última chamada)',
+    lastOne.sessions.length === 1 && lastOne.sessions[0].sessionId === 'velha', JSON.stringify(lastOne.sessions.map((x) => x.sessionId)));
+  fs.appendFileSync(path.join(lastRoot, 'p', 'nova.jsonl'), '\n' + lastLine('nova', '2026-10-14T12:00:00.000Z'), 'utf8');
+  const lastTwo = await COST.analyze({ dir: lastRoot, prices: PRICES, last: true });
+  check('--ultima muda quando a outra sessão ganha mensagem mais nova', lastTwo.sessions[0].sessionId === 'nova' && lastTwo.total.calls === 2, JSON.stringify(lastTwo.total));
+
+  const oneText = COST.renderText(one, { prices: PRICES });
+  check('relatório da sessão: título com o id, cwd, chamadas, cache, contexto máximo e o bloco "contexto por família"',
+    /token-guard cost · sessão ctx1/.test(oneText) && /\/p\/proj/.test(oneText) && /9 chamadas/.test(oneText) && /cache lido/.test(oneText) &&
+    /contexto máximo/.test(oneText) && /contexto por família/.test(oneText) && /shell\s+2 chamadas\s+41k caracteres/.test(oneText), oneText);
+  check('relatório da sessão não traz as listas de repositórios nem de sessões mais caras', !/repositórios mais caros/.test(oneText) && !/sessões mais caras/.test(oneText), oneText);
+  const run = (...args) => require('child_process').spawnSync(process.execPath, [path.join(__dirname, '..', 'cost.cjs'), ...args], { encoding: 'utf8', windowsHide: true });
+  const cliOne = run('--sessao', 'ctx1', '--dir', ctxRoot);
+  check('cost --sessao <id> imprime o relatório da sessão e sai com 0', cliOne.status === 0 && /sessão ctx1/.test(cliOne.stdout) && /contexto por família/.test(cliOne.stdout), cliOne.stderr || cliOne.stdout);
+  const cliMiss = run('--sessao', 'nao-existe', '--dir', ctxRoot);
+  check('cost --sessao inexistente: erro no stderr e saída não zero', cliMiss.status !== 0 && /sessão "nao-existe" não encontrada/.test(cliMiss.stderr) && cliMiss.stdout === '', cliMiss.stderr);
+  const cliNoVal = run('--sessao', '--dir', ctxRoot);
+  check('cost --sessao sem id: erro claro, saída não zero', cliNoVal.status !== 0 && /--sessao pede o id/.test(cliNoVal.stderr), cliNoVal.stderr);
+  const cliBoth = run('--sessao', 'ctx1', '--ultima', '--dir', ctxRoot);
+  check('cost --sessao junto com --ultima: erro claro, saída não zero', cliBoth.status !== 0 && /--sessao e --ultima/.test(cliBoth.stderr), cliBoth.stderr);
+  const cliLast = run('--ultima', '--json', '--dir', lastRoot);
+  const lastJson = cliLast.status === 0 ? JSON.parse(cliLast.stdout) : null;
+  check('cost --ultima --json: uma sessão só, a mais recente', lastJson && lastJson.sessions.length === 1 && lastJson.sessions[0].sessionId === 'nova', cliLast.stderr);
+  check('sem as flags novas o texto geral continua com repositórios e sessões mais caras', /repositórios mais caros/.test(run('--dir', ctxRoot).stdout) && /sessões mais caras/.test(run('--dir', ctxRoot).stdout));
+
   const AUDIT = require('../lib/audit.cjs');
   const CFGL = require('../lib/config.cjs');
   const auditDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-cost-audit-'));
