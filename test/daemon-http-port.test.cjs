@@ -253,6 +253,20 @@ async function stop(child) {
     await stop(d);
   }
 
+  // 6 · daemon fora do ar no início da sessão: o SessionStart o religa e diz ao usuário
+  {
+    writeSettings(recorded);
+    const revived = spawnSync(process.execPath, [SESSION], {
+      input: JSON.stringify({ hook_event_name: 'SessionStart', cwd: TMP }),
+      env: { ...process.env, TOKEN_GUARD_SID: sid }, encoding: 'utf8', timeout: 30000,
+    });
+    let note = '';
+    try { note = JSON.parse(revived.stdout).systemMessage; } catch { /* checado abaixo */ }
+    check('SessionStart com o daemon fora do ar o religa e avisa o usuário', revived.status === 0 && /fora do ar e foi religado \(porta \d+\)/.test(note), { out: revived.stdout, err: revived.stderr });
+    const ep2 = DH.readEndpoint();
+    check('o daemon religado registra a porta e o settings.json a segue', ep2 && ep2.port && (await waitPorts(ep2.port)).every((p) => p === ep2.port), ep2);
+  }
+
   recordedBlocker && recordedBlocker.close();
   if (savedFixed !== undefined) process.env.TOKEN_GUARD_HTTP_PORT = savedFixed;
 

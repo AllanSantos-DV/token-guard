@@ -91,6 +91,13 @@ function usdLine(u) {
 }
 
 /** Alvos de máquina com hook gravado pelo `init`, na ordem do install-state.json; null se ausente ou ilegível. */
+/** O que o Codex precisa para passar pelo guard: hook no hooks.json e servidor MCP no config.toml. */
+function codexStatus() {
+  const state = require('./lib/auto-update.cjs').readInstallState();
+  const installed = Boolean(state && state.targets.includes('codex'));
+  return require('./lib/daemon-status.cjs').inspectCodex({ ...(state && state.codexHome ? { codexHome: state.codexHome } : {}), installed });
+}
+
 function installedTargets() {
   try {
     const state = require('./lib/auto-update.cjs').readInstallState();
@@ -123,7 +130,11 @@ async function status(args) {
       daemon: await attempt(() => require('./lib/daemon-status.cjs').inspect()),
       scout: await attempt(() => require('./lib/daemon-status.cjs').inspectScout()),
       installedTargets: installedTargets(),
+      codex: await attempt(() => codexStatus()),
     };
+    const summary = await attempt(() => require('./lib/daemon-status.cjs').activity({ daemon: out.daemon, codex: out.codex, targets: out.installedTargets }));
+    out.active = summary.error ? null : summary.active;
+    out.inactiveReason = summary.error ? summary.error : summary.reason;
     console.log(JSON.stringify(out, null, 2));
     return;
   }
@@ -167,6 +178,15 @@ async function status(args) {
   }
   const installed = installedTargets();
   if (installed) console.log(`  alvos instalados: ${installed.join(', ')}`);
+  try {
+    const DS = require('./lib/daemon-status.cjs');
+    const codex = codexStatus();
+    if (codex.installed || codex.hook) console.log(`  codex (mcp):     ${codex.verdict}`);
+    const a = DS.activity({ daemon: await DS.inspect(), codex, targets: installed });
+    console.log(`  ativo:           ${a.active ? 'sim' : `não — ${a.reason}`}`);
+  } catch (e) {
+    console.log(`  ativo:           não foi possível resumir (${e.message})`);
+  }
   await printUpdateNotice('  atualização:     ');
   console.log('');
 }

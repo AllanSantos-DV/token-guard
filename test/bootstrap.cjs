@@ -51,7 +51,8 @@ process.env.USERPROFILE = ISOLATED_HOME;
 process.env.LOCALAPPDATA = path.join(ISOLATED_HOME, 'AppData', 'Local');
 process.env.XDG_STATE_HOME = path.join(ISOLATED_HOME, 'state');
 delete process.env.TOKEN_GUARD;
-process.env.TOKEN_GUARD_SID = `tg-test-${process.pid}`;
+// PID sozinho se repete no Windows: um daemon ocioso da suíte anterior com o mesmo SID atenderia esta com outro HOME.
+process.env.TOKEN_GUARD_SID = `tg-test-${process.pid}-${require("crypto").randomBytes(3).toString("hex")}`;
 // Explícito, vale também para o daemon com http: um `npm test` abortado não deixa daemon órfão.
 process.env.TOKEN_GUARD_DAEMON_IDLE_MS = SAVED.TOKEN_GUARD_DAEMON_IDLE_MS || '15000';
 // 4. Ícone da bandeja: a suíte nunca abre janela nem ícone; o teste do tray usa seams, nunca o helper real.

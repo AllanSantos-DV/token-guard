@@ -21,7 +21,8 @@
 const path = require('path');
 const { spawn } = require('child_process');
 const P = require('../lib/payload.cjs');
-const { tryDaemon, swapDaemon } = require('../lib/daemon-client.cjs');
+const { tryDaemon, swapDaemon, connectOnce } = require('../lib/daemon-client.cjs');
+const { inspectCodex } = require('../lib/daemon-status.cjs');
 const { checkHandshake, daemonIsNewer } = require('../lib/daemon-lifecycle.cjs');
 const AU = require('../lib/auto-update.cjs');
 const DR = require('../lib/dupread.cjs');
@@ -86,6 +87,25 @@ async function ensureDaemon(seams) {
   return 'o daemon não ficou pronto no início da sessão';
 }
 
+/**
+ * Aviso ao usuário quando o Codex, instalado, ficou sem o servidor MCP do token-guard: o hook dele aponta para o vazio e
+ * a chamada passa sem guard. Null quando está em ordem ou o Codex não é alvo.
+ * @param {{codexHome?: string, installed: boolean}} opts
+ * @returns {string|null}
+ */
+function codexNotice(opts) {
+  const c = inspectCodex(opts);
+  return c.ok ? null : `token-guard: Codex sem guard — ${c.verdict}.`;
+}
+
+/** Alvos de máquina registrados no install-state e o CODEX_HOME guardado no init. */
+function installedCodex() {
+  try {
+    const state = AU.readInstallState();
+    return { installed: Boolean(state && state.targets.includes('codex')), ...(state && state.codexHome ? { codexHome: state.codexHome } : {}) };
+  } catch { return { installed: false }; }
+}
+
 /** Auto-update em processo destacado e oculto: a sessão não espera rede nem npm. */
 function launchAutoUpdate() {
   if (process.env.TOKEN_GUARD_UPDATE_CHECK === 'off') return;
@@ -108,10 +128,15 @@ async function main() {
   if (prompt) CT.resetInjected(prompt.root, prompt.sessionId, payload.source);
 
   const messages = [];
+  const wasDown = !(await connectOnce('hello', {}, { timeoutMs: 500 })).ok;
   const problem = await ensureDaemon();
   if (problem) {
     messages.push(`token-guard: ${problem} — os hooks http vão falhar aberto (ferramentas sem guard) até o daemon subir.`);
+  } else if (wasDown && DH.httpPort()) {
+    messages.push(`token-guard: o daemon estava fora do ar e foi religado (porta ${DH.httpPort()}); o guard voltou a valer.`);
   }
+  const codex = codexNotice(installedCodex());
+  if (codex) messages.push(codex);
   const report = AU.takeReport();
   if (report) messages.push(report);
   const notice = AU.availableNotice(PACKAGE_VERSION);
@@ -122,4 +147,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch(() => { /* nunca bloqueia o início da sessão */ });
-module.exports = { ensureDaemon };
+module.exports = { ensureDaemon, codexNotice };

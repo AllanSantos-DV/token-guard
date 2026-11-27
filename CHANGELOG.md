@@ -3,6 +3,16 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Adicionado
+- **`status` diz se o token-guard está valendo.** Linha `ativo: sim` ou `ativo: não — <motivo>` (daemon fora do ar, hook http apontando para outra porta, Codex sem guard) e, no `--json`, `active`, `inactiveReason` e o bloco `codex`. Outros programas (a faixa do Boss, por exemplo) leem isso em vez de mostrar "0 tokens" sem explicar.
+- **O Codex sem o servidor MCP do token-guard é acusado.** O hook `mcp_tool` do Codex chama o servidor `token-guard` do `config.toml`; se outro programa reescreve o arquivo e tira a tabela, a chamada passava sem guard e sem aviso. `status` mostra a linha `codex (mcp)` e o início de sessão avisa, com a correção (`init --target codex`).
+- **O início de sessão avisa quando religou o daemon** (`o daemon estava fora do ar e foi religado (porta N)`), além de avisar quando não conseguiu.
+
+### Corrigido
+- Nenhuma porta fixa em hook: teste novo varre o que vai no pacote atrás de porta de loopback literal e de `PORT || número`, e prova que um perfil limpo instala hooks na porta 0 com `hook-origin` e `port-file`, até o daemon subir e reapontar.
+
 ## [2.20.0] — 2026-11-23
 
 ### Adicionado
