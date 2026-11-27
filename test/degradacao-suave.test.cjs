@@ -32,6 +32,11 @@ const CLI = path.join(ROOT, 'cli.cjs');
 const HOOKS_WITH_TG = { hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'mcp_tool', server: 'token-guard', tool: 'token_guard_hook' }] }] } };
 const TOML_WITH_TG = '[mcp_servers.token-guard]\nurl = "http://127.0.0.1:45001/token-guard/mcp"\nhttp_headers = { "X-Token-Guard" = "t" }\n';
 
+/** config.toml com o servidor MCP e a aprovação do Codex (hooks.state) para o hook na posição `slot` do hooks.json de `dir`. */
+function trustedToml(dir, slot) {
+  return `${TOML_WITH_TG}\n[hooks.state.'${path.join(dir, 'hooks.json')}:pre_tool_use:${slot}']\ntrusted_hash = "sha256:abc"\n`;
+}
+
 function codexHome(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tg-codex-'));
   for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), body);
@@ -44,8 +49,20 @@ console.log('\n  [inspectCodex]');
   check('hook sem servidor no config.toml: não está ok e o veredito nomeia o servidor', missing.ok === false && missing.hook === true && missing.server === false && /servidor MCP token-guard/.test(missing.verdict), missing);
   check('o veredito diz como corrigir', /init --target codex/.test(missing.verdict), missing.verdict);
 
-  const healthy = DS.inspectCodex({ codexHome: codexHome({ 'hooks.json': JSON.stringify(HOOKS_WITH_TG), 'config.toml': TOML_WITH_TG }), installed: true });
-  check('hook e servidor presentes: ok, com a porta registrada', healthy.ok === true && healthy.server === true && healthy.port === 45001, healthy);
+  const healthyDir = codexHome({ 'hooks.json': JSON.stringify(HOOKS_WITH_TG) });
+  fs.writeFileSync(path.join(healthyDir, 'config.toml'), trustedToml(healthyDir, '0:0'));
+  const healthy = DS.inspectCodex({ codexHome: healthyDir, installed: true });
+  check('hook, servidor e aprovação presentes: ok, com a porta registrada', healthy.ok === true && healthy.server === true && healthy.trusted === true && healthy.port === 45001, healthy);
+
+  const shifted = { hooks: { PreToolUse: [{ matcher: 'x', hooks: [{ type: 'command', command: 'a' }] }, ...HOOKS_WITH_TG.hooks.PreToolUse] } };
+  const shiftedDir = codexHome({ 'hooks.json': JSON.stringify(shifted) });
+  fs.writeFileSync(path.join(shiftedDir, 'config.toml'), trustedToml(shiftedDir, '0:0'));
+  const moved = DS.inspectCodex({ codexHome: shiftedDir, installed: true });
+  check('outro hook inserido antes: a aprovação ficou na posição antiga, o hook não está aprovado', moved.ok === false && moved.trusted === false && moved.hook === true && moved.server === true, moved);
+  check('o veredito explica a posição e manda aprovar em /hooks', /posição 1:0/.test(moved.verdict) && /\/hooks/.test(moved.verdict), moved.verdict);
+
+  const noState = DS.inspectCodex({ codexHome: codexHome({ 'hooks.json': JSON.stringify(HOOKS_WITH_TG), 'config.toml': TOML_WITH_TG }), installed: true });
+  check('servidor registrado mas sem hooks.state: não aprovado', noState.ok === false && noState.trusted === false && /não aprovou/.test(noState.verdict), noState);
 
   const noHook = DS.inspectCodex({ codexHome: codexHome({ 'hooks.json': '{}', 'config.toml': TOML_WITH_TG }), installed: true });
   check('Codex instalado sem o hook: não está ok e o veredito cita hooks.json', noHook.ok === false && /hooks\.json/.test(noHook.verdict), noHook);
@@ -62,6 +79,7 @@ console.log('\n  [activity]');
   const up = { ipc: { ok: true }, http: { state: 'ok' }, verdict: 'hook http registrado e respondendo', settings: { ports: [1] } };
   const down = { ipc: { ok: false }, http: { state: 'down', detail: 'ECONNREFUSED' }, verdict: 'hook http registrado na 1, mas o daemon não atende (down)', settings: { ports: [1] } };
   const codexOk = { ok: true, installed: true, verdict: 'ok' };
+  const codexUntrusted = { ok: false, installed: true, trusted: false, verdict: 'o Codex não aprovou o hook do token-guard' };
   const codexBad = { ok: false, installed: true, verdict: 'o hook do Codex chama o servidor MCP token-guard, que não está no config.toml' };
 
   const a1 = DS.activity({ daemon: up, codex: codexOk, targets: ['claude', 'codex'] });
@@ -70,6 +88,8 @@ console.log('\n  [activity]');
   check('daemon fora do ar: inativo, o motivo nomeia o daemon', a2.active === false && /daemon/.test(a2.reason), a2);
   const a3 = DS.activity({ daemon: up, codex: codexBad, targets: ['claude', 'codex'] });
   check('Codex sem servidor: inativo, o motivo é o do Codex', a3.active === false && /servidor MCP token-guard/.test(a3.reason), a3);
+  const a3b = DS.activity({ daemon: up, codex: codexUntrusted, targets: ['codex'] });
+  check('Codex sem aprovação: inativo, o motivo é a aprovação', a3b.active === false && /não aprovou/.test(a3b.reason), a3b);
   const a4 = DS.activity({ daemon: up, codex: codexBad, targets: ['claude'] });
   check('Codex fora dos alvos instalados: o problema dele não derruba o resumo', a4.active === true, a4);
   const a5 = DS.activity({ daemon: { ...up, verdict: 'settings aponta para 2 mas o daemon usa 1: reabra a sessão ou rode init' }, codex: codexOk, targets: ['claude'] });
@@ -109,7 +129,9 @@ console.log('\n  [aviso de início de sessão]');
   const home = codexHome({ 'hooks.json': JSON.stringify(HOOKS_WITH_TG), 'config.toml': '' });
   const msg = SS.codexNotice({ codexHome: home, installed: true });
   check('Codex sem servidor MCP: o aviso nomeia o Codex e a correção', typeof msg === 'string' && /Codex/.test(msg) && /init --target codex/.test(msg), msg);
-  const quiet = SS.codexNotice({ codexHome: codexHome({ 'hooks.json': JSON.stringify(HOOKS_WITH_TG), 'config.toml': TOML_WITH_TG }), installed: true });
+  const quietDir = codexHome({ 'hooks.json': JSON.stringify(HOOKS_WITH_TG) });
+  fs.writeFileSync(path.join(quietDir, 'config.toml'), trustedToml(quietDir, '0:0'));
+  const quiet = SS.codexNotice({ codexHome: quietDir, installed: true });
   check('Codex em ordem: nenhum aviso', quiet === null, quiet);
   const notInstalled = SS.codexNotice({ codexHome: codexHome({}), installed: false });
   check('Codex não instalado: nenhum aviso', notInstalled === null, notInstalled);
@@ -136,7 +158,7 @@ console.log('\n  [perfil limpo: o instalador não grava porta de daemon que não
   let o = null;
   try { o = JSON.parse(st.stdout); } catch { /* checado abaixo */ }
   check('perfil limpo sem daemon: status diz inativo, não falha', st.status === 0 && o && o.active === false && /daemon/.test(o.inactiveReason), o && { a: o.active, r: o.inactiveReason });
-  check('perfil limpo: o Codex instalado está em ordem (hook e servidor)', o && o.codex && o.codex.ok === true, o && o.codex);
+  check('perfil limpo: o Codex tem hook e servidor, e a aprovação do dono é a única coisa que falta', o && o.codex && o.codex.hook === true && o.codex.server === true && o.codex.trusted === false && o.codex.ok === false, o && o.codex);
 }
 
 console.log('\n  [nenhuma porta fixa no que vai no pacote]');
